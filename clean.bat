@@ -43,6 +43,8 @@ rd lib\RenderCore_Embree\x64 /S /Q
 rd lib\RenderCore_Embree\lib /S /Q
 rd lib\RenderCore_vulkan_rt\lib /S /Q
 rd lib\RenderCore_vulkan_rt\x64 /S /Q
+rd lib\RenderCore_WSRT\lib /S /Q
+rd lib\RenderCore_WSRT\x64 /S /Q
 rd coredlls\debug /S /Q
 rd coredlls\release /S /Q
 
