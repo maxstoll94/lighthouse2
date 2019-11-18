@@ -12,10 +12,16 @@
     <ClInclude Include="core_api.h">
       <Filter>API</Filter>
     </ClInclude>
+    <ClInclude Include="triangle.h">
+      <Filter>Helpers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="API">
       <UniqueIdentifier>{85ca225a-7b4b-4626-9d4f-c778bf53cb0c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Helpers">
+      <UniqueIdentifier>{d3fb31d1-6d99-4539-b1a3-796298c7a6a4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

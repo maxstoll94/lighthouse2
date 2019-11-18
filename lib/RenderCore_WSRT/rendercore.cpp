@@ -22,6 +22,8 @@
 */
 
 #include "core_settings.h"
+#include <iostream>
+
 
 namespace lh2core
 {
@@ -37,7 +39,6 @@ using namespace lh2core;
 //  +-----------------------------------------------------------------------------+
 void RenderCore::SetProbePos( int2 pos )
 {
-	throw "SetProbePos is not implemented yet.";
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -46,7 +47,6 @@ void RenderCore::SetProbePos( int2 pos )
 //  +-----------------------------------------------------------------------------+
 void RenderCore::Init()
 {
-	throw "Init is not implemented yet.";
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -55,16 +55,32 @@ void RenderCore::Init()
 //  +-----------------------------------------------------------------------------+
 void RenderCore::SetTarget( GLTexture* target, const uint spp )
 {
-	throw "SetTarget is not implemented yet.";
 }
 
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::SetGeometry                                                    |
 //  |  Set the geometry data for a model.                                   LH2'19|
 //  +-----------------------------------------------------------------------------+
-void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangles, const uint* alphaFlags )
+void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* coreTriangles, const uint* alphaFlags )
 {
-	throw "SetGeometry is not implemented yet.";
+	assert(vertexCount == 3 * triangleCount);
+
+	list<triangle> tList;
+
+	for (int i = 0; i < triangleCount; i++) {
+		CoreTri coreTriangle = coreTriangles[i];
+		triangle triangle;
+
+		triangle.a = coreTriangle.vertex0;
+		triangle.b = coreTriangle.vertex1;
+		triangle.c = coreTriangle.vertex2;
+
+		// still need to calculate the normal of the traingle 
+
+		tList.push_back(triangle);
+	}
+
+	triangles.push_back(tList);
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -73,7 +89,6 @@ void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const
 //  +-----------------------------------------------------------------------------+
 void RenderCore::SetInstance( const int instanceIdx, const int meshIdx, const mat4& matrix )
 {
-	throw "SetInstance is not implemented yet.";
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -83,7 +98,6 @@ void RenderCore::SetInstance( const int instanceIdx, const int meshIdx, const ma
 //  +-----------------------------------------------------------------------------+
 void RenderCore::UpdateToplevel()
 {
-	throw "UpdateToplevel is not implemented yet.";
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -92,7 +106,6 @@ void RenderCore::UpdateToplevel()
 //  +-----------------------------------------------------------------------------+
 void RenderCore::SetTextures( const CoreTexDesc* tex, const int textures )
 {
-	throw "SetTextures is not implemented yet.";
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -101,7 +114,6 @@ void RenderCore::SetTextures( const CoreTexDesc* tex, const int textures )
 //  +-----------------------------------------------------------------------------+
 void RenderCore::SetMaterials( CoreMaterial* mat, const CoreMaterialEx* matEx, const int materialCount )
 {
-	throw "SetLights is not implemented yet.";
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -113,7 +125,6 @@ void RenderCore::SetLights( const CoreLightTri* areaLights, const int areaLightC
 	const CoreSpotLight* spotLights, const int spotLightCount,
 	const CoreDirectionalLight* directionalLights, const int directionalLightCount )
 {
-	throw "SetLights is not implemented yet.";
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -122,7 +133,6 @@ void RenderCore::SetLights( const CoreLightTri* areaLights, const int areaLightC
 //  +-----------------------------------------------------------------------------+
 void RenderCore::SetSkyData( const float3* pixels, const uint width, const uint height )
 {
-	throw "SetSkyData is not implemented yet.";
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -131,7 +141,6 @@ void RenderCore::SetSkyData( const float3* pixels, const uint width, const uint 
 //  +-----------------------------------------------------------------------------+
 void RenderCore::Setting( const char* name, const float value )
 {
-	throw "Setting is not implemented yet.";
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -140,7 +149,6 @@ void RenderCore::Setting( const char* name, const float value )
 //  +-----------------------------------------------------------------------------+
 void RenderCore::Render( const ViewPyramid& view, const Convergence converge, const float brightness, const float contrast )
 {
-	throw "Render is not implemented yet.";
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -149,7 +157,6 @@ void RenderCore::Render( const ViewPyramid& view, const Convergence converge, co
 //  +-----------------------------------------------------------------------------+
 void RenderCore::Shutdown()
 {
-	throw "Shutdown is not implemented yet.";
 }
 
 // EOF

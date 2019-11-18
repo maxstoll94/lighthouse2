@@ -14,6 +14,8 @@
 */
 
 #pragma once
+#include <list>
+#include "triangle.h"
 
 namespace lh2core
 {
@@ -66,6 +68,7 @@ public:
 	// internal methods
 private:
 	// Max: This is where we define our own private methods.
+	list<list<triangle>> triangles;
 public:
 	CoreStats coreStats;							// rendering statistics
 };

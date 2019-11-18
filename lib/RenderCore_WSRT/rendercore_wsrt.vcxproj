@@ -120,6 +120,7 @@
     <ClInclude Include="core_api.h" />
     <ClInclude Include="core_settings.h" />
     <ClInclude Include="rendercore.h" />
+    <ClInclude Include="triangle.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
