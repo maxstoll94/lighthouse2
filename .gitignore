@@ -1,0 +1,14 @@
+lib
+coredlls
+.vs
+x64
+
+*.pdb
+*.lib
+*.log
+*.exe
+*.tlog
+*.bin
+*.exp
+*.ilk
+
