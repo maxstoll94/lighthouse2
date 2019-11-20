@@ -45,7 +45,9 @@ void PrepareScene()
 	//renderer->AddScene( "scene.gltf", "data/pica/", mat4::Translate( 0, -10.2f, 0 ) );
 	//int rootNode = renderer->FindNode( "RootNode (gltf orientation matrix)" );
 	//renderer->SetNodeTransform( rootNode, mat4::RotateX( -PI / 2 ) );
-	renderer->AddMesh("pikachu.obj", "data/pikachu/", 1.0f);
+	// renderer->AddMesh("pikachu.obj", "data/pikachu/", 0.1f);
+	int cubeId = renderer->AddMesh("cube.obj", "data/cube/", 1.0f);
+	renderer->AddInstance(cubeId);
 #if 1
 	// overhead light, use regular PT
 	//int lightMat = renderer->AddMaterial( make_float3( 100, 100, 80 ) );
