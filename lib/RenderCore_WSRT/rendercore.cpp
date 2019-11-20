@@ -119,9 +119,7 @@ float3 RenderCore::Trace(Ray r) {
 	Intersection intersection;
 	bool hasIntersection = NearestIntersection(r, intersection);
 
-	if (hasIntersection) {
-		return float3{ 0, 0, 0 };
-	}
+	if (!hasIntersection) return float3{ 0, 0, 0 };
 
 	return float3{ 0.4, 0.4, 0 };
 }
