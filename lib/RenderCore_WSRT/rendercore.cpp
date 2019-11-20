@@ -91,8 +91,6 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge, con
 	Ray ray;
 
 	for (int u = 0; u < screen->width; u++) {
-		cout << u << "/" << screen->width << endl;
-		//cout << int(u/screen->width * 100) << "%" << endl;
 		for (int v = 0; v < screen->height; v++) {
 			ray.direction = normalize(p1 + u * xDirection + v * yDirection);
 			ray.origin = view.pos;
