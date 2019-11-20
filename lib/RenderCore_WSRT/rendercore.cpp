@@ -98,7 +98,7 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge, con
 			ray.origin = view.pos;
 
 			float3 color = Trace(ray);
-			int colorHex = (int(0xff * color.x) << 16) + (int(0xff * color.y) << 8) + int(0xff * color.z);
+			int colorHex = (int(0xff * color.x) + (int(0xff * color.y) << 8) + (int(0xff * color.z) << 16));
 			screen->Plot(u, v, colorHex);
 		}
 	}
@@ -125,7 +125,7 @@ float3 RenderCore::Trace(Ray r) {
 		return float3{ 0, 0, 0 };
 	}
 
-	return float3{ 0.4, 0.4, 0 };
+	return float3{ 1, 1, 0 };
 }
 
 bool RenderCore::NearestIntersection(Ray r, Intersection &intersection) {
