@@ -162,14 +162,8 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 	}
 
 	if (hasIntersection) {
-		float3 v0 = nearestTriangle.vertex0;
-		float3 v1 = nearestTriangle.vertex1;
-		float3 v2 = nearestTriangle.vertex2;
-		float3 v0v1 = v1 - v0;
-		float3 v0v2 = v2 - v0;
 		intersection.intersection = ray.origin + ray.direction * nearestT;
-		intersection.normal = normalize(cross(v0v1, v0v2));
-		/*intersection.normal = make_float3(nearestU * nearestTriangle.v0, nearestV * nearestTriangle.v1, (1 - nearestU - nearestV) * nearestTriangle.v2);*/
+		intersection.normal = nearestU * nearestTriangle.vN0 + nearestV * nearestTriangle.vN1 + (1 - nearestU - nearestV) * nearestTriangle.vN2;
 	}
 
 	return hasIntersection;
