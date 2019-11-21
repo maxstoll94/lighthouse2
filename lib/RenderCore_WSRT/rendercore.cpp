@@ -91,8 +91,6 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge, con
 	Ray ray;
 
 	for (int u = 0; u < screen->width; u++) {
-		cout << u << "/" << screen->width << endl;
-		//cout << int(u/screen->width * 100) << "%" << endl;
 		for (int v = 0; v < screen->height; v++) {
 			ray.direction = normalize(p1 + u * xDirection + v * yDirection);
 			ray.origin = view.pos;
@@ -121,9 +119,7 @@ float3 RenderCore::Trace(Ray r) {
 	Intersection intersection;
 	bool hasIntersection = NearestIntersection(r, intersection);
 
-	if (hasIntersection) {
-		return float3{ 0, 0, 0 };
-	}
+	if (!hasIntersection) return float3{ 0, 0, 0 };
 
 	return float3{ 1, 1, 0 };
 }
@@ -146,58 +142,29 @@ bool RenderCore::NearestIntersection(Ray r, Intersection &intersection) {
 	return false;
 }
 
-// https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/ray-triangle-intersection-geometric-solution
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection
 bool RenderCore::GeometricTriangleIntersection(Ray r, float3 v0, float3 v1, float3 v2, float &t) {
-	// compute plane's normal
 	float3 v0v1 = v1 - v0;
 	float3 v0v2 = v2 - v0;
-	// no need to normalize
-	float3 N = cross(v0v1, v0v2); // N 
-	float area2 = length(N);
+	float3 pvec = cross(r.direction, v0v2);
+	float det = dot(v0v1, pvec);
+	// if the determinant is negative the triangle is backfacing
+	// if the determinant is close to 0, the ray misses the triangle
+	if (det < 0) return false;
 
-	float3 dir = r.direction;
-	float3 orig = r.origin;
+	float invDet = 1 / det;
 
-	// Step 1: finding P
+	float3 tvec = r.origin - v0;
+	float u = dot(tvec, pvec) * invDet;
+	if (u < 0 || u > 1) return false;
 
-	// check if ray and plane are parallel ?
-	float NdotRayDirection = dot(N, dir);
-	//if (fabs(NdotRayDirection) < kEpsilon) // almost 0 
-	//	return false; // they are parallel so they don't intersect ! 
+	float3 qvec = cross(tvec, v0v1);
+	float v = dot(r.direction, qvec) * invDet;
+	if (v < 0 || u + v > 1) return false;
 
-	// compute d parameter using equation 2
-	float d = dot(N, v0);
+	t = dot(v0v2, qvec) * invDet;
 
-	// compute t (equation 3)
-	t = (dot(N,orig) + d) / NdotRayDirection;
-	// check if the triangle is in behind the ray
-	if (t < 0) return false; // the triangle is behind 
-
-	// compute the intersection point using equation 1
-	float3 P = orig + t * dir;
-
-	// Step 2: inside-outside test
-	float3 C; // vector perpendicular to triangle's plane 
-
-	// edge 0
-	float3 edge0 = v1 - v0;
-	float3 vp0 = P - v0;
-	C = cross(edge0,vp0);
-	if (dot(N, C) < 0) return false; // P is on the right side 
-
-	// edge 1
-	float3 edge1 = v2 - v1;
-	float3 vp1 = P - v1;
-	C = cross(edge1,vp1);
-	if (dot(N,C) < 0)  return false; // P is on the right side 
-
-	// edge 2
-	float3 edge2 = v0 - v2;
-	float3 vp2 = P - v2;
-	C = cross(edge2,vp2);
-	if (dot(N, C) < 0) return false; // P is on the right side; 
-
-	return true; // this ray hits the triangle
+	return true;
 }
 
 void printFloat3(float3 value) {
