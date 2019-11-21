@@ -59,6 +59,22 @@ void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const
 }
 
 //  +-----------------------------------------------------------------------------+
+//  |  RenderCore::SetLights                                                    |
+//  |  Update the point lights, spot lights and directional lights.                                  LH2'19|
+//  +-----------------------------------------------------------------------------+
+void RenderCore::SetLights(const CoreLightTri* areaLights, const int areaLightCount, const CorePointLight* corePointLights, const int pointLightCount,
+	const CoreSpotLight* spotLights, const int spotLightCount, const CoreDirectionalLight* coreDirectionalLights, const int directionalLightCount) 
+{
+	for (int i = 0; i < pointLightCount; i++) {
+		pointLights.push_back(corePointLights[i]);
+	}
+
+	for (int j = 0; j < directionalLightCount; j++) {
+		directionLights.push_back(coreDirectionalLights[j]);
+	}
+}
+
+//  +-----------------------------------------------------------------------------+
 //  |  RenderCore::Render                                                         |
 //  |  Produce one image.                                                   LH2'19|
 //  +-----------------------------------------------------------------------------+
@@ -99,11 +115,10 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge, con
 			int colorHex = (int(0xff * color.x) + (int(0xff * color.y) << 8) + (int(0xff * color.z) << 16));
 			screen->Plot(u, v, colorHex);
 		}
+		// copy pixel buffer to OpenGL render target texture
+		glBindTexture(GL_TEXTURE_2D, targetTextureID);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screen->width, screen->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, screen->pixels);
 	}
-	
-	// copy pixel buffer to OpenGL render target texture
-	glBindTexture(GL_TEXTURE_2D, targetTextureID);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screen->width, screen->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, screen->pixels);
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -121,32 +136,50 @@ float3 RenderCore::Trace(Ray r) {
 
 	if (!hasIntersection) return float3{ 0, 0, 0 };
 
-	return float3{ 1, 1, 0 };
+	return intersection.normal;
 }
 
-bool RenderCore::NearestIntersection(Ray r, Intersection &intersection) {
-	//float nearestT;
-	//Mesh nearestMesh;
-	float t;
-	for (Mesh& mesh : meshes) for (int i = 0; i < mesh.vcount; i += 3) {
-		float4 a = mesh.vertices[i];
-		float4 b = mesh.vertices[i + 1];
-		float4 c = mesh.vertices[i + 2];
-		bool hasIntersection = GeometricTriangleIntersection(r, make_float3(a), make_float3(b), make_float3(c), t);
+bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection) {
+	float currentT, currentU, currentV;
+	float nearestT, nearestU, nearestV;
+	CoreTri nearestTriangle;
+	bool hasIntersection = false;
 
-		if (hasIntersection) {
-			return true;
+	for (Mesh& mesh : meshes) for (int i = 0; i < mesh.vcount; i += 3) {
+		float3 a = make_float3(mesh.vertices[i]);
+		float3 b = make_float3(mesh.vertices[i + 1]);
+		float3 c = make_float3(mesh.vertices[i + 2]);
+
+		if (IntersectsWithTriangle(ray, a, b, c, currentT, currentU, currentV)) {
+			if (!hasIntersection || currentT < nearestT) {
+				nearestT = currentT;
+				nearestU = currentU;
+				nearestV = currentV;
+				nearestTriangle = mesh.triangles[i / 3];
+				hasIntersection = true;
+			}
 		}
 	}
 
-	return false;
+	if (hasIntersection) {
+		float3 v0 = nearestTriangle.vertex0;
+		float3 v1 = nearestTriangle.vertex1;
+		float3 v2 = nearestTriangle.vertex2;
+		float3 v0v1 = v1 - v0;
+		float3 v0v2 = v2 - v0;
+		intersection.intersection = ray.origin + ray.direction * nearestT;
+		intersection.normal = normalize(cross(v0v1, v0v2));
+		/*intersection.normal = make_float3(nearestU * nearestTriangle.v0, nearestV * nearestTriangle.v1, (1 - nearestU - nearestV) * nearestTriangle.v2);*/
+	}
+
+	return hasIntersection;
 }
 
 // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection
-bool RenderCore::GeometricTriangleIntersection(Ray r, float3 v0, float3 v1, float3 v2, float &t) {
+bool RenderCore::IntersectsWithTriangle(const Ray &ray, const float3 &v0, const float3 &v1, const float3 &v2, float &t, float &u, float &v) {
 	float3 v0v1 = v1 - v0;
 	float3 v0v2 = v2 - v0;
-	float3 pvec = cross(r.direction, v0v2);
+	float3 pvec = cross(ray.direction, v0v2);
 	float det = dot(v0v1, pvec);
 	// if the determinant is negative the triangle is backfacing
 	// if the determinant is close to 0, the ray misses the triangle
@@ -154,17 +187,27 @@ bool RenderCore::GeometricTriangleIntersection(Ray r, float3 v0, float3 v1, floa
 
 	float invDet = 1 / det;
 
-	float3 tvec = r.origin - v0;
-	float u = dot(tvec, pvec) * invDet;
+	float3 tvec = ray.origin - v0;
+	u = dot(tvec, pvec) * invDet;
 	if (u < 0 || u > 1) return false;
 
 	float3 qvec = cross(tvec, v0v1);
-	float v = dot(r.direction, qvec) * invDet;
+	v = dot(ray.direction, qvec) * invDet;
 	if (v < 0 || u + v > 1) return false;
 
 	t = dot(v0v2, qvec) * invDet;
 
 	return true;
+}
+
+float RenderCore::Directllumination(Ray ray, Intersection intersection) {
+	float illumination = 0;
+	for (CorePointLight pointLight : pointLights) {
+		float3 lDir = pointLight.position - intersection.intersection;
+		illumination += dot(ray.direction, lDir);
+	}
+
+	return illumination;
 }
 
 void printFloat3(float3 value) {

@@ -47,6 +47,7 @@ void PrepareScene()
 	//renderer->SetNodeTransform( rootNode, mat4::RotateX( -PI / 2 ) );
 	// renderer->AddMesh("pikachu.obj", "data/pikachu/", 0.1f);
 	int cubeId = renderer->AddMesh("cube.obj", "data/cube/", 1.0f);
+	renderer->AddPointLight(make_float3(4,10,4), make_float3(1,1,1));
 	renderer->AddInstance(cubeId);
 #if 1
 	// overhead light, use regular PT
@@ -136,7 +137,8 @@ int main()
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_OptixPrime_B" );		// OPTIX PRIME, best for pre-RTX CUDA devices
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_PrimeRef" );			// REFERENCE, for image validation
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_SoftRasterizer" );	// RASTERIZER, your only option if not on NVidia
-	renderer = RenderAPI::CreateRenderAPI( "RenderCore_Minimal" );				// MINIMAL example, to get you started on your own core
+	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_Minimal" );				// MINIMAL example, to get you started on your own core
+	renderer = RenderAPI::CreateRenderAPI("RenderCore_WSRT");
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_Vulkan_RT" );			// Meir's Vulkan / RTX core
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_OptixPrime_BDPT" );	// Peter's OptixPrime / BDPT core
 

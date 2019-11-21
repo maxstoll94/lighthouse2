@@ -40,7 +40,7 @@ public:
 struct Intersection
 {
 	float3 intersection;
-	// float3 normal;
+	float3 normal;
 	//Material material;
 };
 
@@ -60,19 +60,49 @@ public:
 	// methods
 	void Init();
 	void SetTarget( GLTexture* target );
-	void SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangles, const uint* alphaFlags = 0 );
-	void Render( const ViewPyramid& view, const Convergence converge, const float brightness, const float contrast );
+
+	void SetGeometry( const int meshIdx, 
+		const float4* vertexData, 
+		const int vertexCount, 
+		const int triangleCount, 
+		const CoreTri* triangles, 
+		const uint* alphaFlags = 0 );
+
+	// SetLights: update the point lights, spot lights and directional lights.
+	void SetLights(const CoreLightTri* areaLights, 
+		const int areaLightCount, 
+		const CorePointLight* pointLights, 
+		const int pointLightCount, 
+		const CoreSpotLight* spotLights, 
+		const int spotLightCount, 
+		const CoreDirectionalLight* directionalLights, 
+		const int directionalLightCount);
+
+	void Render( const ViewPyramid& view, 
+		const Convergence converge, 
+		const float brightness, 
+		const float contrast );
+
 	void Shutdown();
 	// internal methods
 	float3 Trace(Ray r);
-	bool NearestIntersection(Ray r, Intersection &intersection); // Returns the nearest intersection point, the normal and the material type.
-	bool GeometricTriangleIntersection(Ray r, float3 v0, float3 v1, float3 v2, float &t);
+	bool NearestIntersection(const Ray &ray, Intersection &intersection); // Returns the nearest intersection point, the normal and the material type.
+	bool RenderCore::IntersectsWithTriangle(const Ray &ray, 
+		const float3 &v0, 
+		const float3 &v1, 
+		const float3 &v2, 
+		float &t, float &u, 
+		float &v);
+
+	float Directllumination(Ray ray, Intersection intersection);
 
 private:
 	// data members
 	Bitmap* screen = 0;								// temporary storage of RenderCore output; will be copied to render target
 	int targetTextureID = 0;						// ID of the target OpenGL texture
 	vector<Mesh> meshes;							// mesh data storage
+	vector<CorePointLight> pointLights;				// point lights of the scene
+	vector<CoreDirectionalLight> directionLights;	// direction lights of the scene
 public:
 	CoreStats coreStats;							// rendering statistics
 };
