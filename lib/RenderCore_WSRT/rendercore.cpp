@@ -196,7 +196,7 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 
 	if (hasIntersection) {
 		intersection.intersection = ray.origin + ray.direction * nearestT;
-		intersection.normal = nearestU * nearestTriangle.vN0 + nearestV * nearestTriangle.vN1 + (1 - nearestU - nearestV) * nearestTriangle.vN2;
+		intersection.normal = (1 - nearestU - nearestV) * nearestTriangle.vN0 + nearestU * nearestTriangle.vN1 + nearestV * nearestTriangle.vN2;
 	}
 
 	return hasIntersection;
