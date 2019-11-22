@@ -85,6 +85,15 @@ void CoreAPI::SetGeometry( const int meshIdx, const float4* vertexData, const in
 	core->SetGeometry( meshIdx, vertexData, vertexCount, triangleCount, triangles, alphaFlags );
 }
 
+void CoreAPI::SetLights(const CoreLightTri* areaLights, const int areaLightCount,
+	const CorePointLight* pointLights, const int pointLightCount,
+	const CoreSpotLight* spotLights, const int spotLightCount,
+	const CoreDirectionalLight* directionalLights, const int directionalLightCount)
+{
+	core->SetLights(areaLights, areaLightCount, pointLights, pointLightCount, 
+		spotLights, spotLightCount, directionalLights, directionalLightCount);
+}
+
 void CoreAPI::SetInstance( const int instanceIdx, const int modelIdx, const mat4& transform )
 {
 	// core->SetInstance( instanceIdx, modelIdx, transform ); // TODO; we will just render the meshes for now.

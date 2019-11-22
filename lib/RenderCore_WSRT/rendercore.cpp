@@ -169,7 +169,7 @@ float3 RenderCore::Trace(Ray &ray) {
 
 	if (!hasIntersection) return sky.GetColor(ray.direction);
 
-	return intersection.normal;
+	return make_float3(1,1,1) * Directllumination(intersection);
 }
 
 bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection) {
@@ -227,11 +227,12 @@ bool RenderCore::IntersectsWithTriangle(const Ray &ray, const float3 &v0, const 
 	return true;
 }
 
-float RenderCore::Directllumination(Ray ray, Intersection intersection) {
+float RenderCore::Directllumination(Intersection intersection) {
 	float illumination = 0;
+
 	for (CorePointLight pointLight : pointLights) {
-		float3 lDir = pointLight.position - intersection.intersection;
-		illumination += dot(ray.direction, lDir);
+		float3 lDir = normalize(intersection.intersection - pointLight.position);
+		illumination += fmaxf(dot(intersection.normal, lDir), 0);
 	}
 
 	return illumination;

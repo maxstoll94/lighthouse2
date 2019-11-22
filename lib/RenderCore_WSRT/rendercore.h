@@ -109,7 +109,7 @@ public:
 		float &t, float &u, 
 		float &v);
 
-	float Directllumination(Ray ray, Intersection intersection);
+	float Directllumination(Intersection intersection);
 
 private:
 	// data members
