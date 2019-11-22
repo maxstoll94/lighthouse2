@@ -30,6 +30,19 @@ public:
 	CoreTri* triangles = 0;							// 'fat' triangle data
 };
 
+class Sky
+{
+	bool isSet = false;
+	float3 clearColor = float3{ 0, 0, 0 };
+	uint width;
+	uint height;
+	float3* pixels;
+public:
+	float3 GetColor(const float3 &dir);
+	void SetSkyData(const float3* pixels, const uint width, const uint height);
+
+};
+
 class Ray
 {
 public:
@@ -78,6 +91,8 @@ public:
 		const CoreDirectionalLight* directionalLights, 
 		const int directionalLightCount);
 
+	void SetSkyData(const float3* pixels, const uint width, const uint height);
+
 	void Render( const ViewPyramid& view, 
 		const Convergence converge, 
 		const float brightness, 
@@ -85,7 +100,7 @@ public:
 
 	void Shutdown();
 	// internal methods
-	float3 Trace(Ray r);
+	float3 Trace(Ray &ray);
 	bool NearestIntersection(const Ray &ray, Intersection &intersection); // Returns the nearest intersection point, the normal and the material type.
 	bool RenderCore::IntersectsWithTriangle(const Ray &ray, 
 		const float3 &v0, 
@@ -103,6 +118,7 @@ private:
 	vector<Mesh> meshes;							// mesh data storage
 	vector<CorePointLight> pointLights;				// point lights of the scene
 	vector<CoreDirectionalLight> directionLights;	// direction lights of the scene
+	Sky sky;
 public:
 	CoreStats coreStats;							// rendering statistics
 };

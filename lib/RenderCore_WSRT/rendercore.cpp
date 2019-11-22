@@ -15,8 +15,31 @@
 
 #include "core_settings.h"
 #include <iostream>
+#include <math.h>
 
 using namespace lh2core;
+
+float3 Sky::GetColor(const float3 &dir) {
+	if (!isSet) return clearColor;
+
+	float u = atan2(dir.x, dir.z) / (2 * PI);
+	float v = atan2(dir.x * dir.x + dir.z * dir.z, dir.y * dir.y) / PI;
+
+	uint i = uint(v * height) * width +  uint(u * width);
+
+	return pixels[i];
+}
+
+void Sky::SetSkyData(const float3* pixelsOriginal, uint width, uint height) {
+	isSet = true;
+	width = width;
+	height = height;
+	// TODO free old pixel data? somehow idk
+	uint pixelCount = width * height;
+	pixels = new float3[pixelCount];
+	memcpy(pixels, pixelsOriginal, pixelCount * sizeof(float3));
+
+}
 
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::Init                                                           |
@@ -75,6 +98,16 @@ void RenderCore::SetLights(const CoreLightTri* areaLights, const int areaLightCo
 }
 
 //  +-----------------------------------------------------------------------------+
+//  |  RenderCore::SetSkyData                                                     |
+//  |  Set the sky dome data.                                               LH2'19|
+//  +-----------------------------------------------------------------------------+
+void RenderCore::SetSkyData(const float3* pixels, const uint width, const uint height)
+{
+	sky.SetSkyData(pixels, width, height);
+}
+
+
+//  +-----------------------------------------------------------------------------+
 //  |  RenderCore::Render                                                         |
 //  |  Produce one image.                                                   LH2'19|
 //  +-----------------------------------------------------------------------------+
@@ -130,11 +163,11 @@ void RenderCore::Shutdown()
 	delete screen;
 }
 
-float3 RenderCore::Trace(Ray r) {
+float3 RenderCore::Trace(Ray &ray) {
 	Intersection intersection;
-	bool hasIntersection = NearestIntersection(r, intersection);
+	bool hasIntersection = NearestIntersection(ray, intersection);
 
-	if (!hasIntersection) return float3{ 0, 0, 0 };
+	if (!hasIntersection) return sky.GetColor(ray.direction);
 
 	return intersection.normal;
 }
