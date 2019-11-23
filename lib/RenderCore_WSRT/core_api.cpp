@@ -57,6 +57,10 @@ void CoreAPI::SetTarget( GLTexture* target, const uint spp )
 	core->SetTarget( target /* ignore spp parameter */ );
 }
 
+void CoreAPI::SetSkyData(const float3* pixels, const uint width, const uint height) {
+	core->SetSkyData(pixels, width, height);
+}
+
 void CoreAPI::Render( const ViewPyramid& view, const Convergence converge, const float brightness, const float contrast )
 {
 	// forward the render request to the Render method in rendercore.cpp

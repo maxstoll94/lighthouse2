@@ -38,12 +38,19 @@ public:
 	float3 diffuse;
 };
 
-
 class Ray
 {
 public:
 	float3 origin;
 	float3 direction;
+};
+
+class Sky
+{
+public:
+	vector<float3> pixels;
+	uint width;
+	uint height;
 };
 
 struct Intersection
@@ -113,8 +120,9 @@ private:
 	vector<CorePointLight> pointLights;				// point lights of the scene
 	vector<CoreDirectionalLight> directionLights;	// direction lights of the scene
 	vector<Material> materials;
+	Sky skyDome;
 public:
-	CoreStats coreStats;							// rendering statistics
+	CoreStats coreStats;							// rendering statistic
 };
 
 } // namespace lh2core

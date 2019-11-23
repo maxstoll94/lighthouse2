@@ -22,10 +22,6 @@ using namespace lh2core;
 
 constexpr float kEpsilon = 1e-8;
 
-
-// static scene data
-HostSkyDome* RenderCore::sky = 0;
-
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::Init                                                           |
 //  |  Initialization.                                                      LH2'19|
@@ -33,10 +29,6 @@ HostSkyDome* RenderCore::sky = 0;
 void RenderCore::Init()
 {
 	// initialize core
-
-	// initialize skydome
-	// RenderCore::sky = new HostSkyDome();
-	// RenderCore::sky->Load();
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -92,6 +84,14 @@ void RenderCore::SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, co
 		Material newMaterial;
 		newMaterial.diffuse = make_float3(coreMaterial.diffuse_r, coreMaterial.diffuse_g, coreMaterial.diffuse_b);
 		materials.push_back(newMaterial);
+	}
+}
+
+void RenderCore::SetSkyData(const float3* pixels, const uint width, const uint height) {
+	skyDome.height = height;
+	skyDome.width = width;
+	for (int i = 0; i < (width * height); i++) {
+		skyDome.pixels.push_back(make_float3(pixels[i].x, pixels[i].y, pixels[i].z));
 	}
 }
 
@@ -160,9 +160,9 @@ float3 RenderCore::Trace(Ray &ray) {
 		if (u < 0) u += 1;
 		float v = acos(ray.direction.y) / PI;
 
-		return make_float3(u, v, 0);
-		// uint i = uint(v * sky->height) * sky->width + uint(u * sky->width);
-		// return sky->pixels[i];
+		//return make_float3(u, v, 0);
+		 uint i = uint(v * skyDome.height) * skyDome.width + uint(u * skyDome.width);
+		 return skyDome.pixels[i];
 	}
 	Material material = materials[intersection.materialIndex];
 	return material.diffuse * Directllumination(intersection);
