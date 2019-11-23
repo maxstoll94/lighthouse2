@@ -16,30 +16,12 @@
 #include "core_settings.h"
 #include <iostream>
 #include <math.h>
+#include "rendersystem.h"
 
 using namespace lh2core;
 
-float3 Sky::GetColor(const float3 &dir) {
-	if (!isSet) return clearColor;
-
-	float u = atan2(dir.x, dir.z) / (2 * PI);
-	float v = atan2(dir.x * dir.x + dir.z * dir.z, dir.y * dir.y) / PI;
-
-	uint i = uint(v * height) * width +  uint(u * width);
-
-	return pixels[i];
-}
-
-void Sky::SetSkyData(const float3* pixelsOriginal, uint width, uint height) {
-	isSet = true;
-	width = width;
-	height = height;
-	// TODO free old pixel data? somehow idk
-	uint pixelCount = width * height;
-	pixels = new float3[pixelCount];
-	memcpy(pixels, pixelsOriginal, pixelCount * sizeof(float3));
-
-}
+// static scene data
+HostSkyDome* RenderCore::sky = 0;
 
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::Init                                                           |
@@ -48,6 +30,10 @@ void Sky::SetSkyData(const float3* pixelsOriginal, uint width, uint height) {
 void RenderCore::Init()
 {
 	// initialize core
+
+	// initialize skydome
+	// RenderCore::sky = new HostSkyDome();
+	// RenderCore::sky->Load();
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -98,16 +84,6 @@ void RenderCore::SetLights(const CoreLightTri* areaLights, const int areaLightCo
 }
 
 //  +-----------------------------------------------------------------------------+
-//  |  RenderCore::SetSkyData                                                     |
-//  |  Set the sky dome data.                                               LH2'19|
-//  +-----------------------------------------------------------------------------+
-void RenderCore::SetSkyData(const float3* pixels, const uint width, const uint height)
-{
-	sky.SetSkyData(pixels, width, height);
-}
-
-
-//  +-----------------------------------------------------------------------------+
 //  |  RenderCore::Render                                                         |
 //  |  Produce one image.                                                   LH2'19|
 //  +-----------------------------------------------------------------------------+
@@ -139,8 +115,8 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge, con
 
 	Ray ray;
 
-	for (int u = 0; u < screen->width; u++) {
-		for (int v = 0; v < screen->height; v++) {
+	for (uint u = 0; u < screen->width; u++) {
+		for (uint v = 0; v < screen->height; v++) {
 			ray.direction = normalize(p1 + u * xDirection + v * yDirection);
 			ray.origin = view.pos;
 
@@ -167,7 +143,15 @@ float3 RenderCore::Trace(Ray &ray) {
 	Intersection intersection;
 	bool hasIntersection = NearestIntersection(ray, intersection);
 
-	if (!hasIntersection) return sky.GetColor(ray.direction);
+	if (!hasIntersection) {
+		float u = atan2(ray.direction.x, ray.direction.z) / (2 * PI);
+		if (u < 0) u += 1;
+		float v = acos(ray.direction.y) / PI;
+
+		return make_float3(u, v, 0);
+		// uint i = uint(v * sky->height) * sky->width + uint(u * sky->width);
+		// return sky->pixels[i];
+	}
 
 	return make_float3(1,1,1) * Directllumination(intersection);
 }
@@ -201,14 +185,12 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 		float3 b = make_float3(mesh.vertices[i + 1]);
 		float3 c = make_float3(mesh.vertices[i + 2]);
 
-		if (IntersectsWithTriangle(ray, a, b, c, currentT, currentU, currentV)) {
-			if (!hasIntersection || currentT < nearestT) {
-				nearestT = currentT;
-				nearestU = currentU;
-				nearestV = currentV;
-				nearestTriangle = mesh.triangles[i / 3];
-				hasIntersection = true;
-			}
+		if (IntersectsWithTriangle(ray, a, b, c, currentT, currentU, currentV) && (!hasIntersection || currentT < nearestT)) {
+			nearestT = currentT;
+			nearestU = currentU;
+			nearestV = currentV;
+			nearestTriangle = mesh.triangles[i / 3];
+			hasIntersection = true;
 		}
 	}
 

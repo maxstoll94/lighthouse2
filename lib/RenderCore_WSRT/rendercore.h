@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "rendersystem.h"
 
 namespace lh2core
 {
@@ -28,19 +29,6 @@ public:
 	float4* vertices = 0;							// vertex data received via SetGeometry
 	int vcount = 0;									// vertex count
 	CoreTri* triangles = 0;							// 'fat' triangle data
-};
-
-class Sky
-{
-	bool isSet = false;
-	float3 clearColor = float3{ 0, 0, 0 };
-	uint width;
-	uint height;
-	float3* pixels;
-public:
-	float3 GetColor(const float3 &dir);
-	void SetSkyData(const float3* pixels, const uint width, const uint height);
-
 };
 
 class Ray
@@ -73,6 +61,7 @@ public:
 	// methods
 	void Init();
 	void SetTarget( GLTexture* target );
+	static HostSkyDome* sky;
 
 	void SetGeometry( const int meshIdx, 
 		const float4* vertexData, 
@@ -119,7 +108,6 @@ private:
 	vector<Mesh> meshes;							// mesh data storage
 	vector<CorePointLight> pointLights;				// point lights of the scene
 	vector<CoreDirectionalLight> directionLights;	// direction lights of the scene
-	Sky sky;
 public:
 	CoreStats coreStats;							// rendering statistics
 };
