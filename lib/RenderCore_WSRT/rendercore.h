@@ -31,6 +31,14 @@ public:
 	CoreTri* triangles = 0;							// 'fat' triangle data
 };
 
+class Material {
+public:
+	float reflection;
+	float3 transmission;
+	float3 diffuse;
+};
+
+
 class Ray
 {
 public:
@@ -42,13 +50,7 @@ struct Intersection
 {
 	float3 intersection;
 	float3 normal;
-	//Material material;
-};
-
-enum Material {
-	DIFFUSE,
-	MIRROR,
-	GLASS
+	uint materialIndex;
 };
 
 //  +-----------------------------------------------------------------------------+
@@ -82,6 +84,8 @@ public:
 
 	void SetSkyData(const float3* pixels, const uint width, const uint height);
 
+	void SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, const int materialCount);
+
 	void Render( const ViewPyramid& view, 
 		const Convergence converge, 
 		const float brightness, 
@@ -108,6 +112,7 @@ private:
 	vector<Mesh> meshes;							// mesh data storage
 	vector<CorePointLight> pointLights;				// point lights of the scene
 	vector<CoreDirectionalLight> directionLights;	// direction lights of the scene
+	vector<Material> materials;
 public:
 	CoreStats coreStats;							// rendering statistics
 };

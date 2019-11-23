@@ -86,6 +86,15 @@ void RenderCore::SetLights(const CoreLightTri* areaLights, const int areaLightCo
 	}
 }
 
+void RenderCore::SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, const int materialCount) {
+	for (int i = 0; i < materialCount; i++) {
+		CoreMaterial coreMaterial = mat[i];
+		Material newMaterial;
+		newMaterial.diffuse = make_float3(coreMaterial.diffuse_r, coreMaterial.diffuse_g, coreMaterial.diffuse_b);
+		materials.push_back(newMaterial);
+	}
+}
+
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::Render                                                         |
 //  |  Produce one image.                                                   LH2'19|
@@ -155,8 +164,8 @@ float3 RenderCore::Trace(Ray &ray) {
 		// uint i = uint(v * sky->height) * sky->width + uint(u * sky->width);
 		// return sky->pixels[i];
 	}
-
-	return make_float3(1,1,1) * Directllumination(intersection);
+	Material material = materials[intersection.materialIndex];
+	return material.diffuse * Directllumination(intersection);
 }
 
 bool RenderCore::HasIntersection(const Ray &ray) {
@@ -200,6 +209,7 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 	if (hasIntersection) {
 		intersection.intersection = ray.origin + ray.direction * nearestT;
 		intersection.normal = (1 - nearestU - nearestV) * nearestTriangle.vN0 + nearestU * nearestTriangle.vN1 + nearestV * nearestTriangle.vN2;
+		intersection.materialIndex = nearestTriangle.material;
 	}
 
 	return hasIntersection;
