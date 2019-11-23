@@ -172,6 +172,24 @@ float3 RenderCore::Trace(Ray &ray) {
 	return make_float3(1,1,1) * Directllumination(intersection);
 }
 
+bool RenderCore::HasIntersection(const Ray &ray) {
+	float t;
+	float u;
+	float v;
+
+	for (Mesh& mesh : meshes) for (int i = 0; i < mesh.vcount; i += 3) {
+		float3 a = make_float3(mesh.vertices[i]);
+		float3 b = make_float3(mesh.vertices[i + 1]);
+		float3 c = make_float3(mesh.vertices[i + 2]);
+
+		if (IntersectsWithTriangle(ray, a, b, c, t, u, v)
+		&& t > std::numeric_limits<double>::epsilon()
+		// && t < ray.distance
+		) return true;
+	}
+	return false;
+}
+
 bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection) {
 	float currentT, currentU, currentV;
 	float nearestT, nearestU, nearestV;
@@ -229,10 +247,18 @@ bool RenderCore::IntersectsWithTriangle(const Ray &ray, const float3 &v0, const 
 
 float RenderCore::Directllumination(Intersection intersection) {
 	float illumination = 0;
+	Ray ray;
+	ray.origin = intersection.intersection;
 
 	for (CorePointLight pointLight : pointLights) {
-		float3 lDir = normalize(intersection.intersection - pointLight.position);
-		illumination += fmaxf(dot(intersection.normal, lDir), 0);
+		float3 intersectionLight = pointLight.position - intersection.intersection;
+
+		ray.direction = normalize(intersectionLight);
+		// ray.distance = length(intersectionLight); // objects position further then the light can't occlude the light
+
+		if (!HasIntersection(ray)) {
+			illumination += fmaxf(dot(intersection.normal, -ray.direction), 0);
+		}
 	}
 
 	return illumination;

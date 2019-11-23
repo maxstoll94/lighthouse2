@@ -102,7 +102,8 @@ public:
 	// internal methods
 	float3 Trace(Ray &ray);
 	bool NearestIntersection(const Ray &ray, Intersection &intersection); // Returns the nearest intersection point, the normal and the material type.
-	bool RenderCore::IntersectsWithTriangle(const Ray &ray, 
+	bool HasIntersection(const Ray &ray);
+	bool RenderCore::IntersectsWithTriangle(const Ray &ray,
 		const float3 &v0, 
 		const float3 &v1, 
 		const float3 &v2, 
