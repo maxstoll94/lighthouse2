@@ -47,7 +47,7 @@ void PrepareScene()
 	//renderer->SetNodeTransform( rootNode, mat4::RotateX( -PI / 2 ) );
 	// renderer->AddMesh("pikachu.obj", "data/pikachu/", 0.1f);
 	int cubeId = renderer->AddMesh("multimaterial.obj", "data/multimaterial/", 1.0f);
-	int lightId = renderer->AddPointLight(make_float3(1,10,3), make_float3(1,1,1));
+	int lightId = renderer->AddPointLight(make_float3(1,10,-3), make_float3(1,1,1));
 	renderer->AddInstance(cubeId);
 	renderer->AddInstance(lightId);
 #if 1
