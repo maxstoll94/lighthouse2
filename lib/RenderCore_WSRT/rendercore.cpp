@@ -214,7 +214,7 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 
 	if (hasIntersection) {
 		intersection.intersection = ray.origin + ray.direction * nearestT;
-		intersection.normal = -((1 - nearestU - nearestV) * nearestTriangle.vN0 + nearestU * nearestTriangle.vN1 + nearestV * nearestTriangle.vN2);
+		intersection.normal = (1 - nearestU - nearestV) * nearestTriangle.vN0 + nearestU * nearestTriangle.vN1 + nearestV * nearestTriangle.vN2;
 	}
 
 	return hasIntersection;
@@ -257,7 +257,7 @@ float RenderCore::Directllumination(Intersection intersection) {
 		// ray.distance = length(intersectionLight); // objects position further then the light can't occlude the light
 
 		if (!HasIntersection(ray)) {
-			illumination += fmaxf(dot(intersection.normal, -ray.direction), 0);
+			illumination += fmaxf(dot(intersection.normal, ray.direction), 0);
 		}
 	}
 
