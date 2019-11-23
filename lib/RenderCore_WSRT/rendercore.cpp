@@ -20,6 +20,9 @@
 
 using namespace lh2core;
 
+constexpr float kEpsilon = 1e-8;
+
+
 // static scene data
 HostSkyDome* RenderCore::sky = 0;
 
@@ -167,7 +170,7 @@ bool RenderCore::HasIntersection(const Ray &ray) {
 		float3 c = make_float3(mesh.vertices[i + 2]);
 
 		if (IntersectsWithTriangle(ray, a, b, c, t, u, v)
-		&& t > std::numeric_limits<double>::epsilon()
+		&& t > kEpsilon
 		// && t < ray.distance
 		) return true;
 	}
@@ -210,7 +213,7 @@ bool RenderCore::IntersectsWithTriangle(const Ray &ray, const float3 &v0, const 
 	float det = dot(v0v1, pvec);
 	// if the determinant is negative the triangle is backfacing
 	// if the determinant is close to 0, the ray misses the triangle
-	if (det < 0) return false;
+	if (det < kEpsilon) return false;
 
 	float invDet = 1 / det;
 
