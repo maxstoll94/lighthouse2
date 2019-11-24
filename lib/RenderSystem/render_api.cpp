@@ -162,9 +162,9 @@ int RenderAPI::AddMaterial( const float3 color )
 	return renderer->scene->AddMaterial( color );
 }
 
-int RenderAPI::AddPointLight( const float3 pos, const float3 radiance, bool enabled )
+int RenderAPI::AddPointLight( const float3 pos, const float3 radiance, float energy, bool enabled )
 {
-	return renderer->scene->AddPointLight( pos, radiance, enabled );
+	return renderer->scene->AddPointLight( pos, radiance, energy, enabled );
 }
 
 int RenderAPI::AddSpotLight( const float3 pos, const float3 direction, const float inner, const float outer, const float3 radiance, bool enabled )

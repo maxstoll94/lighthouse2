@@ -57,7 +57,7 @@ public:
 	int FindNode( const char* name );
 	int FindMaterialID( const char* name );
 	int AddMaterial( const float3 color );
-	int AddPointLight( const float3 pos, const float3 radiance, bool enabled = true );
+	int AddPointLight(const float3 pos, const float3 radiance, const float energy, bool enabled);
 	int AddSpotLight( const float3 pos, const float3 direction, const float inner, const float outer, const float3 radiance, bool enabled = true );
 	int AddDirectionalLight( const float3 direction, const float3 radiance, bool enabled = true );
 	void SetTarget( GLTexture* tex, const uint spp );

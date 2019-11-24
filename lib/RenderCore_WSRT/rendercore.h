@@ -110,7 +110,7 @@ public:
 		float &t, float &u, 
 		float &v);
 
-	float Directllumination(Intersection intersection);
+	float3 Directllumination(Intersection intersection);
 
 private:
 	// data members
