@@ -98,23 +98,6 @@ void RenderCore::SetSkyData(const float3* pixels, const uint width, const uint h
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::Render                                                         |
 //  |  Produce one image.                                                   LH2'19|
-//  +-----------------------------------------------------------------------------+
-//void RenderCore::Render( const ViewPyramid& view, const Convergence converge, const float brightness, const float contrast )
-//{
-//	// render
-//	screen->Clear();
-//	for( Mesh& mesh : meshes ) for( int i = 0; i < mesh.vcount; i++ )
-//	{
-//		// convert a vertex position to a screen coordinate
-//		int screenx = mesh.vertices[i].x / 80 * (float)screen->width + screen->width / 2;
-//		int screeny = mesh.vertices[i].z / 80 * (float)screen->height + screen->height / 2;
-//		screen->Plot( screenx, screeny, 0xffffff /* white */ );
-//	}
-//	// copy pixel buffer to OpenGL render target texture
-//	glBindTexture( GL_TEXTURE_2D, targetTextureID );
-//	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA, screen->width, screen->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, screen->pixels );
-//}
-
 void RenderCore::Render(const ViewPyramid& view, const Convergence converge, const float brightness, const float contrast)
 {
 	// render
