@@ -239,7 +239,10 @@ float3 RenderCore::Directllumination(Intersection intersection) {
 		if (!HasIntersection(ray)) {
 			float distanceToLight = length(intersectionLight);
 			// Code taken from: https://www.gamedev.net/blogs/entry/2260865-shadows-and-point-lights/
-			float contribution = (dot(intersection.normal, ray.direction) * pointLight.energy) / pow(distanceToLight,2);
+			float contribution = dot(intersection.normal, ray.direction) * pointLight.energy / pow(distanceToLight, 2);
+
+			if (contribution <= 0) continue; // don't calculate illumination for lights that are positioned behind the plane
+
 			illumination += pointLight.radiance * contribution;
 		}
 	}
