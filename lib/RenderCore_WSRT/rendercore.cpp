@@ -50,16 +50,19 @@ void RenderCore::SetTarget( GLTexture* target )
 //  +-----------------------------------------------------------------------------+
 void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangleData, const uint* alphaFlags )
 {
-	Mesh newMesh;
-	// copy the supplied vertices; we cannot assume that the render system does not modify
-	// the original data after we leave this function.
-	newMesh.vertices = new float4[vertexCount];
-	newMesh.vcount = vertexCount;
-	memcpy( newMesh.vertices, vertexData, vertexCount * sizeof( float4 ) );
-	// copy the supplied 'fat triangles'
-	newMesh.triangles = new CoreTri[vertexCount / 3];
-	memcpy( newMesh.triangles, triangleData, (vertexCount / 3) * sizeof( CoreTri ) );
-	meshes.push_back( newMesh );
+	if (meshIdx >= meshes.size())
+	{
+		Mesh newMesh;
+		// copy the supplied vertices; we cannot assume that the render system does not modify
+		// the original data after we leave this function.
+		newMesh.vertices = new float4[vertexCount];
+		newMesh.vcount = vertexCount;
+		memcpy(newMesh.vertices, vertexData, vertexCount * sizeof(float4));
+		// copy the supplied 'fat triangles'
+		newMesh.triangles = new CoreTri[vertexCount / 3];
+		memcpy(newMesh.triangles, triangleData, (vertexCount / 3) * sizeof(CoreTri));
+		meshes.push_back(newMesh);
+	}
 }
 
 //  +-----------------------------------------------------------------------------+
