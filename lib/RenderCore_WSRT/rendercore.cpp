@@ -196,7 +196,11 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 		float3 b = make_float3(mesh.vertices[i + 1]);
 		float3 c = make_float3(mesh.vertices[i + 2]);
 
-		if (IntersectsWithTriangle(ray, a, b, c, currentT, currentU, currentV) && (!hasIntersection || currentT < nearestT)) {
+		if (IntersectsWithTriangle(ray, a, b, c, currentT, currentU, currentV)
+		&& currentT > 0
+		// && currentT < ray.distance
+		&& (!hasIntersection || currentT < nearestT)
+		) {
 			nearestT = currentT;
 			nearestU = currentU;
 			nearestV = currentV;
