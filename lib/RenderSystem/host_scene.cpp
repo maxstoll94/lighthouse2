@@ -618,12 +618,11 @@ int HostScene::AddSpotLight( const float3 pos, const float3 direction, const flo
 //  |  HostScene::AddDirectionalLight                                             |
 //  |  Create a directional light and add it to the scene.                  LH2'19|
 //  +-----------------------------------------------------------------------------+
-int HostScene::AddDirectionalLight( const float3 direction, const float3 radiance, const float energy, bool enabled )
+int HostScene::AddDirectionalLight( const float3 direction, const float3 radiance, bool enabled )
 {
 	HostDirectionalLight* light = new HostDirectionalLight();
 	light->direction = direction;
 	light->radiance = radiance;
-	light->energy = energy;
 	light->enabled = enabled;
 	light->ID = (int)directionalLights.size();
 	directionalLights.push_back( light );

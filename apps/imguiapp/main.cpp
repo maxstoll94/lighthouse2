@@ -48,7 +48,7 @@ void PrepareScene()
 	// renderer->AddMesh("pikachu.obj", "data/pikachu/", 0.1f);
 	int cubeId = renderer->AddMesh("multimaterial.obj", "data/multimaterial/", 1.0f);
 	//int lightId = renderer->AddPointLight(make_float3(1,10,-3), make_float3(1,1,1), 50, true);
-	renderer->AddDirectionalLight(make_float3(-100, -1, 0), make_float3(1, 1, 1), 100, true);
+	renderer->AddDirectionalLight(make_float3(1, -1, 0.4), make_float3(1, 1, 1), true);
 	renderer->AddInstance(cubeId);
 	//renderer->AddInstance(lightId);
 #if 1

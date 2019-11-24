@@ -232,12 +232,12 @@ bool RenderCore::IntersectsWithTriangle(const Ray &ray, const float3 &v0, const 
 float3 RenderCore::Directllumination(Intersection intersection) {
 	float3 illumination = make_float3(0,0,0);
 	Ray ray;
-	ray.origin = intersection.intersection;
 
 	for (CorePointLight pointLight : pointLights) {
 		float3 intersectionLight = pointLight.position - intersection.intersection;
 
-		ray.direction = intersectionLight;
+		ray.origin = intersection.intersection;
+		ray.direction = normalize(intersectionLight);
 
 		if (!HasIntersection(ray)) {
 			float distanceToLight = length(intersectionLight);
@@ -251,8 +251,8 @@ float3 RenderCore::Directllumination(Intersection intersection) {
 	}
 
 	for (CoreDirectionalLight directionLight : directionLights) {
-
-		ray.direction = -directionLight.direction;
+		ray.origin = intersection.intersection;
+		ray.direction = normalize(-directionLight.direction);
 
 		if (!HasIntersection(ray)) {
 			float contribution = dot(intersection.normal, ray.direction);

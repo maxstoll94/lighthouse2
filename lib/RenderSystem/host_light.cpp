@@ -98,7 +98,6 @@ CoreDirectionalLight HostDirectionalLight::ConvertToCoreDirectionalLight()
 	CoreDirectionalLight light;
 	light.radiance = radiance;
 	light.direction = direction;
-	light.energy = energy;
 	return light;
 }
 

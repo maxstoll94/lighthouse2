@@ -172,9 +172,9 @@ int RenderAPI::AddSpotLight( const float3 pos, const float3 direction, const flo
 	return renderer->scene->AddSpotLight( pos, direction, inner, outer, radiance, enabled );
 }
 
-int RenderAPI::AddDirectionalLight( const float3 direction, const float3 radiance, const float energy, bool enabled )
+int RenderAPI::AddDirectionalLight( const float3 direction, const float3 radiance, bool enabled )
 {
-	return renderer->scene->AddDirectionalLight( direction, radiance, energy, enabled );
+	return renderer->scene->AddDirectionalLight( direction, radiance, enabled );
 }
 
 void RenderAPI::SetTarget( GLTexture* tex, const uint spp )
