@@ -237,7 +237,7 @@ float3 RenderCore::Directllumination(Intersection intersection) {
 	for (CorePointLight pointLight : pointLights) {
 		float3 intersectionLight = pointLight.position - intersection.intersection;
 
-		ray.direction = normalize(intersectionLight);
+		ray.direction = intersectionLight;
 
 		if (!HasIntersection(ray)) {
 			float distanceToLight = length(intersectionLight);
@@ -247,6 +247,19 @@ float3 RenderCore::Directllumination(Intersection intersection) {
 			if (contribution <= 0) continue; // don't calculate illumination for lights that are positioned behind the plane
 
 			illumination += pointLight.radiance * contribution;
+		}
+	}
+
+	for (CoreDirectionalLight directionLight : directionLights) {
+
+		ray.direction = -directionLight.direction;
+
+		if (!HasIntersection(ray)) {
+			float contribution = dot(intersection.normal, ray.direction);
+
+			if (contribution <= 0) continue; // don't calculate illumination for lights that are positioned behind the plane
+
+			illumination += directionLight.radiance * contribution;
 		}
 	}
 

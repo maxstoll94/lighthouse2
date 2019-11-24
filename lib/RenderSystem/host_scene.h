@@ -58,7 +58,7 @@ public:
 	static int AddMaterial( const float3 color );
 	static int AddPointLight(const float3 pos, const float3 radiance, const float energy, bool enabled);
 	static int AddSpotLight( const float3 pos, const float3 direction, const float inner, const float outer, const float3 radiance, bool enabled = true );
-	static int AddDirectionalLight( const float3 direction, const float3 radiance, bool enabled = true );
+	static int AddDirectionalLight(const float3 direction, const float3 radiance, const float energy, bool enabled);
 	// data members
 	static HostSkyDome* sky;
 	static vector<int> scene; // node indices for scene 0; each of these may have children. TODO: scene 1..X.

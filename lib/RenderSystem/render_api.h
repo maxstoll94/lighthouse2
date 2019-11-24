@@ -59,7 +59,7 @@ public:
 	int AddMaterial( const float3 color );
 	int AddPointLight(const float3 pos, const float3 radiance, const float energy, bool enabled);
 	int AddSpotLight( const float3 pos, const float3 direction, const float inner, const float outer, const float3 radiance, bool enabled = true );
-	int AddDirectionalLight( const float3 direction, const float3 radiance, bool enabled = true );
+	int AddDirectionalLight(const float3 direction, const float3 radiance, const float energy, bool enabled);
 	void SetTarget( GLTexture* tex, const uint spp );
 	void SetProbePos( const int2 pos );
 	CoreStats GetCoreStats();
