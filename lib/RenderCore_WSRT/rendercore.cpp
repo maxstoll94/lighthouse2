@@ -67,7 +67,7 @@ void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const
 //  |  Update the point lights, spot lights and directional lights.                                  LH2'19|
 //  +-----------------------------------------------------------------------------+
 void RenderCore::SetLights(const CoreLightTri* areaLights, const int areaLightCount, const CorePointLight* corePointLights, const int pointLightCount,
-	const CoreSpotLight* spotLights, const int spotLightCount, const CoreDirectionalLight* coreDirectionalLights, const int directionalLightCount) 
+	const CoreSpotLight* spotLights, const int spotLightCount, const CoreDirectionalLight* coreDirectionalLights, const int directionalLightCount)
 {
 	for (int i = 0; i < pointLightCount; i++) {
 		pointLights.push_back(corePointLights[i]);
