@@ -243,8 +243,8 @@ bool RenderCore::IntersectsWithTriangle(const Ray &ray, const float3 &v0, const 
 	return true;
 }
 
-float RenderCore::Directllumination(Intersection intersection) {
-	float illumination = 0;
+float3 RenderCore::Directllumination(Intersection intersection) {
+	float3 illumination = make_float3(0,0,0);
 	Ray ray;
 	ray.origin = intersection.intersection;
 
@@ -252,10 +252,12 @@ float RenderCore::Directllumination(Intersection intersection) {
 		float3 intersectionLight = pointLight.position - intersection.intersection;
 
 		ray.direction = normalize(intersectionLight);
-		// ray.distance = length(intersectionLight); // objects position further then the light can't occlude the light
 
 		if (!HasIntersection(ray)) {
-			illumination += fmaxf(dot(intersection.normal, ray.direction), 0);
+			float distanceToLight = length(intersectionLight);
+			// Code taken from: https://www.gamedev.net/blogs/entry/2260865-shadows-and-point-lights/
+			float contribution = (dot(intersection.normal, ray.direction) * pointLight.energy) / pow(distanceToLight,2);
+			illumination += pointLight.radiance * contribution;
 		}
 	}
 
