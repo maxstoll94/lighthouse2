@@ -133,7 +133,7 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge, con
 			ray.origin = view.pos;
 
 			float3 color = Trace(ray);
-			int colorHex = (int(0xff * color.x) + (int(0xff * color.y) << 8) + (int(0xff * color.z) << 16));
+			int colorHex = (int(0xff * min(color.x, 1.0f)) + (int(0xff * min(color.y, 1.0f)) << 8) + (int(0xff * min(color.z, 1.0f)) << 16));
 			screen->Plot(u, v, colorHex);
 		}
 		// copy pixel buffer to OpenGL render target texture
@@ -160,9 +160,8 @@ float3 RenderCore::Trace(Ray &ray) {
 		if (u < 0) u += 1;
 		float v = acos(ray.direction.y) / PI;
 
-		//return make_float3(u, v, 0);
-		 uint i = uint(v * skyDome.height) * skyDome.width + uint(u * skyDome.width);
-		 return skyDome.pixels[i];
+		uint i = floor(v * skyDome.height) * skyDome.width + floor(u * skyDome.width);
+		return skyDome.pixels[i];
 	}
 	Material material = materials[intersection.materialIndex];
 	return material.diffuse * Directllumination(intersection);
