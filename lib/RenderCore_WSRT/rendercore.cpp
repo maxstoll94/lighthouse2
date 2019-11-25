@@ -251,7 +251,7 @@ bool RenderCore::IntersectsWithTriangle(const Ray &ray, const float3 &v0, const 
 Ray RenderCore::Reflect(const Ray &ray, const Intersection &intersection) {
 	Ray reflectRay;
 	// taken from lecture slides "whitted-style" slide 13
-	reflectRay.direction = ray.direction - 2 * dot(intersection.normal, ray.direction) * intersection.normal;;
+	reflectRay.direction = ray.direction - 2 * dot(intersection.normal, ray.direction) * intersection.normal;
 	reflectRay.origin = intersection.intersection;
 	reflectRay.distance = ray.distance - intersection.distance;
 
@@ -270,7 +270,7 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 
 		// Code taken from: https://www.gamedev.net/blogs/entry/2260865-shadows-and-point-lights/
 		float contribution = dot(intersection.normal, lightDirection) * pointLight.energy / pow(lightDistance, 2);
-		if (contribution <= 0) continue; // don't calculate illumination for lights that are positioned behind the plane
+		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
 		ray.origin = intersection.intersection;
 		ray.direction = lightDirection;
@@ -286,7 +286,7 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 		float3 lightDirection = -normalize(directionLight.direction);
 
 		float contribution = dot(intersection.normal, lightDirection);
-		if (contribution <= 0) continue; // don't calculate illumination for lights that are positioned behind the plane
+		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
 		ray.origin = intersection.intersection;
 		ray.direction = lightDirection;
@@ -316,7 +316,7 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 		}
 
 		contribution *= dot(intersection.normal, -lightDirection);
-		if (contribution <= 0) continue;
+		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
 		ray.origin = intersection.intersection;
 		ray.direction = -lightDirection;
