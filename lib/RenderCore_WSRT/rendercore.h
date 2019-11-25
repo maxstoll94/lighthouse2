@@ -113,6 +113,7 @@ public:
 		float &v);
 
 	Ray Reflect(const Ray &ray, const Intersection &intersection);
+	float3 SkyDomeColor(const Ray &ray);
 	float3 Directllumination(Intersection intersection);
 
 private:

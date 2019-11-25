@@ -143,18 +143,21 @@ float3 RenderCore::Trace(Ray &ray) {
 	Intersection intersection;
 	bool hasIntersection = NearestIntersection(ray, intersection);
 
-	if (!hasIntersection) {
-		float u = atan2(ray.direction.x, ray.direction.z) / (2 * PI);
-		if (u < 0) u += 1;
-		float v = acos(ray.direction.y) / PI;
+	if (!hasIntersection) return SkyDomeColor(ray);
 
-		uint i = floor(v * skyDome.height) * skyDome.width + floor(u * skyDome.width);
-		return skyDome.pixels[i];
-	}
 	return Trace(Reflect(ray, intersection));
 
 	// Material material = materials[intersection.materialIndex];
 	// return material.diffuse * Directllumination(intersection);
+}
+
+float3 RenderCore::SkyDomeColor(const Ray &ray) {
+	float u = atan2(ray.direction.x, ray.direction.z) / (2 * PI);
+	if (u < 0) u += 1;
+	float v = acos(ray.direction.y) / PI;
+
+	uint i = floor(v * skyDome.height) * skyDome.width + floor(u * skyDome.width);
+	return skyDome.pixels[i];
 }
 
 bool RenderCore::HasIntersection(const Ray &ray) {
