@@ -48,9 +48,11 @@ void PrepareScene()
 	// renderer->AddMesh("pikachu.obj", "data/pikachu/", 0.1f);
 	int cubeId = renderer->AddMesh("multimaterial.obj", "data/multimaterial/", 1.0f);
 	//int lightId = renderer->AddPointLight(make_float3(1,10,-3), make_float3(1,1,1), 50, true);
-	renderer->AddDirectionalLight(make_float3(1, -1, 0.4), make_float3(1, 1, 1), true);
+	int lightMat = renderer->AddMaterial(make_float3(100, 100, 80));
+	renderer->AddSpotLight(make_float3(0, 5, 0), make_float3(0, -1, 0), PI / 4, PI / 2, make_float3(1,1,1), true);
+	// renderer->AddDirectionalLight(make_float3(1, -1, 0.4), make_float3(1, 1, 1), true);
 	renderer->AddInstance(cubeId);
-	//renderer->AddInstance(lightId);
+	//renderer->AddInstance(lightQuad);
 #if 1
 	// overhead light, use regular PT
 	//int lightMat = renderer->AddMaterial( make_float3( 100, 100, 80 ) );

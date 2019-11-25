@@ -114,6 +114,7 @@ public:
 	Ray Reflect(const Ray &ray, const Intersection &intersection);
 	float3 SkyDomeColor(const Ray &ray);
 	float3 Directllumination(const Intersection &intersection);
+	void printFloat3(float3 value);
 
 private:
 	// data members
@@ -122,6 +123,7 @@ private:
 	vector<Mesh> meshes;							// mesh data storage
 	vector<CorePointLight> pointLights;				// point lights of the scene
 	vector<CoreDirectionalLight> directionLights;	// direction lights of the scene
+	vector<CoreSpotLight> spotLights;				// spot lights of the scene
 	vector<Material> materials;
 	Sky skyDome;
 public:

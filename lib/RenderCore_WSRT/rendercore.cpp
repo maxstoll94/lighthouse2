@@ -71,14 +71,18 @@ void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const
 //  |  Update the point lights, spot lights and directional lights.                                  LH2'19|
 //  +-----------------------------------------------------------------------------+
 void RenderCore::SetLights(const CoreLightTri* areaLights, const int areaLightCount, const CorePointLight* corePointLights, const int pointLightCount,
-	const CoreSpotLight* spotLights, const int spotLightCount, const CoreDirectionalLight* coreDirectionalLights, const int directionalLightCount)
+	const CoreSpotLight* coreSpotLights, const int spotLightCount, const CoreDirectionalLight* coreDirectionalLights, const int directionalLightCount)
 {
 	for (int i = 0; i < pointLightCount; i++) {
 		pointLights.push_back(corePointLights[i]);
 	}
 
-	for (int j = 0; j < directionalLightCount; j++) {
-		directionLights.push_back(coreDirectionalLights[j]);
+	for (int i = 0; i < directionalLightCount; i++) {
+		directionLights.push_back(coreDirectionalLights[i]);
+	}
+
+	for (int i = 0; i < spotLightCount; i++) {
+		spotLights.push_back(coreSpotLights[i]);
 	}
 }
 
@@ -145,7 +149,7 @@ float3 RenderCore::Trace(Ray &ray) {
 
 	if (!hasIntersection) return SkyDomeColor(ray);
 
-	float s = 0.5;
+	float s = 0;
 	float d = 1 - s;
 
 	Material material = materials[intersection.materialIndex];
@@ -275,6 +279,7 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 
 	for (CoreDirectionalLight directionLight : directionLights) {
 		ray.origin = intersection.intersection;
+		// TODO move normalization to SetLights
 		ray.direction = normalize(-directionLight.direction);
 		ray.distance = std::numeric_limits<float>::infinity();
 
@@ -287,10 +292,41 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 		}
 	}
 
+	for (CoreSpotLight spotLight : spotLights) {
+		float3 intersectionLight = intersection.intersection - spotLight.position;
+
+		float angle = acos(dot(normalize(intersectionLight), spotLight.direction));
+		//cout << angle << endl;
+		//printFloat3(intersectionLight);
+		float contribution;
+
+		if (angle > spotLight.cosOuter) {
+			continue;
+		}
+		else if (angle > spotLight.cosInner) {
+			contribution = 1 - ((angle - spotLight.cosInner) / (spotLight.cosOuter - spotLight.cosInner));
+		}
+		else {
+			contribution = 1;
+		}
+
+		ray.origin = intersection.intersection;
+		ray.direction = -normalize(intersectionLight);
+		ray.distance = length(intersectionLight);
+
+		// illumination += spotLight.radiance * contribution;
+
+		if (!HasIntersection(ray)) {
+			contribution *= dot(intersection.normal, ray.direction);
+			if (contribution <= 0) continue;
+			illumination += spotLight.radiance * contribution;
+		}
+	}
+
 	return illumination;
 }
 
-void printFloat3(float3 value) {
+void RenderCore::printFloat3(float3 value) {
 	cout << "{ x:" << value.x << " y: " << value.y << " z: " << value.z << "}" << endl;
 }
 
