@@ -287,7 +287,7 @@ float3 RenderCore::Directllumination(Intersection intersection) {
 }
 
 void printFloat3(float3 value) {
-	cout << "{ x:" << value.x << " y: " << value.y << " z: " << value.z << "}";
+	cout << "{ x:" << value.x << " y: " << value.y << " z: " << value.z << "}" << endl;
 }
 
 // EOF

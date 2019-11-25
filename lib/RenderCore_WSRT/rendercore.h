@@ -111,10 +111,9 @@ public:
 		const float3 &v2, 
 		float &t, float &u, 
 		float &v);
-
 	Ray Reflect(const Ray &ray, const Intersection &intersection);
 	float3 SkyDomeColor(const Ray &ray);
-	float3 Directllumination(Intersection intersection);
+	float3 Directllumination(const Intersection &intersection);
 
 private:
 	// data members
