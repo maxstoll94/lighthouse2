@@ -145,9 +145,13 @@ float3 RenderCore::Trace(Ray &ray) {
 
 	if (!hasIntersection) return SkyDomeColor(ray);
 
-	return Trace(Reflect(ray, intersection));
+	float s = 0.5;
+	float d = 1 - s;
 
-	// Material material = materials[intersection.materialIndex];
+	Material material = materials[intersection.materialIndex];
+
+	return material.diffuse * (s * Trace(Reflect(ray, intersection)) + d * Directllumination(intersection));
+	// return material.diffuse * Trace(Reflect(ray, intersection);
 	// return material.diffuse * Directllumination(intersection);
 }
 
