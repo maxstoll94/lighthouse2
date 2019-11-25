@@ -248,7 +248,7 @@ Ray RenderCore::Reflect(const Ray &ray, const Intersection &intersection) {
 }
 
 
-float3 RenderCore::Directllumination(Intersection intersection) {
+float3 RenderCore::Directllumination(const Intersection &intersection) {
 	float3 illumination = make_float3(0,0,0);
 	Ray ray;
 
