@@ -49,7 +49,7 @@ void PrepareScene()
 	int cubeId = renderer->AddMesh("multimaterial.obj", "data/multimaterial/", 1.0f);
 	//int lightId = renderer->AddPointLight(make_float3(1,10,-3), make_float3(1,1,1), 50, true);
 	int lightMat = renderer->AddMaterial(make_float3(100, 100, 80));
-	renderer->AddSpotLight(make_float3(0, 5, 0), make_float3(0, -1, 0), PI / 4, PI / 2, make_float3(1,1,1), true);
+	renderer->AddSpotLight(make_float3(0, 3, 0), make_float3(-1, -1, 0), PI / 4, PI / 2, make_float3(1,1,1), true);
 	// renderer->AddDirectionalLight(make_float3(1, -1, 0.4), make_float3(1, 1, 1), true);
 	renderer->AddInstance(cubeId);
 	//renderer->AddInstance(lightQuad);

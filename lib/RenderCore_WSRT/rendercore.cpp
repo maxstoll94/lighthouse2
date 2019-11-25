@@ -260,68 +260,69 @@ Ray RenderCore::Reflect(const Ray &ray, const Intersection &intersection) {
 
 
 float3 RenderCore::Directllumination(const Intersection &intersection) {
-	float3 illumination = make_float3(0,0,0);
+	float3 illumination = make_float3(0, 0, 0);
 	Ray ray;
 
 	for (CorePointLight pointLight : pointLights) {
 		float3 intersectionLight = pointLight.position - intersection.intersection;
+		float3 lightDirection = normalize(intersectionLight);
+		float lightDistance = length(intersectionLight);
+
+		// Code taken from: https://www.gamedev.net/blogs/entry/2260865-shadows-and-point-lights/
+		float contribution = dot(intersection.normal, lightDirection) * pointLight.energy / pow(lightDistance, 2);
+		if (contribution <= 0) continue; // don't calculate illumination for lights that are positioned behind the plane
 
 		ray.origin = intersection.intersection;
-		ray.direction = normalize(intersectionLight);
-		ray.distance = length(intersectionLight);
+		ray.direction = lightDirection;
+		ray.distance = lightDistance;
 
 		if (!HasIntersection(ray)) {
-			// Code taken from: https://www.gamedev.net/blogs/entry/2260865-shadows-and-point-lights/
-			float contribution = dot(intersection.normal, ray.direction) * pointLight.energy / pow(ray.distance, 2);
-
-			if (contribution <= 0) continue; // don't calculate illumination for lights that are positioned behind the plane
-
 			illumination += pointLight.radiance * contribution;
 		}
 	}
 
 	for (CoreDirectionalLight directionLight : directionLights) {
-		ray.origin = intersection.intersection;
 		// TODO move normalization to SetLights
-		ray.direction = normalize(-directionLight.direction);
+		float3 lightDirection = -normalize(directionLight.direction);
+
+		float contribution = dot(intersection.normal, lightDirection);
+		if (contribution <= 0) continue; // don't calculate illumination for lights that are positioned behind the plane
+
+		ray.origin = intersection.intersection;
+		ray.direction = lightDirection;
 		ray.distance = std::numeric_limits<float>::infinity();
 
 		if (!HasIntersection(ray)) {
-			float contribution = dot(intersection.normal, ray.direction);
-
-			if (contribution <= 0) continue; // don't calculate illumination for lights that are positioned behind the plane
-
 			illumination += directionLight.radiance * contribution;
 		}
 	}
 
 	for (CoreSpotLight spotLight : spotLights) {
 		float3 intersectionLight = intersection.intersection - spotLight.position;
+		float3 lightDirection = normalize(intersectionLight);
 
-		float angle = acos(dot(normalize(intersectionLight), spotLight.direction));
-		//cout << angle << endl;
-		//printFloat3(intersectionLight);
+		float angle = acos(dot(lightDirection, spotLight.direction));
 		float contribution;
 
-		if (angle > spotLight.cosOuter) {
+		float halfCosOuter = spotLight.cosOuter / 2;
+		float halfCosInner = spotLight.cosInner / 2;
+
+		if (angle > halfCosOuter) {
 			continue;
-		}
-		else if (angle > spotLight.cosInner) {
-			contribution = 1 - ((angle - spotLight.cosInner) / (spotLight.cosOuter - spotLight.cosInner));
-		}
-		else {
+		} else if (angle > halfCosInner) {
+			contribution = 1 - ((angle - halfCosInner) / (halfCosOuter - halfCosInner));
+		} else {
 			contribution = 1;
 		}
 
+		contribution *= dot(intersection.normal, -lightDirection);
+		if (contribution <= 0) continue;
+
 		ray.origin = intersection.intersection;
-		ray.direction = -normalize(intersectionLight);
+		ray.direction = -lightDirection;
 		ray.distance = length(intersectionLight);
 
-		// illumination += spotLight.radiance * contribution;
-
 		if (!HasIntersection(ray)) {
-			contribution *= dot(intersection.normal, ray.direction);
-			if (contribution <= 0) continue;
 			illumination += spotLight.radiance * contribution;
 		}
 	}
@@ -330,7 +331,7 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 }
 
 void RenderCore::printFloat3(float3 value) {
-	cout << "{ x:" << value.x << " y: " << value.y << " z: " << value.z << "}" << endl;
+	cout << "{ x:" << value.x << ", y: " << value.y << ", z: " << value.z << " }" << endl;
 }
 
 // EOF
