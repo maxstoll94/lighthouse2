@@ -110,7 +110,7 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge, con
 	float3 xDirection = (view.p2 - view.p1) / screen->width;
 	float3 yDirection = (view.p3 - view.p1) / screen->height;
 
-	float3 p1 = view.p1 - view.pos;
+	float3 p1 = view.p1 - view.pos + 0.5 * xDirection + 0.5 * yDirection;
 
 	Ray ray;
 
