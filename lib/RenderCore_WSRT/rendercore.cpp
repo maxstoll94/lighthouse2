@@ -151,8 +151,10 @@ float3 RenderCore::Trace(Ray &ray) {
 		uint i = floor(v * skyDome.height) * skyDome.width + floor(u * skyDome.width);
 		return skyDome.pixels[i];
 	}
-	Material material = materials[intersection.materialIndex];
-	return material.diffuse * Directllumination(intersection);
+	return Trace(Reflect(ray, intersection));
+
+	// Material material = materials[intersection.materialIndex];
+	// return material.diffuse * Directllumination(intersection);
 }
 
 bool RenderCore::HasIntersection(const Ray &ray) {
@@ -231,6 +233,17 @@ bool RenderCore::IntersectsWithTriangle(const Ray &ray, const float3 &v0, const 
 
 	return true;
 }
+
+Ray RenderCore::Reflect(const Ray &ray, const Intersection &intersection) {
+	Ray reflectRay;
+	// taken from lecture slides "whitted-style" slide 13
+	reflectRay.direction = ray.direction - 2 * dot(intersection.normal, ray.direction) * intersection.normal;;
+	reflectRay.origin = intersection.intersection;
+	reflectRay.distance = ray.distance - intersection.distance;
+
+	return reflectRay;
+}
+
 
 float3 RenderCore::Directllumination(Intersection intersection) {
 	float3 illumination = make_float3(0,0,0);

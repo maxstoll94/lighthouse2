@@ -112,6 +112,7 @@ public:
 		float &t, float &u, 
 		float &v);
 
+	Ray Reflect(const Ray &ray, const Intersection &intersection);
 	float3 Directllumination(Intersection intersection);
 
 private:
