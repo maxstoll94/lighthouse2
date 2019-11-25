@@ -21,6 +21,7 @@
 using namespace lh2core;
 
 constexpr float kEpsilon = 1e-8;
+constexpr float defaultRayDistance = 1000;
 
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::Init                                                           |
@@ -117,6 +118,7 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge, con
 		for (uint v = 0; v < screen->height; v++) {
 			ray.direction = normalize(p1 + u * xDirection + v * yDirection);
 			ray.origin = view.pos;
+			ray.distance = defaultRayDistance;
 
 			float3 color = Trace(ray);
 			int colorHex = (int(0xff * min(color.x, 1.0f)) + (int(0xff * min(color.y, 1.0f)) << 8) + (int(0xff * min(color.z, 1.0f)) << 16));
@@ -165,7 +167,7 @@ bool RenderCore::HasIntersection(const Ray &ray) {
 
 		if (IntersectsWithTriangle(ray, a, b, c, t, u, v)
 		&& t > kEpsilon
-		// && t < ray.distance
+		&& t < ray.distance
 		) return true;
 	}
 	return false;
@@ -183,8 +185,8 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 		float3 c = make_float3(mesh.vertices[i + 2]);
 
 		if (IntersectsWithTriangle(ray, a, b, c, currentT, currentU, currentV)
-		&& currentT > 0
-		// && currentT < ray.distance
+		&& currentT > kEpsilon
+		&& currentT < ray.distance
 		&& (!hasIntersection || currentT < nearestT)
 		) {
 			nearestT = currentT;
@@ -199,6 +201,7 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 		intersection.intersection = ray.origin + ray.direction * nearestT;
 		intersection.normal = (1 - nearestU - nearestV) * nearestTriangle.vN0 + nearestU * nearestTriangle.vN1 + nearestV * nearestTriangle.vN2;
 		intersection.materialIndex = nearestTriangle.material;
+		intersection.distance = nearestT;
 	}
 
 	return hasIntersection;
@@ -238,11 +241,11 @@ float3 RenderCore::Directllumination(Intersection intersection) {
 
 		ray.origin = intersection.intersection;
 		ray.direction = normalize(intersectionLight);
+		ray.distance = length(intersectionLight);
 
 		if (!HasIntersection(ray)) {
-			float distanceToLight = length(intersectionLight);
 			// Code taken from: https://www.gamedev.net/blogs/entry/2260865-shadows-and-point-lights/
-			float contribution = dot(intersection.normal, ray.direction) * pointLight.energy / pow(distanceToLight, 2);
+			float contribution = dot(intersection.normal, ray.direction) * pointLight.energy / pow(ray.distance, 2);
 
 			if (contribution <= 0) continue; // don't calculate illumination for lights that are positioned behind the plane
 
@@ -253,6 +256,7 @@ float3 RenderCore::Directllumination(Intersection intersection) {
 	for (CoreDirectionalLight directionLight : directionLights) {
 		ray.origin = intersection.intersection;
 		ray.direction = normalize(-directionLight.direction);
+		ray.distance = std::numeric_limits<float>::infinity();
 
 		if (!HasIntersection(ray)) {
 			float contribution = dot(intersection.normal, ray.direction);

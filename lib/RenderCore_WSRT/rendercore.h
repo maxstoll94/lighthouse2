@@ -43,6 +43,7 @@ class Ray
 public:
 	float3 origin;
 	float3 direction;
+	float distance;
 };
 
 class Sky
@@ -58,6 +59,7 @@ struct Intersection
 	float3 intersection;
 	float3 normal;
 	uint materialIndex;
+	float distance;
 };
 
 //  +-----------------------------------------------------------------------------+
