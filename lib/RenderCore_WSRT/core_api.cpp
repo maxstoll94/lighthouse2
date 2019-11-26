@@ -76,7 +76,7 @@ void CoreAPI::Shutdown()
 
 void CoreAPI::SetTextures( const CoreTexDesc* tex, const int textureCount )
 {
-	// core->SetTextures( tex, textureCount ); TODO
+	core->SetTextures( tex, textureCount );
 }
 
 void CoreAPI::SetMaterials( CoreMaterial* mat, const CoreMaterialEx* matEx, const int materialCount )

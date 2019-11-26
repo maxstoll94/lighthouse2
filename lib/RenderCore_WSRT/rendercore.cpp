@@ -86,11 +86,43 @@ void RenderCore::SetLights(const CoreLightTri* areaLights, const int areaLightCo
 	}
 }
 
+//  +-----------------------------------------------------------------------------+
+//  |  RenderCore::SetTextures                                                    |
+//  |  Set the texture data.                                                LH2'19|
+//  +-----------------------------------------------------------------------------+
+// Copied from soft-rasterizer
+void RenderCore::SetTextures(const CoreTexDesc* tex, const int textures) {
+	// copy the supplied array of texture descriptors
+	for (int i = 0; i < textures; i++) {
+		Texture* t;
+		if (i < texList.size()) t = texList[i];
+		else texList.push_back(t = new Texture());
+		t->pixels = (uint*)MALLOC64(tex[i].pixelCount * sizeof(uint));
+		if (tex[i].idata) memcpy(t->pixels, tex[i].idata, tex[i].pixelCount * sizeof(uint));
+		else memcpy(t->pixels, 0, tex[i].pixelCount * sizeof(uint) /* assume integer textures */);
+		// Note: texture width and height are not known yet, will be set when we get the materials.
+	}
+}
+
 void RenderCore::SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, const int materialCount) {
 	for (int i = 0; i < materialCount; i++) {
 		CoreMaterial coreMaterial = mat[i];
+
 		Material newMaterial;
-		newMaterial.diffuse = make_float3(coreMaterial.diffuse_r, coreMaterial.diffuse_g, coreMaterial.diffuse_b);
+
+		int texId = matEx[i].texture[TEXTURE0];
+		if (texId == -1) {
+			newMaterial.texture = 0;
+			float r = coreMaterial.diffuse_r, g = coreMaterial.diffuse_g, b = coreMaterial.diffuse_b;
+			newMaterial.diffuse = make_float3(r, g, b);
+		}
+		else {
+			newMaterial.texture = texList[texId];
+			// we know this only now, so set it properly
+			newMaterial.texture->width = mat[i].texwidth0; 
+			newMaterial.texture->height = mat[i].texheight0;
+		}
+
 		materials.push_back(newMaterial);
 	}
 }
@@ -152,13 +184,32 @@ float3 RenderCore::Trace(Ray &ray) {
 	Material material = materials[intersection.materialIndex];
 	float s = 0;
 
+	float3 diffuse;
+
+	if (material.texture == NULL) {
+		diffuse = material.diffuse;
+	}
+	else {
+		int w = material.texture->width;
+		int h = material.texture->height;
+
+		int u = intersection.uv.x * w;
+		int v = intersection.uv.y * h;
+		int i = u + w * v;
+
+		int hexvalue = material.texture->pixels[i];
+		diffuse.x = ((hexvalue >> 16) & 0xff) / 255.0;  // extract the rr byte
+		diffuse.y = ((hexvalue >> 8) & 0xff) / 255.0;   // extract the gg byte
+		diffuse.z = ((hexvalue) & 0xff) / 255.0;        // extract the bb byte
+	}
+
 	if (s == 0) {
-		return material.diffuse * Directllumination(intersection);
+		return diffuse * Directllumination(intersection);
 	} else if (s == 1) {
-		return material.diffuse * Trace(Reflect(ray, intersection));
+		return diffuse * Trace(Reflect(ray, intersection));
 	} else {
 		float d = 1 - s;
-		return material.diffuse * (s * Trace(Reflect(ray, intersection)) + d * Directllumination(intersection));
+		return diffuse * (s * Trace(Reflect(ray, intersection)) + d * Directllumination(intersection));
 	}
 }
 
@@ -218,6 +269,12 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 		intersection.normal = (1 - nearestU - nearestV) * nearestTriangle.vN0 + nearestU * nearestTriangle.vN1 + nearestV * nearestTriangle.vN2;
 		intersection.materialIndex = nearestTriangle.material;
 		intersection.distance = nearestT;
+
+		// Only do this when material has a texture
+		float2 uv0 = make_float2(nearestTriangle.u0, nearestTriangle.v0);
+		float2 uv1 = make_float2(nearestTriangle.u1, nearestTriangle.v1);
+		float2 uv2 = make_float2(nearestTriangle.u2, nearestTriangle.v2);
+		intersection.uv = (1 - nearestU - nearestV) * uv0 + nearestU * uv1 + nearestV * uv2;
 	}
 
 	return hasIntersection;
@@ -257,7 +314,6 @@ Ray RenderCore::Reflect(const Ray &ray, const Intersection &intersection) {
 
 	return reflectRay;
 }
-
 
 float3 RenderCore::Directllumination(const Intersection &intersection) {
 	float3 illumination = make_float3(0, 0, 0);

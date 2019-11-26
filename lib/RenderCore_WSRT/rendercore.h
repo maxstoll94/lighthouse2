@@ -19,6 +19,23 @@
 namespace lh2core
 {
 
+// -----------------------------------------------------------
+// Texture class
+// encapsulates a palettized pixel surface with pre-scaled
+// palettes for fast shading
+// -----------------------------------------------------------
+// copied from software rasterizer
+class Texture {
+public:
+	// constructor / destructor
+	Texture() = default;
+	Texture(int w, int h) : width(w), height(h) { pixels = (uint*)MALLOC64(w * h * sizeof(uint)); }
+	~Texture() { FREE64(pixels); }
+	// data members
+	int width = 0, height = 0;
+	uint* pixels = 0;
+};
+
 //  +-----------------------------------------------------------------------------+
 //  |  Mesh                                                                       |
 //  |  Minimalistic mesh storage.                                           LH2'19|
@@ -36,6 +53,7 @@ public:
 	float reflection;
 	float3 transmission;
 	float3 diffuse;
+	Texture* texture = 0;			// texture
 };
 
 class Ray
@@ -58,6 +76,7 @@ struct Intersection
 {
 	float3 intersection;
 	float3 normal;
+	float2 uv;
 	uint materialIndex;
 	float distance;
 };
@@ -95,6 +114,8 @@ public:
 
 	void SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, const int materialCount);
 
+	void SetTextures(const CoreTexDesc* tex, const int textureCount);
+
 	void Render( const ViewPyramid& view, 
 		const Convergence converge, 
 		const float brightness, 
@@ -125,11 +146,13 @@ private:
 	vector<CoreDirectionalLight> directionLights;	// direction lights of the scene
 	vector<CoreSpotLight> spotLights;				// spot lights of the scene
 	vector<Material> materials;
+	vector<Texture*> texList;
 	Sky skyDome;
 public:
 	CoreStats coreStats;							// rendering statistic
 };
 
 } // namespace lh2core
+
 
 // EOF
