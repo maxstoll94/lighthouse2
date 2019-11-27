@@ -265,7 +265,7 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 	}
 
 	if (hasIntersection) {
-		intersection.intersection = ray.origin + ray.direction * nearestT;
+		intersection.position = ray.origin + ray.direction * nearestT;
 		intersection.normal = (1 - nearestU - nearestV) * nearestTriangle.vN0 + nearestU * nearestTriangle.vN1 + nearestV * nearestTriangle.vN2;
 		intersection.materialIndex = nearestTriangle.material;
 		intersection.distance = nearestT;
@@ -309,7 +309,7 @@ Ray RenderCore::Reflect(const Ray &ray, const Intersection &intersection) {
 	Ray reflectRay;
 	// taken from lecture slides "whitted-style" slide 13
 	reflectRay.direction = ray.direction - 2 * dot(intersection.normal, ray.direction) * intersection.normal;
-	reflectRay.origin = intersection.intersection;
+	reflectRay.origin = intersection.position;
 	reflectRay.distance = ray.distance - intersection.distance;
 
 	return reflectRay;
@@ -320,7 +320,7 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 	Ray ray;
 
 	for (CorePointLight pointLight : pointLights) {
-		float3 intersectionLight = pointLight.position - intersection.intersection;
+		float3 intersectionLight = pointLight.position - intersection.position;
 		float3 lightDirection = normalize(intersectionLight);
 		float lightDistance = length(intersectionLight);
 
@@ -328,7 +328,7 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 		float contribution = dot(intersection.normal, lightDirection) * pointLight.energy / pow(lightDistance, 2);
 		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
-		ray.origin = intersection.intersection;
+		ray.origin = intersection.position;
 		ray.direction = lightDirection;
 		ray.distance = lightDistance;
 
@@ -344,7 +344,7 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 		float contribution = dot(intersection.normal, lightDirection);
 		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
-		ray.origin = intersection.intersection;
+		ray.origin = intersection.position;
 		ray.direction = lightDirection;
 		ray.distance = std::numeric_limits<float>::infinity();
 
@@ -354,7 +354,7 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 	}
 
 	for (CoreSpotLight spotLight : spotLights) {
-		float3 intersectionLight = intersection.intersection - spotLight.position;
+		float3 intersectionLight = intersection.position - spotLight.position;
 		float3 lightDirection = normalize(intersectionLight);
 
 		float angle = acos(dot(lightDirection, spotLight.direction));
@@ -374,7 +374,7 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 		contribution *= dot(intersection.normal, -lightDirection);
 		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
-		ray.origin = intersection.intersection;
+		ray.origin = intersection.position;
 		ray.direction = -lightDirection;
 		ray.distance = length(intersectionLight);
 
