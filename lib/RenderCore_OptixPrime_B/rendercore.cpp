@@ -23,8 +23,7 @@
 
 #include "core_settings.h"
 
-namespace lh2core
-{
+namespace lh2core {
 
 // forward declaration of cuda code
 const surfaceReference* renderTargetRef();
@@ -186,7 +185,7 @@ void RenderCore::SetTarget( GLTexture* target, const uint spp )
 		delete shadowRayPotential;
 		delete shadowHitBuffer;
 		delete accumulator;
-		const uint maxShadowRays = maxPixels * spp * MAXPATHLENGTH; // upper limit; safe but wasteful
+		const uint maxShadowRays = maxPixels * spp * 2;
 		extensionHitBuffer = new CoreBuffer<Intersection>( maxPixels * spp, ON_DEVICE );
 		shadowRayBuffer = new CoreBuffer<Ray4>( maxShadowRays, ON_DEVICE );
 		shadowRayPotential = new CoreBuffer<float4>( maxShadowRays, ON_DEVICE ); // .w holds pixel index
@@ -228,9 +227,15 @@ void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const
 //  +-----------------------------------------------------------------------------+
 void RenderCore::SetInstance( const int instanceIdx, const int meshIdx, const mat4& matrix )
 {
-	// Note: for first-time setup, meshes are expected to be passed in sequential order.
-	// This will result in new CoreInstance pointers being pushed into the instances vector.
-	// Subsequent instance changes (typically: transforms) will be applied to existing CoreInstances.
+	// A '-1' mesh denotes the end of the instance stream;
+	// adjust the instances vector if we have more.
+	if (meshIdx == -1)
+	{
+		if (instances.size() > instanceIdx) instances.resize( instanceIdx );
+		return;
+	}
+	// For the first frame, instances are added to the instances vector.
+	// For subsequent frames existing slots are overwritten / updated.
 	if (instanceIdx >= instances.size()) instances.push_back( new CoreInstance() );
 	instances[instanceIdx]->mesh = meshIdx;
 	instances[instanceIdx]->transform = matrix;
@@ -522,6 +527,25 @@ void RenderCore::Render( const ViewPyramid& view, const Convergence converge, co
 		cudaEventRecord( shadeEnd[pathLength - 1] );
 		pathCount = counters.extensionRays;
 		swap( inBuffer, outBuffer );
+		// handle overflowing shadow ray buffer
+		uint maxShadowRays = shadowRayBuffer->GetSize();
+		if ((counters.shadowRays + pathCount) >= maxShadowRays)
+		{
+			RTPquery query;
+			CHK_PRIME( rtpQueryCreate( *topLevel, RTP_QUERY_TYPE_ANY, &query ) );
+			CHK_PRIME( rtpBufferDescSetRange( shadowRaysDesc, 0, counters.shadowRays ) );
+			CHK_PRIME( rtpBufferDescSetRange( shadowHitsDesc, 0, counters.shadowRays ) );
+			CHK_PRIME( rtpQuerySetRays( query, shadowRaysDesc ) );
+			CHK_PRIME( rtpQuerySetHits( query, shadowHitsDesc ) );
+			CHK_PRIME( rtpQueryExecute( query, RTP_QUERY_HINT_NONE ) );
+			CHK_PRIME( rtpQueryDestroy( query ) );
+			// process intersection results
+			finalizeConnections( counters.shadowRays, accumulator->DevPtr(), shadowHitBuffer->DevPtr(), shadowRayPotential->DevPtr() );
+			// reset shadow ray counter
+			counterBuffer->HostPtr()[0].shadowRays = 0;
+			counterBuffer->CopyToDevice();
+		}
+		// prepare next iteration
 		InitCountersSubsequent();
 	}
 	CHK_PRIME( rtpQueryDestroy( query ) );

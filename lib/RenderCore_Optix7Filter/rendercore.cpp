@@ -341,7 +341,7 @@ void RenderCore::SetTarget( GLTexture* target, const uint spp )
 		delete filteredOUT;
 		delete deltaDepth;
 		delete debugData;
-		connectionBuffer = new CoreBuffer<float4>( maxPixels * scrspp * 3 * MAXPATHLENGTH, ON_DEVICE );
+		connectionBuffer = new CoreBuffer<float4>( maxPixels * scrspp * 3 * 2, ON_DEVICE );
 		accumulator = new CoreBuffer<float4>( maxPixels * 2 /* to split direct / indirect */, ON_DEVICE );
 		hitBuffer = new CoreBuffer<float4>( maxPixels * scrspp, ON_DEVICE );
 		pathStateBuffer = new CoreBuffer<float4>( maxPixels * scrspp * 3, ON_DEVICE );
@@ -394,9 +394,15 @@ void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const
 //  +-----------------------------------------------------------------------------+
 void RenderCore::SetInstance( const int instanceIdx, const int meshIdx, const mat4& matrix )
 {
-	// Note: for first-time setup, meshes are expected to be passed in sequential order.
-	// This will result in new CoreInstance pointers being pushed into the instances vector.
-	// Subsequent instance changes (typically: transforms) will be applied to existing CoreInstances.
+	// A '-1' mesh denotes the end of the instance stream;
+	// adjust the instances vector if we have more.
+	if (meshIdx == -1)
+	{
+		if (instances.size() > instanceIdx) instances.resize( instanceIdx );
+		return;
+	}
+	// For the first frame, instances are added to the instances vector.
+	// For subsequent frames existing slots are overwritten / updated.
 	if (instanceIdx >= instances.size())
 	{
 		// create a geometry instance
@@ -761,12 +767,23 @@ void RenderCore::Render( const ViewPyramid& view, const Convergence converge, co
 		counters = counterBuffer->HostPtr()[0];
 		pathCount = counters.extensionRays;
 		if (pathCount == 0) break;
+		// handle shadow buffer overflow
+		uint maxShadowRays = connectionBuffer->GetSize() / 3;
+		if ((pathCount + counters.shadowRays) >= maxShadowRays) if (counters.shadowRays > 0)
+		{
+			params.phase = 2;
+			cudaMemcpyAsync( (void*)d_params, &params, sizeof( Params ), cudaMemcpyHostToDevice, 0 );
+			CHK_OPTIX( optixLaunch( pipeline, 0, d_params, sizeof( Params ), &sbt, counters.shadowRays, 1, 1 ) );
+			counterBuffer->HostPtr()[0].shadowRays = 0;
+			counterBuffer->CopyToDevice();
+			printf( "WARNING: connection buffer overflowed.\n" ); // we should not have to do this; handled here to be conservative.
+		}
 	}
 	// connect to light sources
 	cudaEventRecord( shadowStart );
-	params.phase = 2;
 	if (counters.shadowRays > 0)
 	{
+		params.phase = 2;
 		cudaMemcpyAsync( (void*)d_params, &params, sizeof( Params ), cudaMemcpyHostToDevice, 0 );
 		CHK_OPTIX( optixLaunch( pipeline, 0, d_params, sizeof( Params ), &sbt, counters.shadowRays, 1, 1 ) );
 	}

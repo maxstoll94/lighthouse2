@@ -187,6 +187,7 @@ __inline uint64_t calccrc64( unsigned char* pbData, int len )
 crc64 = CLEARCRC64; uint64_t newcrc = calccrc64( (uchar*)this, sizeof( *this ) ); \
 bool changed = newcrc != currentcrc; crc64 = newcrc; return changed; } \
 void MarkAsDirty() { dirty++; } \
+void MarkAsNotDirty() { Changed(); } \
 private: uint64_t crc64 = CLEARCRC64; uint dirty = 0; \
 
 // rng
@@ -218,6 +219,8 @@ public:
 	Bitmap() = default;
 	Bitmap( const char* f );
 	Bitmap( uint w, uint h ) : pixels( new uint[w * h] ), width( w ), height( h ) {}
+	~Bitmap() { delete pixels; }
+	void Plot( uint x, uint y, uint c ) { if (x < width && y < height) pixels[x + y * width] = c; }
 	void Clear() { memset( pixels, 0, width * height * 4 ); }
 	uint* pixels = nullptr;
 	uint width = 0, height = 0;

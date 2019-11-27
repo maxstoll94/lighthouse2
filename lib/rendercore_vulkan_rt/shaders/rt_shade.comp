@@ -22,7 +22,17 @@
 #include "sampling.glsl"
 
 #include "../bindings.h"
-#include "sharedbsdf.h"
+#include "compatibility.h"
+#if 1
+// simple reference bsdf: Lambert plus specular reflection
+#include "lambert.h"
+#else
+// Disney's principled BRDF, adapted from AppleSeed
+// For Vulkan, this will need some additional work; the current implementation
+// uses templated code.
+#include "ggxmdf.h"
+#include "disney.h"
+#endif
 #include "random.glsl"
 
 layout (local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
@@ -99,7 +109,7 @@ float PotentialDirectionalLightContribution( const int idx, const vec3 I, const 
 float LightPickProb( const int idx, const vec3 O, const vec3 N, const vec3 I );
 float CalculateLightPDF( const vec3 D, const float t, const float lightArea, const vec3 lightNormal );
 vec3 RandomPointOnLight( float r0, float r1, const vec3 I, const vec3 N, inout float pickProb, inout float lightPdf, inout vec3 lightColor );
-float blueNoiseSampler( int x, int y, int sampleIdx, int sampleDimension );
+float blueNoiseSampler( uint x, uint y, uint sampleIdx, uint sampleDimension );
 
 void main()
 {
@@ -195,7 +205,6 @@ void main()
 				const float lightPdf = CalculateLightPDF( D, HIT_T, tri.T4.w, N );
 				const float pickProb = LightPickProb( int(floatBitsToUint(tri.u4.w)), RAY_O, lastN, I /* the N at the previous vertex */ );
 				if ((bsdfPdf + lightPdf * pickProb) > 0) contribution = throughput * shadingData.color * (1.0f / (bsdfPdf + lightPdf * pickProb));
-				contribution = throughput * shadingData.color * (1.0f / (bsdfPdf + lightPdf));
 			}
 		}
 
@@ -206,15 +215,14 @@ void main()
 	}
 
 	// detect specular surfaces
-	if (ROUGHNESS == 0.001f || TRANSMISSION > 0.999f) FLAGS |= S_SPECULAR; /* detect pure speculars; skip NEE for these */ else FLAGS &= ~S_SPECULAR;
+	if (ROUGHNESS <= 0.001f || TRANSMISSION > 0.999f) FLAGS |= S_SPECULAR; /* detect pure speculars; skip NEE for these */ else FLAGS &= ~S_SPECULAR;
 
 	// initialize seed based on pixel index
 	uint seed = WangHash(pathIdx * 16789 + camera.samplesTaken * 1791 + pathLength * 720898027 );
 
-	const float flip = (dot(D, N) > 0) ? -1 : 1;
-	N *= flip;  // Fix geometric normal
-	iN *= flip; // Fix interpolated normal (consistent normal interpolation)
-	fN *= flip; // Fix final normal (includes normal map)
+	// normal alignment for backfacing polygons
+	const float faceDir = (dot( D, N ) > 0) ? -1 : 1;
+	if (faceDir == 1) shadingData.transmittance = vec3( 0 );
 
 	throughput *= 1.0f / bsdfPdf; // Applly postponed bsdf pdf
 
@@ -222,10 +230,10 @@ void main()
 	{
 		vec3 lightColor;
 		float r0, r1, pickProb, lightPdf = 0;
-		if (sampleIdx < 256)
+		if (sampleIdx < 2)
 		{
-			const int x = int(pixelIdx % scrWidth) & 127;
-			const int y = int(pixelIdx / scrWidth) & 127;
+			const uint x = (pixelIdx % scrWidth) & 127;
+			const uint y = (pixelIdx / scrWidth) & 127;
 			r0 = blueNoiseSampler( x, y, int(sampleIdx), 4 + 4 * pathLength );
 			r1 = blueNoiseSampler( x, y, int(sampleIdx), 5 + 4 * pathLength );
 		}
@@ -235,19 +243,22 @@ void main()
 			r1 = RandomFloat( seed );
 		}
 
-		vec3 L = RandomPointOnLight( r0, r1, I, fN, pickProb, lightPdf, lightColor ) - I;
+		vec3 L = RandomPointOnLight( r0, r1, I, fN * faceDir, pickProb, lightPdf, lightColor ) - I;
 		const float dist = length( L );
 		L *= 1.0f / dist;
-		const float NdotL = dot( L, fN );
-
-		if (NdotL > 0 && dot( fN, L ) > 0 && lightPdf > 0)
+		const float NdotL = dot( L, fN * faceDir );
+		if (NdotL > 0 && lightPdf > 0)
 		{
-			float shadowPdf;
-			const vec3 sampledBSDF = EvaluateBSDF( shadingData, fN, T, D * -1.0f, L, shadowPdf );
-			if (shadowPdf > 0)
+			float bsdfPdf;
+		#ifdef BSDF_HAS_PURE_SPECULARS // see note in lambert.h
+			const float3 sampledBSDF = EvaluateBSDF( shadingData, fN /* * faceDir */, T, D * -1.0f, L, bsdfPdf ) * ROUGHNESS;
+		#else
+			const float3 sampledBSDF = EvaluateBSDF( shadingData, fN /* * faceDir */, T, D * -1.0f, L, bsdfPdf );
+		#endif
+			if (bsdfPdf > 0)
 			{
 				// calculate potential contribution
-				vec3 contribution = throughput * sampledBSDF * lightColor * (NdotL / (shadowPdf + lightPdf * pickProb));
+				vec3 contribution = throughput * sampledBSDF * lightColor * (NdotL / (pickProb * lightPdf + bsdfPdf));
 
 				CLAMPINTENSITY(contribution, clampValue);
 				FIXNAN_VEC3( contribution );
@@ -255,7 +266,7 @@ void main()
 				// Add fire-and-forget shadow ray to the connections buffer
 				const uint shadowRayIdx = atomicAdd( shadowRays, 1 ); // compaction
 
-				potentialContributions[shadowRayIdx].Origin = vec4( SafeOrigin( I, L, N, geometryEpsilon ), 0 ); // O4
+				potentialContributions[shadowRayIdx].Origin = vec4( SafeOrigin( I, L, N * faceDir, geometryEpsilon ), 0 ); // O4
 				potentialContributions[shadowRayIdx].Direction = vec4( L, dist - 2.0 * geometryEpsilon ); // D4
 				potentialContributions[shadowRayIdx].Emission_pixelIdx = vec4( contribution, uintBitsToFloat( pixelIdx ) ); // E4
 			}
@@ -286,7 +297,7 @@ void main()
 	r4 = RandomFloat( seed );
 #endif
 	bool specular = false;
-	const vec3 bsdf = SampleBSDF( shadingData, fN, N, T, D * -1.0f, r3, r4, R, newBsdfPdf, specular );
+	const vec3 bsdf = SampleBSDF( shadingData, fN, N, T, D * -1.0f, HIT_T, r3, r4, R, newBsdfPdf, specular );
 	if (newBsdfPdf < EPSILON || isnan( newBsdfPdf )) return; // Early out in case we have an invalid bsdf
 	if (specular) FLAGS |= S_SPECULAR;
 
@@ -296,10 +307,10 @@ void main()
 	else FLAGS |= S_VIASPECULAR;
 
 
-	origins[nextBufferIndex].data[extensionRayIdx] = vec4( SafeOrigin( I, R, N, geometryEpsilon ), uintBitsToFloat( FLAGS ) );
-	directions[nextBufferIndex].data[extensionRayIdx] = vec4( R, uintBitsToFloat( PackNormal( fN ) /* Pack normal for MIS */) );
+	origins[nextBufferIndex].data[extensionRayIdx] = vec4( SafeOrigin( I, R, N * faceDir, geometryEpsilon ), uintBitsToFloat( FLAGS ) );
+	directions[nextBufferIndex].data[extensionRayIdx] = vec4( R, uintBitsToFloat( PackNormal( fN * faceDir ) /* Pack normal for MIS */) );
 	FIXNAN_VEC3(throughput);
-	throughputs[nextBufferIndex].data[extensionRayIdx] = vec4( throughput * bsdf * abs( dot( fN, R ) ), newBsdfPdf );
+	throughputs[nextBufferIndex].data[extensionRayIdx] = vec4( throughput * bsdf * abs( dot( fN * faceDir, R ) ), newBsdfPdf );
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -539,7 +550,7 @@ vec3 RandomPointOnLight( float r0, float r1, const vec3 I, const vec3 N,
 	}
 }
 
-float blueNoiseSampler( int x, int y, int sampleIdx, int sampleDimension )
+float blueNoiseSampler( uint x, uint y, uint sampleIdx, uint sampleDimension )
 {
 	// wrap arguments
 	x &= 127;
@@ -548,10 +559,10 @@ float blueNoiseSampler( int x, int y, int sampleIdx, int sampleDimension )
 	sampleDimension &= 255;
 
 	// xor index based on optimized ranking
-	int rankedSampleIndex = sampleIdx ^ blueNoise[sampleDimension + (x + y * 128) * 8 + 65536 * 3];
+	uint rankedSampleIndex = (sampleIdx ^ blueNoise[sampleDimension + (x + y * 128) * 8 + 65536 * 3]) & 255;
 
 	// fetch value in sequence
-	int value = blueNoise[sampleDimension + rankedSampleIndex * 256];
+	uint value = blueNoise[sampleDimension + rankedSampleIndex * 256];
 
 	// if the dimension is optimized, xor sequence value based on optimized scrambling
 	value ^= blueNoise[(sampleDimension & 7) + (x + y * 128) * 8 + 65536];

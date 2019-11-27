@@ -41,13 +41,26 @@ static CoreStats coreStats;
 void PrepareScene()
 {
 	// initialize scene
+#if 1
+	// radio
+	materialFile = string( "data/receiver/red_materials.xml" );
+	renderer->AddScene( "scene.gltf", "data/receiver/", mat4::Scale( 0.2f ) * mat4::Translate( 0, 0, 0 ) );
+	int rootNode = renderer->FindNode( "RootNode (gltf orientation matrix)" );
+	renderer->SetNodeTransform( rootNode, mat4::RotateX( -PI / 2 ) );
+	int floorMat = renderer->AddMaterial( make_float3( 0.5f, 0.5f, 0.6f ) );
+	int floorQuad = renderer->AddQuad( make_float3( 0, 1, 0 ), make_float3( 0, -1.5f, 0 ), 40, 40, floorMat );
+	renderer->AddInstance( floorQuad );
+	animPaused = true;
+#else
+	// classic scene
 	materialFile = string( "data/pica/pica_materials.xml" );
 	renderer->AddScene( "scene.gltf", "data/pica/", mat4::Translate( 0, -10.2f, 0 ) );
 	int rootNode = renderer->FindNode( "RootNode (gltf orientation matrix)" );
 	renderer->SetNodeTransform( rootNode, mat4::RotateX( -PI / 2 ) );
+#endif
 #if 1
 	// overhead light, use regular PT
-	int lightMat = renderer->AddMaterial( make_float3( 100, 100, 80 ) );
+	int lightMat = renderer->AddMaterial( make_float3( 50, 50, 45 ) );
 	int lightQuad = renderer->AddQuad( make_float3( 0, -1, 0 ), make_float3( 0, 26.0f, 0 ), 6.9f, 6.9f, lightMat );
 #else
 	// difficult light; use BDPT
@@ -94,7 +107,8 @@ bool HandleInput( float frameTime )
 			currentMaterialID = selectedMaterialID;
 			currentMaterial.Changed(); // update checksum so we can track changes
 		}
-		// camera->focalDistance = coreStats.probedDist;
+		camera->focalDistance = coreStats.probedDist;
+		camera->aperture = 0.02f;
 		changed = true;
 	}
 	// let the main loop know if the camera should update
@@ -129,10 +143,11 @@ int main()
 
 	// initialize renderer: pick one
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_Optix7filter" );		// OPTIX7 core, with filtering (static scenes only for now)
-	renderer = RenderAPI::CreateRenderAPI( "RenderCore_Optix7" );				// OPTIX7 core, best for RTX devices
-	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_OptixPrime_B" );		// OPTIX PRIME, best for pre-RTX CUDA devices
+	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_Optix7" );				// OPTIX7 core, best for RTX devices
+	renderer = RenderAPI::CreateRenderAPI( "RenderCore_OptixPrime_B" );		// OPTIX PRIME, best for pre-RTX CUDA devices
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_PrimeRef" );			// REFERENCE, for image validation
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_SoftRasterizer" );	// RASTERIZER, your only option if not on NVidia
+	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_Minimal" );			// MINIMAL example, to get you started on your own core
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_Vulkan_RT" );			// Meir's Vulkan / RTX core
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_OptixPrime_BDPT" );	// Peter's OptixPrime / BDPT core
 
