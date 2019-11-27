@@ -72,13 +72,18 @@ void InitGLFW()
 	}
 	glfwSetErrorCallback( ErrorCallback );
 	glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 4 );
-	// glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 5 );
+	glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 5 );
 	glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
 	glfwWindowHint( GLFW_RESIZABLE, GL_TRUE );
 	if (!(window = glfwCreateWindow( SCRWIDTH, SCRHEIGHT, "LightHouse v2.0", nullptr, nullptr )))
 	{
-		printf( "glfwCreateWindow failed.\n" );
-		exit( EXIT_FAILURE );
+		// try again with a more relaxed OpenGL version requirement. This breaks the Vulkan core.
+		glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 0 );
+		if (!(window = glfwCreateWindow( SCRWIDTH, SCRHEIGHT, "LightHouse v2.0", nullptr, nullptr )))
+		{
+			printf( "glfwCreateWindow failed.\n" );
+			exit( EXIT_FAILURE );
+		}
 	}
 	glfwMakeContextCurrent( window );
 	// register callbacks

@@ -13,10 +13,21 @@
    limitations under the License.
 */
 
-#include "compatibility.h"
-
 // Lambert BSDF
 // ----------------------------------------------------------------
+
+// A note on the #define below:
+// A BSDF that may produce pure specular bounces needs special handling
+// in pathtracer.h.
+// - Implicit light connections after a specular bounce should contribute
+//   the light directly, skipping MIS;
+// - Assuming NEE is executed unconditionally (as it should on GPUs), the
+//   explicit light path should be scaled by the probability of a diffuse
+//   bounce, i.e. 1 minus the probability of a specular bounce.
+// The Lambert shader has a probability of producing a specular bounce
+// proportional to 1-ROUGHNESS. It also returns 'true' in the specular
+// parameter of SampleBSDF when a specular bounce is produced.
+#define BSDF_HAS_PURE_SPECULARS
 
 LH2_DEVFUNC float Fr_L( float VDotN, float eio )
 {
@@ -33,7 +44,7 @@ LH2_DEVFUNC float Fr_L( float VDotN, float eio )
 	return 0.5f * (sqr( r1 ) + sqr( r2 ));
 }
 
-LH2_DEVFUNC bool Refract_L( const float3& wi, const float3& n, const float eta, float3& wt )
+LH2_DEVFUNC bool Refract_L( const float3 wi, const float3 n, const float eta, REFERENCE_OF( float3 ) wt )
 {
 	const float cosThetaI = fabs( dot( n, wi ) );
 	const float sin2ThetaI = max( 0.0f, 1.0f - cosThetaI * cosThetaI );
@@ -47,33 +58,45 @@ LH2_DEVFUNC bool Refract_L( const float3& wi, const float3& n, const float eta, 
 LH2_DEVFUNC float3 EvaluateBSDF( const ShadingData shadingData, const float3 iN, const float3 T,
 	const float3 wo, const float3 wi, REFERENCE_OF( float ) pdf )
 {
+	if (TRANSMISSION > 0.999f || ROUGHNESS <=0.001f)
+	{
+		// no transport via explicit connections for specular vertices
+		pdf = 0;
+		return make_float3( 0 );
+	}
 	pdf = fabs( dot( wi, iN ) ) * INVPI;
 	return shadingData.color * INVPI;
 }
 
 LH2_DEVFUNC float3 SampleBSDF( const ShadingData shadingData, float3 iN, const float3 N, const float3 T, const float3 wo, const float distance,
-	const float r3, const float r4, REFERENCE_OF( float3 ) wi, REFERENCE_OF( float ) pdf, REFERENCE_OF( bool ) specular, bool adjoint = false )
+	const float r3, const float r4, REFERENCE_OF( float3 ) wi, REFERENCE_OF( float ) pdf, REFERENCE_OF( bool ) specular
+#ifdef __CUDACC__
+	, bool adjoint = false
+#endif
+)
 {
+	float flip = (dot( wo, N ) < 0) ? -1 : 1;
+	iN *= flip;
 	specular = true, pdf = 1; // default
 	float3 bsdf;
 	if (r4 < TRANSMISSION)
 	{
 		// specular
-		const float eio = 1 / ETA, F = Fr_L( dot( iN, wo ), eio );
+		const float eio = flip < 0 ? (1.0f / ETA) : ETA, F = Fr_L( dot( iN, wo ), eio );
+		float3 beer = make_float3( 1 );
+		beer.x = expf( -shadingData.transmittance.x * distance * 2.0f );
+		beer.y = expf( -shadingData.transmittance.y * distance * 2.0f );
+		beer.z = expf( -shadingData.transmittance.z * distance * 2.0f );
 		if (r3 < F)
 		{
 			wi = reflect( wo * -1.0f, iN );
-			bsdf = shadingData.color * (1 / abs( dot( iN, wi ) ));
+			bsdf = shadingData.color * beer * (1 / abs( dot( iN, wi ) ));
 		}
 		else
 		{
 			if (!Refract_L( wo, iN, eio, wi )) return make_float3( 0 );
 			float ajointCorrection = 1.0f;
 			if (adjoint) ajointCorrection = (eio * eio);
-			float3 beer = make_float3( 1 );
-			// beer.x = expf( -shadingData.transmittance.x * distance * 2.0f );
-			// beer.y = expf( -shadingData.transmittance.y * distance * 2.0f );
-			// beer.z = expf( -shadingData.transmittance.z * distance * 2.0f );
 			return shadingData.color * beer * ajointCorrection * (1 / abs( dot( iN, wi ) ));
 		}
 	}
@@ -97,7 +120,7 @@ LH2_DEVFUNC float3 SampleBSDF( const ShadingData shadingData, float3 iN, const f
 			bsdf = shadingData.color * INVPI;
 		}
 	}
-	APPLYSAFENORMALS;
+	if (dot( N * flip, wi ) <= 0) pdf = 0; // APPLYSAFENORMALS;
 	return bsdf;
 }
 

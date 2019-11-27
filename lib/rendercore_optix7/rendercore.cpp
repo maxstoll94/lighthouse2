@@ -348,9 +348,15 @@ void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const
 //  +-----------------------------------------------------------------------------+
 void RenderCore::SetInstance( const int instanceIdx, const int meshIdx, const mat4& matrix )
 {
-	// Note: for first-time setup, meshes are expected to be passed in sequential order.
-	// This will result in new CoreInstance pointers being pushed into the instances vector.
-	// Subsequent instance changes (typically: transforms) will be applied to existing CoreInstances.
+	// A '-1' mesh denotes the end of the instance stream;
+	// adjust the instances vector if we have more.
+	if (meshIdx == -1)
+	{
+		if (instances.size() > instanceIdx) instances.resize( instanceIdx );
+		return;
+	}
+	// For the first frame, instances are added to the instances vector.
+	// For subsequent frames existing slots are overwritten / updated.
 	if (instanceIdx >= instances.size())
 	{
 		// create a geometry instance
@@ -698,7 +704,8 @@ void RenderCore::Render( const ViewPyramid& view, const Convergence converge, co
 		pathCount = counters.extensionRays;
 		if (pathCount == 0) break;
 		// trace shadow rays now if the next loop iteration could overflow the buffer.
-		if (pathCount > connectionBuffer->GetSize() / 3) if (counters.shadowRays > 0)
+		uint maxShadowRays = connectionBuffer->GetSize() / 3;
+		if ((pathCount + counters.shadowRays) >= maxShadowRays) if (counters.shadowRays > 0)
 		{
 			params.phase = 2;
 			cudaMemcpyAsync( (void*)d_params, &params, sizeof( Params ), cudaMemcpyHostToDevice, 0 );

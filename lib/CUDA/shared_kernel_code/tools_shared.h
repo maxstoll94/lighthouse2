@@ -28,6 +28,7 @@ struct ShadingData
 	// This structure is filled for an intersection point. It will contain the spatially varying material properties.
 	float3 color; int flags;
 	float3 transmittance; int matID;
+	float4 tint;
 	uint4 parameters;
 	/* 16 uchars:   x: metallic, subsurface, specular, roughness;
 					y: specTint, anisotropic, sheen, sheenTint;
@@ -47,10 +48,12 @@ struct ShadingData
 #define CLEARCOAT CHAR2FLT( shadingData.parameters.z, 0 )
 #define CLEARCOATGLOSS CHAR2FLT( shadingData.parameters.z, 8 )
 #define TRANSMISSION CHAR2FLT( shadingData.parameters.z, 16 )
+#define TINT make_float3( shadingData.tint )
+#define LUMINANCE shadingData.tint.w
 #define DUMMY0 CHAR2FLT( shadingData.parameters.z, 24 )
 #define ETA __uint_as_float( shadingData.parameters.w )
 };
-struct ShadingData4 { float4 data0, data1; uint4 data2; /* for fast 128-bit access */ };
+struct ShadingData4 { float4 data0, data1, tint4; uint4 data2; /* for fast 128-bit access */ };
 
 // random numbers
 
@@ -92,7 +95,7 @@ LH2_DEVFUNC float saturate( const float x ) { return max( 0.0f, min( 1.0f, x ) )
 LH2_DEVFUNC float2 saturate( const float2 x ) { return max2( make_float2( 0 ), min2( make_float2( 1 ), x ) ); }
 LH2_DEVFUNC float3 saturate( const float3 x ) { return max3( make_float3( 0 ), min3( make_float3( 1 ), x ) ); }
 LH2_DEVFUNC float4 saturate( const float4 x ) { return max4( make_float4( 0 ), min4( make_float4( 1 ), x ) ); }
-LH2_DEVFUNC float mix( const float a, const float b, const float x ) { return x <= 0 ? a : x >= 1 ? b : lerp(a, b, x); }
+LH2_DEVFUNC float mix( const float a, const float b, const float x ) { return x <= 0 ? a : x >= 1 ? b : lerp( a, b, x ); }
 
 // from: https://aras-p.info/texts/CompactNormalStorage.html
 LH2_DEVFUNC uint PackNormal( const float3 N )
@@ -188,9 +191,9 @@ LH2_DEVFUNC float4 SampleSkydome( const float3 D, const int pathLength )
 	return idx < skywidth * skyheight ? make_float4( skyPixels[idx], 1.0f ) : make_float4( 0 );
 }
 
-LH2_DEVFUNC float SurvivalProbability( const float3& diffuse )
+LH2_DEVFUNC float SurvivalProbability( const float3& albedo )
 {
-	return min( 1.0f, max( max( diffuse.x, diffuse.y ), diffuse.z ) );
+	return min( 1.0f, max( max( albedo.x, albedo.y ), albedo.z ) );
 }
 
 LH2_DEVFUNC float FresnelDielectricExact( const float3& wo, const float3& N, float eta )
@@ -216,13 +219,23 @@ LH2_DEVFUNC float3 Tangent2World( const float3& V, const float3& N )
 	return V.x * T + V.y * B + V.z * N;
 }
 
-LH2_DEVFUNC float3 World2Tangent( const float3& __restrict__ V, const float3& __restrict__ N )
+LH2_DEVFUNC float3 Tangent2World( const float3& V, const float3& N,  const float3& T, const float3& B )
+{
+	return V.x * T + V.y * B + V.z * N;
+}
+
+LH2_DEVFUNC float3 World2Tangent( const float3& V, const float3& N )
 {
 	float sign = copysignf( 1.0f, N.z );
 	const float a = -1.0f / (sign + N.z);
 	const float b = N.x * N.y * a;
 	const float3 B = make_float3( 1.0f + sign * N.x * N.x * a, sign * b, -sign * N.x );
 	const float3 T = make_float3( b, sign + N.y * N.y * a, -N.y );
+	return make_float3( dot( V, T ), dot( V, B ), dot( V, N ) );
+}
+
+LH2_DEVFUNC float3 World2Tangent( const float3& V, const float3& N, const float3& T, const float3& B )
+{
 	return make_float3( dot( V, T ), dot( V, B ), dot( V, N ) );
 }
 
@@ -242,23 +255,23 @@ LH2_DEVFUNC float3 DiffuseReflectionCosWeighted( const float r0, const float r1 
 	return make_float3( c * term2, s * term2, sqrtf( r1 ) );
 }
 
-LH2_DEVFUNC float3 UniformSampleSphere(const float r0, const float r1)
+LH2_DEVFUNC float3 UniformSampleSphere( const float r0, const float r1 )
 {
-    const float z = 1.0f - 2.0f * r1; // [-1~1]
-    const float term1 = TWOPI * r0, term2 = sqrtf(1 - z * z);
-    float s, c;
-    __sincosf(term1, &s, &c);
-    return make_float3(c * term2, s * term2, z);
+	const float z = 1.0f - 2.0f * r1; // [-1~1]
+	const float term1 = TWOPI * r0, term2 = sqrtf( 1 - z * z );
+	float s, c;
+	__sincosf( term1, &s, &c );
+	return make_float3( c * term2, s * term2, z );
 }
 
-LH2_DEVFUNC float3 UniformSampleCone(const float r0, const float r1, const float cos_outer)
+LH2_DEVFUNC float3 UniformSampleCone( const float r0, const float r1, const float cos_outer )
 {
-    float cosTheta = 1.0f - r1 + r1 * cos_outer;
-    float term2 = sqrtf(1 - cosTheta * cosTheta);
-    const float term1 = TWOPI * r0;
-    float s, c;
-    __sincosf(term1, &s, &c);
-    return make_float3(c * term2, s * term2, cosTheta);
+	float cosTheta = 1.0f - r1 + r1 * cos_outer;
+	float term2 = sqrtf( 1 - cosTheta * cosTheta );
+	const float term1 = TWOPI * r0;
+	float s, c;
+	__sincosf( term1, &s, &c );
+	return make_float3( c * term2, s * term2, cosTheta );
 }
 
 // origin offset
@@ -284,9 +297,6 @@ LH2_DEVFUNC float3 ConsistentNormal( const float3& D, const float3& iN, const fl
 {
 	// part of the implementation of "Consistent Normal Interpolation", Reshetov et al., 2010
 	// calculates a safe normal given an incoming direction, phong normal and alpha
-#ifndef CONSISTENTNORMALS
-	return iN;
-#else
 #if 0
 	// Eq. 1, exact
 	const float q = (1 - sinf( alpha )) / (1 + sinf( alpha ));
@@ -297,7 +307,6 @@ LH2_DEVFUNC float3 ConsistentNormal( const float3& D, const float3& iN, const fl
 	const float b = dot( D, iN ), g = 1 + q * (b - 1), rho = sqrtf( q * (1 + g) / (1 + b) );
 	const float3 Rc = (g + rho * b) * iN - (rho * D);
 	return normalize( D + Rc );
-#endif
 }
 
 LH2_DEVFUNC float4 CombineToFloat4( const float3& A, const float3& B )
