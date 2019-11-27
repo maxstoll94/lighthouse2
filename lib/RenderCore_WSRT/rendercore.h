@@ -72,11 +72,14 @@ public:
 	uint height;
 };
 
+enum side { Front, Back };
+
 struct Intersection
 {
 	float3 position;
 	float3 normal;
 	float2 uv;
+	side side;
 	uint materialIndex;
 	float distance;
 };
@@ -130,8 +133,9 @@ public:
 		const float3 &v0, 
 		const float3 &v1, 
 		const float3 &v2, 
-		float &t, float &u, 
-		float &v);
+		float &t,
+		side &side,
+		float &u, float &v);
 	Ray Reflect(const Ray &ray, const Intersection &intersection);
 	float3 SkyDomeColor(const Ray &ray);
 	float3 Directllumination(const Intersection &intersection);

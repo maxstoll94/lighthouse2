@@ -22,6 +22,7 @@ using namespace lh2core;
 
 constexpr float kEpsilon = 1e-8;
 constexpr float defaultRayDistance = 1000;
+constexpr float bias = 0.00001;
 
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::Init                                                           |
@@ -182,10 +183,8 @@ float3 RenderCore::Trace(Ray &ray) {
 	if (!hasIntersection) return SkyDomeColor(ray);
 
 	Material material = materials[intersection.materialIndex];
-	float s = 0;
 
 	float3 diffuse;
-
 	if (material.texture == NULL) {
 		diffuse = material.diffuse;
 	}
@@ -199,18 +198,40 @@ float3 RenderCore::Trace(Ray &ray) {
 
 		int hexvalue = material.texture->pixels[i];
 		diffuse.x = ((hexvalue >> 16) & 0xff) / 255.0;  // extract the rr byte
-		diffuse.y = ((hexvalue >> 8) & 0xff) / 255.0;   // extract the gg byte
-		diffuse.z = ((hexvalue) & 0xff) / 255.0;        // extract the bb byte
+		diffuse.y = ((hexvalue >> 8)  & 0xff) / 255.0;  // extract the gg byte
+		diffuse.z = ((hexvalue)       & 0xff) / 255.0;  // extract the bb byte
+	}
+	
+	float refractiveIndexGlass = 1.5168;
+	float refractiveIndexAir = 1.0;
+
+	float cosO1 = dot(intersection.normal, -ray.direction);
+	float n1n2;
+
+	switch (intersection.side) {
+		case Front:
+			n1n2 = refractiveIndexAir / refractiveIndexGlass;
+			break;
+		case Back:
+			n1n2 = refractiveIndexGlass / refractiveIndexAir;
+			break;
 	}
 
-	if (s == 0) {
-		return diffuse * Directllumination(intersection);
-	} else if (s == 1) {
-		return diffuse * Trace(Reflect(ray, intersection));
-	} else {
-		float d = 1 - s;
-		return diffuse * (s * Trace(Reflect(ray, intersection)) + d * Directllumination(intersection));
-	}
+	float k = 1 - n1n2 * n1n2 * (1 - cosO1 * cosO1);
+
+	// total internal reflection
+	if (k < 0) return make_float3(0.0f);
+
+	Ray refractRay;
+	refractRay.direction = n1n2 * ray.direction + intersection.normal * (n1n2 * cosO1 - sqrt(k));
+	refractRay.origin = intersection.position + bias * -intersection.normal;
+	refractRay.distance = ray.distance - intersection.distance;
+
+	return Trace(refractRay);
+
+	// return diffuse * Directllumination(intersection);
+
+	// return diffuse * Trace(Reflect(ray, intersection));
 }
 
 float3 RenderCore::SkyDomeColor(const Ray &ray) {
@@ -226,15 +247,16 @@ bool RenderCore::HasIntersection(const Ray &ray) {
 	float t;
 	float u;
 	float v;
+	side side;
 
 	for (Mesh& mesh : meshes) for (int i = 0; i < mesh.vcount; i += 3) {
 		float3 a = make_float3(mesh.vertices[i]);
 		float3 b = make_float3(mesh.vertices[i + 1]);
 		float3 c = make_float3(mesh.vertices[i + 2]);
 
-		if (IntersectsWithTriangle(ray, a, b, c, t, u, v)
-		&& t > kEpsilon
-		&& t < ray.distance
+		if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v)
+			&& t > kEpsilon
+			&& t < ray.distance
 		) return true;
 	}
 	return false;
@@ -243,6 +265,7 @@ bool RenderCore::HasIntersection(const Ray &ray) {
 bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection) {
 	float currentT, currentU, currentV;
 	float nearestT, nearestU, nearestV;
+	side nearestSide, currentSide;
 	CoreTri nearestTriangle;
 	bool hasIntersection = false;
 
@@ -251,14 +274,15 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 		float3 b = make_float3(mesh.vertices[i + 1]);
 		float3 c = make_float3(mesh.vertices[i + 2]);
 
-		if (IntersectsWithTriangle(ray, a, b, c, currentT, currentU, currentV)
-		&& currentT > kEpsilon
-		&& currentT < ray.distance
-		&& (!hasIntersection || currentT < nearestT)
+		if (IntersectsWithTriangle(ray, a, b, c, currentT, currentSide, currentU, currentV)
+			&& currentT > kEpsilon
+			&& currentT < ray.distance
+			&& (!hasIntersection || currentT < nearestT)
 		) {
 			nearestT = currentT;
 			nearestU = currentU;
 			nearestV = currentV;
+			nearestSide = currentSide;
 			nearestTriangle = mesh.triangles[i / 3];
 			hasIntersection = true;
 		}
@@ -267,7 +291,9 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 	if (hasIntersection) {
 		intersection.position = ray.origin + ray.direction * nearestT;
 		intersection.normal = (1 - nearestU - nearestV) * nearestTriangle.vN0 + nearestU * nearestTriangle.vN1 + nearestV * nearestTriangle.vN2;
+		if (nearestSide == Back) intersection.normal = -intersection.normal;
 		intersection.materialIndex = nearestTriangle.material;
+		intersection.side = nearestSide;
 		intersection.distance = nearestT;
 
 		// Only do this when material has a texture
@@ -281,14 +307,22 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 }
 
 // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection
-bool RenderCore::IntersectsWithTriangle(const Ray &ray, const float3 &v0, const float3 &v1, const float3 &v2, float &t, float &u, float &v) {
+bool RenderCore::IntersectsWithTriangle(const Ray &ray, const float3 &v0, const float3 &v1, const float3 &v2, float &t, side &side, float &u, float &v) {
 	float3 v0v1 = v1 - v0;
 	float3 v0v2 = v2 - v0;
 	float3 pvec = cross(ray.direction, v0v2);
 	float det = dot(v0v1, pvec);
 	// if the determinant is negative the triangle is backfacing
 	// if the determinant is close to 0, the ray misses the triangle
-	if (det < kEpsilon) return false;
+	if (det > kEpsilon) {
+		side = Front;
+	}
+	else if (det < -kEpsilon) {
+		side = Back;
+	}
+	else {
+		return false;
+	}
 
 	float invDet = 1 / det;
 
@@ -304,12 +338,11 @@ bool RenderCore::IntersectsWithTriangle(const Ray &ray, const float3 &v0, const 
 
 	return true;
 }
-
 Ray RenderCore::Reflect(const Ray &ray, const Intersection &intersection) {
 	Ray reflectRay;
 	// taken from lecture slides "whitted-style" slide 13
 	reflectRay.direction = ray.direction - 2 * dot(intersection.normal, ray.direction) * intersection.normal;
-	reflectRay.origin = intersection.position;
+	reflectRay.origin = intersection.position + bias * intersection.normal;
 	reflectRay.distance = ray.distance - intersection.distance;
 
 	return reflectRay;
@@ -328,7 +361,7 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 		float contribution = dot(intersection.normal, lightDirection) * pointLight.energy / pow(lightDistance, 2);
 		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
-		ray.origin = intersection.position;
+		ray.origin = intersection.position + bias * intersection.normal;
 		ray.direction = lightDirection;
 		ray.distance = lightDistance;
 
@@ -344,7 +377,7 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 		float contribution = dot(intersection.normal, lightDirection);
 		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
-		ray.origin = intersection.position;
+		ray.origin = intersection.position + bias * intersection.normal;
 		ray.direction = lightDirection;
 		ray.distance = std::numeric_limits<float>::infinity();
 
@@ -374,7 +407,7 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 		contribution *= dot(intersection.normal, -lightDirection);
 		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
-		ray.origin = intersection.position;
+		ray.origin = intersection.position + bias * intersection.normal;
 		ray.direction = -lightDirection;
 		ray.distance = length(intersectionLight);
 
