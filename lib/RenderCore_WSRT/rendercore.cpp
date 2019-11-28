@@ -232,7 +232,17 @@ float3 RenderCore::Trace(Ray &ray) {
 	refractRay.origin = intersection.position + bias * -intersection.normal;
 	refractRay.distance = ray.distance - intersection.distance;
 
-	return Trace(refractRay);
+	switch (intersection.side) {
+	case Front:
+		return Trace(refractRay);
+	case Back:
+		float3 absorption;
+		absorption.x = exp(-8.0 * intersection.distance);
+		absorption.y = exp(-2.0 * intersection.distance);
+		absorption.z = exp(-0.1 * intersection.distance);
+
+		return absorption * Trace(refractRay);
+	}
 
 	// return diffuse * Directllumination(intersection);
 
