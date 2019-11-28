@@ -202,6 +202,8 @@ float3 RenderCore::Trace(Ray &ray) {
 		diffuse.z = ((hexvalue)       & 0xff) / 255.0;  // extract the bb byte
 	}
 	
+	return diffuse * Directllumination(intersection);
+
 	float refractiveIndexGlass = 1.5168;
 	float refractiveIndexAir = 1.0;
 
@@ -444,33 +446,32 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 	}
 
 	for (CoreSpotLight spotLight : spotLights) {
-		float3 intersectionLight = intersection.position - spotLight.position;
+		float3 intersectionLight = spotLight.position - intersection.position;
 		float3 lightDirection = normalize(intersectionLight);
+		float lightDistance = length(intersectionLight);
 
-		float angle = acos(dot(lightDirection, spotLight.direction));
+		float angle = dot(-lightDirection, spotLight.direction);
 		float contribution;
 
-		float halfCosOuter = spotLight.cosOuter / 2;
-		float halfCosInner = spotLight.cosInner / 2;
-
-		if (angle > halfCosOuter) {
+		if (angle < spotLight.cosOuter) {
 			continue;
-		} else if (angle > halfCosInner) {
-			contribution = 1 - ((angle - halfCosInner) / (halfCosOuter - halfCosInner));
+		} else if (angle < spotLight.cosInner) {
+			contribution = 1 - ((angle - spotLight.cosInner) / (spotLight.cosOuter - spotLight.cosInner));
 		} else {
 			contribution = 1;
 		}
 
-		contribution *= dot(intersection.normal, -lightDirection);
+		contribution *= dot(intersection.normal, lightDirection) / pow(lightDistance, 2);
 		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
 		ray.origin = intersection.position + bias * intersection.normal;
-		ray.direction = -lightDirection;
-		ray.distance = length(intersectionLight);
+		ray.direction = lightDirection;
+		ray.distance = lightDistance;
 
 		if (!HasIntersection(ray)) {
 			illumination += spotLight.radiance * contribution;
 		}
+
 	}
 
 	return illumination;

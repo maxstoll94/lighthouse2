@@ -75,14 +75,23 @@ void PrepareScene()
 //	renderer->DeserializeMaterials( materialFile.c_str() );
 
 	// spot light
-	// renderer->AddSpotLight(make_float3(0, 3, 0), make_float3(-1, -1, 0), PI / 4, PI / 2, make_float3(1, 1, 1), true);
+	renderer->AddSpotLight(make_float3(0, 3, 0), make_float3(-0.1, -1, 0.2), 0.9, 0.0, make_float3(10, 10, 10), true);
+
+	// spot light
+	// renderer->AddPointLight(make_float3(20, 30, 10), make_float3(1000, 1000, 1000), 1.0, true);
+
 
 	// directional light
-	renderer->AddDirectionalLight(make_float3(0.2, -1, 0), make_float3(1, 1, 1), true);
+	// renderer->AddDirectionalLight(make_float3(0.2, -1, 0), make_float3(1, 1, 1), true);
 
 	// dice
-	int diceId = renderer->AddMesh("dice.obj", "data/dice/", 1.0f);
-	renderer->AddInstance(diceId);
+	// int diceId = renderer->AddMesh("dice.obj", "data/dice/", 1.0f);
+	// renderer->AddInstance(diceId);
+
+	//// multiMaterial
+	int multimaterialId = renderer->AddMesh("multimaterial.obj", "data/multimaterial/", 1.0f);
+	renderer->AddInstance(multimaterialId);
+
 }
 
 //  +-----------------------------------------------------------------------------+
