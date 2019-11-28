@@ -161,10 +161,11 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge)
 			int colorHex = (int(0xff * min(color.x, 1.0f)) + (int(0xff * min(color.y, 1.0f)) << 8) + (int(0xff * min(color.z, 1.0f)) << 16));
 			screen->Plot(u, v, colorHex);
 		}
-		// copy pixel buffer to OpenGL render target texture
-		glBindTexture(GL_TEXTURE_2D, targetTextureID);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screen->width, screen->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, screen->pixels);
 	}
+
+	// copy pixel buffer to OpenGL render target texture
+	glBindTexture(GL_TEXTURE_2D, targetTextureID);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screen->width, screen->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, screen->pixels);
 }
 
 //  +-----------------------------------------------------------------------------+
