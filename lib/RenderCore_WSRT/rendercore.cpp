@@ -206,21 +206,26 @@ float3 RenderCore::Trace(Ray &ray) {
 	float refractiveIndexAir = 1.0;
 
 	float cosO1 = dot(intersection.normal, -ray.direction);
-	float n1n2;
 
+	float n1, n2;
 	switch (intersection.side) {
 		case Front:
-			n1n2 = refractiveIndexAir / refractiveIndexGlass;
+			n1 = refractiveIndexAir;
+			n2 = refractiveIndexGlass;
 			break;
 		case Back:
-			n1n2 = refractiveIndexGlass / refractiveIndexAir;
+			n1 = refractiveIndexGlass;
+			n2 = refractiveIndexAir;
 			break;
 	}
+
+	float n1n2 = n1 / n2;
+
 
 	float k = 1 - n1n2 * n1n2 * (1 - cosO1 * cosO1);
 
 	// total internal reflection
-	if (k < 0) return make_float3(0.0f);
+	if (k < 0) make_float3(0.0);
 
 	Ray refractRay;
 	refractRay.direction = n1n2 * ray.direction + intersection.normal * (n1n2 * cosO1 - sqrt(k));
