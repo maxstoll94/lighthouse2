@@ -139,7 +139,7 @@ void RenderCore::SetSkyData(const float3* pixels, const uint width, const uint h
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::Render                                                         |
 //  |  Produce one image.                                                   LH2'19|
-void RenderCore::Render(const ViewPyramid& view, const Convergence converge, const float brightness, const float contrast)
+void RenderCore::Render(const ViewPyramid& view, const Convergence converge)
 {
 	// render
 	screen->Clear();
