@@ -285,7 +285,7 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 	//float radius = 1.0f;
 
 	//float a = dot(ray.direction, ray.direction);
-	//float b = dot(2 * ray.direction, ray.origin - ray.direction);
+	//float b = dot(2 * ray.direction, ray.origin - pos);
 	//float c = dot(ray.origin - pos, ray.origin - pos) - radius * radius;
 
 	//if (b * b - 4 * a * c < 0) {
