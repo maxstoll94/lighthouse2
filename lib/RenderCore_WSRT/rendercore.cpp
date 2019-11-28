@@ -278,6 +278,48 @@ bool RenderCore::HasIntersection(const Ray &ray) {
 }
 
 bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection) {
+	//float3 pos = make_float3(0, 0, 0);
+	//float radius = 1.0f;
+
+	//float a = dot(ray.direction, ray.direction);
+	//float b = dot(2 * ray.direction, ray.origin - ray.direction);
+	//float c = dot(ray.origin - ray.direction, ray.origin - ray.direction) - radius * radius;
+
+	//if (b * b - 4 * a * c < 0) {
+	//	return false;
+	//}
+
+	//float t;
+	//if (b * b - 4 * a * c == 0) {
+	//	t = -b / (2 * a);
+	//}
+	//else {
+	//	float t1 = (-b - sqrt(b * b - 4 * a * c)) / (2 * a);
+	//	float t2 = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+
+	//	if (t1 > kEpsilon) {
+	//		t = t1;
+	//		intersection.side = Front;
+	//	}
+	//	else if (t2 > kEpsilon) {
+	//		t = t2;
+	//		intersection.side = Back;
+	//	}
+	//	else {
+	//		return false;
+	//	}
+	//}
+
+	//if (t > ray.distance) return false;
+
+	//intersection.position = ray.origin + ray.direction * t;
+	//intersection.normal = normalize(intersection.position - pos);
+	//if (intersection.side == Back) intersection.normal = -intersection.normal;
+	//intersection.materialIndex = 0;
+	//intersection.distance = t;
+
+	//return true;
+
 	float currentT, currentU, currentV;
 	float nearestT, nearestU, nearestV;
 	side nearestSide, currentSide;
