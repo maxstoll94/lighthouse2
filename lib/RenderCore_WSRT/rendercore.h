@@ -120,9 +120,7 @@ public:
 	void SetTextures(const CoreTexDesc* tex, const int textureCount);
 
 	void Render( const ViewPyramid& view, 
-		const Convergence converge, 
-		const float brightness, 
-		const float contrast );
+		const Convergence converge );
 
 	void Shutdown();
 	// internal methods
