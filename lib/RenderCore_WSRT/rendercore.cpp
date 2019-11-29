@@ -107,12 +107,12 @@ void RenderCore::SetTextures(const CoreTexDesc* tex, const int textures) {
 		uint* hexPixels = (uint*)MALLOC64(tex[i].pixelCount * sizeof(uint));
 		memcpy(hexPixels, tex[i].idata, tex[i].pixelCount * sizeof(uint));
 
-		for (int i = 0; i < tex[i].pixelCount; i++) {
-			int hexValue = hexPixels[i];
+		for (int j = 0; j < tex[i].pixelCount; j++) {
+			int hexValue = hexPixels[j];
 
-			t->pixels[i].x = ((hexValue >> 16) & 0xff) / 255.0;  // extract the rr byte
-			t->pixels[i].y = ((hexValue >> 8)  & 0xff) / 255.0;  // extract the gg byte
-			t->pixels[i].z = ((hexValue)       & 0xff) / 255.0;  // extract the bb byte
+			t->pixels[j].x = ((hexValue >> 16) & 0xff) / 255.0;  // extract the rr byte
+			t->pixels[j].y = ((hexValue >> 8)  & 0xff) / 255.0;  // extract the gg byte
+			t->pixels[j].z = ((hexValue)       & 0xff) / 255.0;  // extract the bb byte
 		}
 	}
 }
@@ -199,12 +199,12 @@ float3 RenderCore::Trace(Ray &ray) {
 	Material material = materials[intersection.materialIndex];
 
 	float3 diffuse;
-	//if (material.texture == NULL) {
-	//	diffuse = material.diffuse;
-	//}
-	//else {
+	if (material.texture == NULL) {
+		diffuse = material.diffuse;
+	}
+	else {
 		diffuse = material.texture->GetColor(intersection.uv);
-	//}
+	}
 
 	return diffuse;
 
