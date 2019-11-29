@@ -497,6 +497,7 @@ float3 Texture::GetColor(const float2 &uv) {
 	float x = u - u1;
 	float y = v - v1;
 
+	// bi-linear interpolation
 	return lerp(lerp(a, b, x), lerp(c, d, x), y);
 }
 
