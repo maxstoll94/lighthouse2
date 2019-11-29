@@ -19,6 +19,14 @@
 namespace lh2core
 {
 
+class Ray
+{
+public:
+	float3 origin;
+	float3 direction;
+	float distance;
+};
+
 // -----------------------------------------------------------
 // Texture class
 // encapsulates a palettized pixel surface with pre-scaled
@@ -27,13 +35,16 @@ namespace lh2core
 // copied from software rasterizer
 class Texture {
 public:
-	// constructor / destructor
-	Texture() = default;
-	Texture(int w, int h) : width(w), height(h) { pixels = (uint*)MALLOC64(w * h * sizeof(uint)); }
-	~Texture() { FREE64(pixels); }
-	// data members
+	//// constructor / destructor
+	//Texture() = default;
+	//Texture(int w, int h) : width(w), height(h) { pixels = (float3*)MALLOC64(w * h * sizeof(float3)); }
+	//~Texture() { FREE64(pixels); }
+	//// data members
 	int width = 0, height = 0;
-	uint* pixels = 0;
+	float3* pixels = 0;
+
+	float3 SkyDomeColor(const Ray &ray);
+	float3 GetColor(const float2 &uv);
 };
 
 //  +-----------------------------------------------------------------------------+
@@ -54,22 +65,6 @@ public:
 	float3 transmission;
 	float3 diffuse;
 	Texture* texture = 0;			// texture
-};
-
-class Ray
-{
-public:
-	float3 origin;
-	float3 direction;
-	float distance;
-};
-
-class Sky
-{
-public:
-	vector<float3> pixels;
-	uint width;
-	uint height;
 };
 
 enum side { Front, Back };
@@ -135,7 +130,6 @@ public:
 		side &side,
 		float &u, float &v);
 	Ray Reflect(const Ray &ray, const Intersection &intersection);
-	float3 SkyDomeColor(const Ray &ray);
 	float3 Directllumination(const Intersection &intersection);
 	void printFloat3(float3 value);
 
@@ -149,7 +143,7 @@ private:
 	vector<CoreSpotLight> spotLights;				// spot lights of the scene
 	vector<Material> materials;
 	vector<Texture*> texList;
-	Sky skyDome;
+	Texture skyDome;
 public:
 	CoreStats coreStats;							// rendering statistic
 };

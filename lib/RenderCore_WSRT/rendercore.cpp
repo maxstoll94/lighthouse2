@@ -96,12 +96,24 @@ void RenderCore::SetTextures(const CoreTexDesc* tex, const int textures) {
 	// copy the supplied array of texture descriptors
 	for (int i = 0; i < textures; i++) {
 		Texture* t;
-		if (i < texList.size()) t = texList[i];
-		else texList.push_back(t = new Texture());
-		t->pixels = (uint*)MALLOC64(tex[i].pixelCount * sizeof(uint));
-		if (tex[i].idata) memcpy(t->pixels, tex[i].idata, tex[i].pixelCount * sizeof(uint));
-		else memcpy(t->pixels, 0, tex[i].pixelCount * sizeof(uint) /* assume integer textures */);
-		// Note: texture width and height are not known yet, will be set when we get the materials.
+		if (i < texList.size()) {
+			t = texList[i];
+		}
+		else {
+			texList.push_back(t = new Texture());
+		}
+		t->pixels = (float3*)MALLOC64(tex[i].pixelCount * sizeof(float3));
+
+		uint* hexPixels = (uint*)MALLOC64(tex[i].pixelCount * sizeof(uint));
+		memcpy(hexPixels, tex[i].idata, tex[i].pixelCount * sizeof(uint));
+
+		for (int j = 0; j < tex[i].pixelCount; j++) {
+			int hexValue = hexPixels[j];
+
+			t->pixels[j].x = ((hexValue >> 16) & 0xff) / 255.0;  // extract the rr byte
+			t->pixels[j].y = ((hexValue >> 8)  & 0xff) / 255.0;  // extract the gg byte
+			t->pixels[j].z = ((hexValue)       & 0xff) / 255.0;  // extract the bb byte
+		}
 	}
 }
 
@@ -120,7 +132,7 @@ void RenderCore::SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, co
 		else {
 			newMaterial.texture = texList[texId];
 			// we know this only now, so set it properly
-			newMaterial.texture->width = mat[i].texwidth0; 
+			newMaterial.texture->width  = mat[i].texwidth0; 
 			newMaterial.texture->height = mat[i].texheight0;
 		}
 
@@ -131,8 +143,9 @@ void RenderCore::SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, co
 void RenderCore::SetSkyData(const float3* pixels, const uint width, const uint height) {
 	skyDome.height = height;
 	skyDome.width = width;
+	skyDome.pixels = (float3*)MALLOC64(width * height * sizeof(float3));
 	for (int i = 0; i < (width * height); i++) {
-		skyDome.pixels.push_back(make_float3(pixels[i].x, pixels[i].y, pixels[i].z));
+		skyDome.pixels[i] = make_float3(pixels[i].x, pixels[i].y, pixels[i].z);
 	}
 }
 
@@ -181,7 +194,7 @@ float3 RenderCore::Trace(Ray &ray) {
 	Intersection intersection;
 	bool hasIntersection = NearestIntersection(ray, intersection);
 
-	if (!hasIntersection) return SkyDomeColor(ray);
+	if (!hasIntersection) return skyDome.SkyDomeColor(ray);
 
 	Material material = materials[intersection.materialIndex];
 
@@ -190,25 +203,18 @@ float3 RenderCore::Trace(Ray &ray) {
 		diffuse = material.diffuse;
 	}
 	else {
-		int w = material.texture->width;
-		int h = material.texture->height;
-
-		int u = intersection.uv.x * w;
-		int v = intersection.uv.y * h;
-		int i = u + w * v;
-
-		int hexvalue = material.texture->pixels[i];
-		diffuse.x = ((hexvalue >> 16) & 0xff) / 255.0;  // extract the rr byte
-		diffuse.y = ((hexvalue >> 8)  & 0xff) / 255.0;  // extract the gg byte
-		diffuse.z = ((hexvalue)       & 0xff) / 255.0;  // extract the bb byte
+		diffuse = material.texture->GetColor(intersection.uv);
 	}
-	
+
+	return diffuse;
+
+	// return diffuse * Trace(Reflect(ray, intersection));
+
 	return diffuse * Directllumination(intersection);
 
 	float refractiveIndexGlass = 1.5168;
 	float refractiveIndexAir = 1.0;
 
-	float cosO1 = dot(intersection.normal, -ray.direction);
 
 	float n1, n2;
 	switch (intersection.side) {
@@ -223,7 +229,7 @@ float3 RenderCore::Trace(Ray &ray) {
 	}
 
 	float n1n2 = n1 / n2;
-
+	float cosO1 = dot(intersection.normal, -ray.direction);
 
 	float k = 1 - n1n2 * n1n2 * (1 - cosO1 * cosO1);
 
@@ -250,15 +256,6 @@ float3 RenderCore::Trace(Ray &ray) {
 	// return diffuse * Directllumination(intersection);
 
 	// return diffuse * Trace(Reflect(ray, intersection));
-}
-
-float3 RenderCore::SkyDomeColor(const Ray &ray) {
-	float u = atan2(ray.direction.x, ray.direction.z) / (2 * PI);
-	if (u < 0) u += 1;
-	float v = acos(ray.direction.y) / PI;
-
-	uint i = floor(v * skyDome.height) * skyDome.width + floor(u * skyDome.width);
-	return skyDome.pixels[i];
 }
 
 bool RenderCore::HasIntersection(const Ray &ray) {
@@ -409,7 +406,7 @@ Ray RenderCore::Reflect(const Ray &ray, const Intersection &intersection) {
 }
 
 float3 RenderCore::Directllumination(const Intersection &intersection) {
-	float3 illumination = make_float3(0, 0, 0);
+	float3 illumination = make_float3(0.0);
 	Ray ray;
 
 	for (CorePointLight pointLight : pointLights) {
@@ -480,6 +477,35 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 
 void RenderCore::printFloat3(float3 value) {
 	cout << "{ x:" << value.x << ", y: " << value.y << ", z: " << value.z << " }" << endl;
+}
+
+float3 Texture::GetColor(const float2 &uv) {
+	float u = uv.x * (width - 1);
+	float v = uv.y * (height - 1);
+
+	uint u1 = floor(u);
+	uint u2 = ceil(u);
+	uint v1 = floor(v);
+	uint v2 = ceil(v);
+
+	float3 a = pixels[u1 + v1 * width];
+	float3 b = pixels[u2 + v1 * width];
+	float3 c = pixels[u2 + v2 * width];
+	float3 d = pixels[u2 + v1 * width];
+
+	float x = u - u1;
+	float y = v - v1;
+
+	return lerp(lerp(a, b, x), lerp(c, d, x), y);
+}
+
+float3 Texture::SkyDomeColor(const Ray &ray) {
+	float2 uv;
+	uv.x = atan2(ray.direction.x, ray.direction.z) / (2 * PI);
+	if (uv.x < 0) uv.x += 1;
+	uv.y = acos(ray.direction.y) / PI;
+
+	return GetColor(uv);
 }
 
 // EOF
