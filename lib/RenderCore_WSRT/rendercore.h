@@ -24,7 +24,7 @@ class Ray
 public:
 	float3 origin;
 	float3 direction;
-	float distance;
+	int bounces;
 };
 
 // -----------------------------------------------------------
@@ -121,7 +121,7 @@ public:
 	// internal methods
 	float3 Trace(Ray &ray);
 	bool NearestIntersection(const Ray &ray, Intersection &intersection); // Returns the nearest intersection point, the normal and the material type.
-	bool HasIntersection(const Ray &ray);
+	bool HasIntersection(const Ray &ray, const bool isBounded, const float distance);
 	bool RenderCore::IntersectsWithTriangle(const Ray &ray,
 		const float3 &v0, 
 		const float3 &v1, 

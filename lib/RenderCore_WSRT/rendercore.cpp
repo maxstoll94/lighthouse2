@@ -21,7 +21,7 @@
 using namespace lh2core;
 
 constexpr float kEpsilon = 1e-8;
-constexpr float defaultRayDistance = 50;
+constexpr float defaultRayBounces = 4;
 constexpr float bias = 0.00001;
 
 //  +-----------------------------------------------------------------------------+
@@ -168,7 +168,7 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge)
 		for (uint v = 0; v < screen->height; v++) {
 			ray.direction = normalize(p1 + u * xDirection + v * yDirection);
 			ray.origin = view.pos;
-			ray.distance = defaultRayDistance;
+			ray.bounces = defaultRayBounces;
 
 			float3 color = Trace(ray);
 			int colorHex = (int(0xff * min(color.x, 1.0f)) + (int(0xff * min(color.y, 1.0f)) << 8) + (int(0xff * min(color.z, 1.0f)) << 16));
@@ -191,6 +191,8 @@ void RenderCore::Shutdown()
 }
 
 float3 RenderCore::Trace(Ray &ray) {
+	if (ray.bounces < 0) return make_float3(0.0);
+
 	Intersection intersection;
 	bool hasIntersection = NearestIntersection(ray, intersection);
 
@@ -230,12 +232,12 @@ float3 RenderCore::Trace(Ray &ray) {
 	float k = 1 - n1n2 * n1n2 * (1 - cosO1 * cosO1);
 
 	// total internal reflection
-	if (k < 0) make_float3(0.0);
+	if (k < 0) return Trace(Reflect(ray, intersection));
 
 	Ray refractRay;
 	refractRay.direction = n1n2 * ray.direction + intersection.normal * (n1n2 * cosO1 - sqrt(k));
 	refractRay.origin = intersection.position + bias * -intersection.normal;
-	refractRay.distance = ray.distance - intersection.distance;
+	refractRay.bounces = ray.bounces - 1;
 
 	// fresnell law
 	float cosOt = sqrt(1 - pow(n1n2 * sin(acos(cosO1)), 2));
@@ -249,7 +251,7 @@ float3 RenderCore::Trace(Ray &ray) {
 	return fr * Trace(Reflect(ray, intersection)) + ft * Trace(refractRay);
 
 	// beers law
-	switch (intersection.side) {
+	/*switch (intersection.side) {
 	case Front:
 		return Trace(refractRay);
 	case Back:
@@ -259,14 +261,14 @@ float3 RenderCore::Trace(Ray &ray) {
 		absorption.z = exp(-0.1 * intersection.distance);
 
 		return absorption * Trace(refractRay);
-	}
+	}*/
 
 	// return diffuse * Directllumination(intersection);
 
 	// return diffuse * Trace(Reflect(ray, intersection));
 }
 
-bool RenderCore::HasIntersection(const Ray &ray) {
+bool RenderCore::HasIntersection(const Ray &ray, const bool bounded, const float distance) {
 	float t;
 	float u;
 	float v;
@@ -277,16 +279,16 @@ bool RenderCore::HasIntersection(const Ray &ray) {
 		float3 b = make_float3(mesh.vertices[i + 1]);
 		float3 c = make_float3(mesh.vertices[i + 2]);
 
-		if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v)
-			&& t > kEpsilon
-			&& t < ray.distance
-		) return true;
+		if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v) && t > kEpsilon && (!bounded || t < distance)) {
+			return true;
+		}
 	}
 	return false;
 }
 
 bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection) {
-	float3 pos = make_float3(0, 0, 0);
+
+	/*float3 pos = make_float3(0, 0, 0);
 	float radius = 1.0f;
 
 	float a = dot(ray.direction, ray.direction);
@@ -326,7 +328,7 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 	intersection.materialIndex = 0;
 	intersection.distance = t;
 
-	return true;
+	return true;*/
 
 	float currentT, currentU, currentV;
 	float nearestT, nearestU, nearestV;
@@ -341,7 +343,6 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 
 		if (IntersectsWithTriangle(ray, a, b, c, currentT, currentSide, currentU, currentV)
 			&& currentT > kEpsilon
-			&& currentT < ray.distance
 			&& (!hasIntersection || currentT < nearestT)
 		) {
 			nearestT = currentT;
@@ -409,7 +410,7 @@ Ray RenderCore::Reflect(const Ray &ray, const Intersection &intersection) {
 	// taken from lecture slides "whitted-style" slide 13
 	reflectRay.direction = ray.direction - 2 * dot(intersection.normal, ray.direction) * intersection.normal;
 	reflectRay.origin = intersection.position + bias * intersection.normal;
-	reflectRay.distance = ray.distance - intersection.distance;
+	reflectRay.bounces = ray.bounces - 1;
 
 	return reflectRay;
 }
@@ -429,9 +430,8 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 
 		ray.origin = intersection.position + bias * intersection.normal;
 		ray.direction = lightDirection;
-		ray.distance = lightDistance;
 
-		if (!HasIntersection(ray)) {
+		if (!HasIntersection(ray, true, lightDistance)) {
 			illumination += pointLight.radiance * contribution;
 		}
 	}
@@ -445,9 +445,8 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 
 		ray.origin = intersection.position + bias * intersection.normal;
 		ray.direction = lightDirection;
-		ray.distance = std::numeric_limits<float>::infinity();
 
-		if (!HasIntersection(ray)) {
+		if (!HasIntersection(ray, false, 0)) {
 			illumination += directionLight.radiance * contribution;
 		}
 	}
@@ -473,9 +472,8 @@ float3 RenderCore::Directllumination(const Intersection &intersection) {
 
 		ray.origin = intersection.position + bias * intersection.normal;
 		ray.direction = lightDirection;
-		ray.distance = lightDistance;
 
-		if (!HasIntersection(ray)) {
+		if (!HasIntersection(ray, true, lightDistance)) {
 			illumination += spotLight.radiance * contribution;
 		}
 
