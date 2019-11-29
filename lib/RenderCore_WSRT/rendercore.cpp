@@ -21,7 +21,7 @@
 using namespace lh2core;
 
 constexpr float kEpsilon = 1e-8;
-constexpr float defaultRayDistance = 1000;
+constexpr float defaultRayDistance = 50;
 constexpr float bias = 0.00001;
 
 //  +-----------------------------------------------------------------------------+
@@ -206,16 +206,12 @@ float3 RenderCore::Trace(Ray &ray) {
 		diffuse = material.texture->GetColor(intersection.uv);
 	}
 
-	return diffuse;
-
 	// return diffuse * Trace(Reflect(ray, intersection));
-
-	return diffuse * Directllumination(intersection);
 
 	float refractiveIndexGlass = 1.5168;
 	float refractiveIndexAir = 1.0;
 
-
+	// snell
 	float n1, n2;
 	switch (intersection.side) {
 		case Front:
@@ -241,6 +237,18 @@ float3 RenderCore::Trace(Ray &ray) {
 	refractRay.origin = intersection.position + bias * -intersection.normal;
 	refractRay.distance = ray.distance - intersection.distance;
 
+	// fresnell law
+	float cosOt = sqrt(1 - pow(n1n2 * acos(cosO1), 2));
+	float cosOi = cosO1;
+
+	float sPolarizedLight = (n1 * cosOi - n2 * cosOt) / (n1 * cosOi + n2 * cosOt);
+	float pPolarizedLight = (n1 * cosOt - n2 * cosOi) / (n1 * cosOt + n2 * cosOi);
+	float fr = (pow(sPolarizedLight, 2) +  pow(pPolarizedLight, 2)) / 2;
+	float ft = 1 - fr;
+
+	return fr * Trace(Reflect(ray, intersection)) + ft * Trace(refractRay);
+
+	// beers law
 	switch (intersection.side) {
 	case Front:
 		return Trace(refractRay);
@@ -278,47 +286,47 @@ bool RenderCore::HasIntersection(const Ray &ray) {
 }
 
 bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection) {
-	//float3 pos = make_float3(0, 0, 0);
-	//float radius = 1.0f;
+	float3 pos = make_float3(0, 0, 0);
+	float radius = 1.0f;
 
-	//float a = dot(ray.direction, ray.direction);
-	//float b = dot(2 * ray.direction, ray.origin - pos);
-	//float c = dot(ray.origin - pos, ray.origin - pos) - radius * radius;
+	float a = dot(ray.direction, ray.direction);
+	float b = dot(2 * ray.direction, ray.origin - pos);
+	float c = dot(ray.origin - pos, ray.origin - pos) - radius * radius;
 
-	//if (b * b - 4 * a * c < 0) {
-	//	return false;
-	//}
+	if (b * b - 4 * a * c < 0) {
+		return false;
+	}
 
-	//float t;
-	//if (b * b - 4 * a * c == 0) {
-	//	t = -b / (2 * a);
-	//}
-	//else {
-	//	float t1 = (-b - sqrt(b * b - 4 * a * c)) / (2 * a);
-	//	float t2 = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+	float t;
+	if (b * b - 4 * a * c == 0) {
+		t = -b / (2 * a);
+	}
+	else {
+		float t1 = (-b - sqrt(b * b - 4 * a * c)) / (2 * a);
+		float t2 = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
 
-	//	if (t1 > kEpsilon) {
-	//		t = t1;
-	//		intersection.side = Front;
-	//	}
-	//	else if (t2 > kEpsilon) {
-	//		t = t2;
-	//		intersection.side = Back;
-	//	}
-	//	else {
-	//		return false;
-	//	}
-	//}
+		if (t1 > kEpsilon) {
+			t = t1;
+			intersection.side = Front;
+		}
+		else if (t2 > kEpsilon) {
+			t = t2;
+			intersection.side = Back;
+		}
+		else {
+			return false;
+		}
+	}
 
-	//if (t > ray.distance) return false;
+	if (t > ray.distance) return false;
 
-	//intersection.position = ray.origin + ray.direction * t;
-	//intersection.normal = normalize(intersection.position - pos);
-	//if (intersection.side == Back) intersection.normal = -intersection.normal;
-	//intersection.materialIndex = 0;
-	//intersection.distance = t;
+	intersection.position = ray.origin + ray.direction * t;
+	intersection.normal = normalize(intersection.position - pos);
+	if (intersection.side == Back) intersection.normal = -intersection.normal;
+	intersection.materialIndex = 0;
+	intersection.distance = t;
 
-	//return true;
+	return true;
 
 	float currentT, currentU, currentV;
 	float nearestT, nearestU, nearestV;
