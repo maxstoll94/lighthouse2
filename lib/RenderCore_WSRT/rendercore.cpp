@@ -353,11 +353,12 @@ bool RenderCore::NearestIntersection(const Ray &ray, Intersection &intersection)
 		intersection.side = nearestSide;
 		intersection.distance = nearestT;
 
-		// Only do this when material has a texture
-		float2 uv0 = make_float2(nearestTriangle.u0, nearestTriangle.v0);
-		float2 uv1 = make_float2(nearestTriangle.u1, nearestTriangle.v1);
-		float2 uv2 = make_float2(nearestTriangle.u2, nearestTriangle.v2);
-		intersection.uv = (1 - nearestU - nearestV) * uv0 + nearestU * uv1 + nearestV * uv2;
+		if (materials[intersection.materialIndex].texture != NULL) {
+			float2 uv0 = make_float2(nearestTriangle.u0, nearestTriangle.v0);
+			float2 uv1 = make_float2(nearestTriangle.u1, nearestTriangle.v1);
+			float2 uv2 = make_float2(nearestTriangle.u2, nearestTriangle.v2);
+			intersection.uv = (1 - nearestU - nearestV) * uv0 + nearestU * uv1 + nearestV * uv2;
+		}
 	}
 
 	return hasIntersection;
