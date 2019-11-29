@@ -238,7 +238,7 @@ float3 RenderCore::Trace(Ray &ray) {
 	refractRay.distance = ray.distance - intersection.distance;
 
 	// fresnell law
-	float cosOt = sqrt(1 - pow(n1n2 * acos(cosO1), 2));
+	float cosOt = sqrt(1 - pow(n1n2 * sin(acos(cosO1)), 2));
 	float cosOi = cosO1;
 
 	float sPolarizedLight = (n1 * cosOi - n2 * cosOt) / (n1 * cosOi + n2 * cosOt);
