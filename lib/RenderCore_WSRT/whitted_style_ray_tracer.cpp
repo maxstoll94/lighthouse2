@@ -6,6 +6,9 @@ using namespace lh2core;
 constexpr float kEpsilon = 1e-8;
 constexpr float defaultRayBounces = 4;
 constexpr float bias = 0.00001;
+constexpr float refractiveIndexGlass = 1.5168;
+constexpr float refractiveIndexAir = 1.0;
+
 
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::SetTarget                                                      |
@@ -48,72 +51,31 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 
 	Material material = materials[intersection.materialIndex];
 
-	float3 diffuse;
+	if (material.transmission > 0 && material.specularity > 0) {
+		return Fresnel(ray, intersection);
+	}
+
+	if (material.transmission > 0) {
+		return Beer(ray, intersection);
+	}
+
+	float3 color;
+
 	if (material.texture == NULL) {
-		diffuse = material.diffuse;
+		color = material.diffuse;
 	}
 	else {
-		diffuse = GetColor(intersection.uv, *material.texture);
+		color = GetColor(intersection.uv, *material.texture);
 	}
 
-	// return diffuse * Trace(Reflect(ray, intersection));
-
-	float refractiveIndexGlass = 1.5168;
-	float refractiveIndexAir = 1.0;
-
-	// snell
-	float n1, n2;
-	switch (intersection.side) {
-	case Front:
-		n1 = refractiveIndexAir;
-		n2 = refractiveIndexGlass;
-		break;
-	case Back:
-		n1 = refractiveIndexGlass;
-		n2 = refractiveIndexAir;
-		break;
+	if (material.specularity > 0) {
+		float d = 1 - material.specularity;
+		return color * (material.specularity * Trace(Reflect(ray, intersection))
+			+ d * Directllumination(intersection));
 	}
 
-	float n1n2 = n1 / n2;
-	float cosO1 = dot(intersection.normal, -ray.direction);
+	return color * Directllumination(intersection);
 
-	float k = 1 - n1n2 * n1n2 * (1 - cosO1 * cosO1);
-
-	// total internal reflection
-	if (k < 0) return Trace(Reflect(ray, intersection));
-
-	Ray refractRay;
-	refractRay.direction = n1n2 * ray.direction + intersection.normal * (n1n2 * cosO1 - sqrt(k));
-	refractRay.origin = intersection.position + bias * -intersection.normal;
-	refractRay.bounces = ray.bounces - 1;
-
-	// fresnell law
-	float cosOt = sqrt(1 - pow(n1n2 * sin(acos(cosO1)), 2));
-	float cosOi = cosO1;
-
-	float sPolarizedLight = (n1 * cosOi - n2 * cosOt) / (n1 * cosOi + n2 * cosOt);
-	float pPolarizedLight = (n1 * cosOt - n2 * cosOi) / (n1 * cosOt + n2 * cosOi);
-	float fr = (pow(sPolarizedLight, 2) + pow(pPolarizedLight, 2)) / 2;
-	float ft = 1 - fr;
-
-	//return fr * Trace(Reflect(ray, intersection)) + ft * Trace(refractRay);
-
-	// beers law
-	/*switch (intersection.side) {
-	case Front:
-		return Trace(refractRay);
-	case Back:
-		float3 absorption;
-		absorption.x = exp(-8.0 * intersection.distance);
-		absorption.y = exp(-2.0 * intersection.distance);
-		absorption.z = exp(-0.1 * intersection.distance);
-
-		return absorption * Trace(refractRay);
-	}*/
-
-	return diffuse * Directllumination(intersection);
-
-	// return diffuse * Trace(Reflect(ray, intersection));
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -143,7 +105,6 @@ bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const bool bounded, 
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
 //  +-----------------------------------------------------------------------------+
 bool WhittedStyleRayTracer::NearestIntersection(const Ray &ray, Intersection &intersection) {
-
 	float currentT, currentU, currentV;
 	float nearestT, nearestU, nearestV;
 	side nearestSide, currentSide;
@@ -236,6 +197,15 @@ Ray WhittedStyleRayTracer::Reflect(const Ray &ray, const Intersection &intersect
 	reflectRay.bounces = ray.bounces - 1;
 
 	return reflectRay;
+}
+
+Ray WhittedStyleRayTracer::Refract(const Ray &ray, Intersection intersection, const float n1n2, const float cosO1, const float k ) {
+	Ray refractRay;
+	refractRay.direction = n1n2 * ray.direction + intersection.normal * (n1n2 * cosO1 - sqrt(k));
+	refractRay.origin = intersection.position + bias * -intersection.normal;
+	refractRay.bounces = ray.bounces - 1;
+
+	return refractRay;
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -354,6 +324,68 @@ float3 WhittedStyleRayTracer::SkyDomeColor(const Ray &ray, const Texture &textur
 	return GetColor(uv, texture);
 }
 
+float3 WhittedStyleRayTracer::Beer(Ray ray, const Intersection &intersection) {
+	float n1, n2;
+	switch (intersection.side) {
+	case Front:
+		n1 = refractiveIndexAir;
+		n2 = refractiveIndexGlass;
+		break;
+	case Back:
+		n1 = refractiveIndexGlass;
+		n2 = refractiveIndexAir;
+		break;
+	}
+
+	float n1n2 = n1 / n2;
+	float cosO1 = dot(intersection.normal, -(ray.direction));
+
+	float k = 1 - n1n2 * n1n2 * (1 - cosO1 * cosO1);
+
+	switch (intersection.side) {
+	case Front:
+		return Trace(Refract(ray, intersection, n1n2, cosO1, k));
+	case Back:
+		float3 absorption;
+		absorption.x = exp(-8.0 * intersection.distance);
+		absorption.y = exp(-2.0 * intersection.distance);
+		absorption.z = exp(-0.1 * intersection.distance);
+
+		return absorption * Trace(Refract(ray, intersection, n1n2, cosO1, k));
+	}
+}
+
+float3 WhittedStyleRayTracer::Fresnel(Ray &ray, const Intersection &intersection) {
+	float n1, n2;
+	switch (intersection.side) {
+	case Front:
+		n1 = refractiveIndexAir;
+		n2 = refractiveIndexGlass;
+		break;
+	case Back:
+		n1 = refractiveIndexGlass;
+		n2 = refractiveIndexAir;
+		break;
+	}
+
+	float n1n2 = n1 / n2;
+	float cosO1 = dot(intersection.normal, -ray.direction);
+
+	float cosOt = sqrt(1 - pow(n1n2 * sin(acos(cosO1)), 2));
+	float cosOi = cosO1;
+
+	float sPolarizedLight = (n1 * cosOi - n2 * cosOt) / (n1 * cosOi + n2 * cosOt);
+	float pPolarizedLight = (n1 * cosOt - n2 * cosOi) / (n1 * cosOt + n2 * cosOi);
+	float fr = (pow(sPolarizedLight, 2) + pow(pPolarizedLight, 2)) / 2;
+	float ft = 1 - fr;
+
+	float k = 1 - n1n2 * n1n2 * (1 - cosO1 * cosO1);
+
+	// total internal reflection
+	if (k < 0) return Trace(Reflect(ray, intersection));
+
+	return fr * Trace(Reflect(ray, intersection)) + ft * Trace(Refract(ray, intersection, n1n2, cosO1, k));
+}
 
 
 

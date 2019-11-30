@@ -129,6 +129,8 @@ void RenderCore::SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, co
 			newMaterial.texture = 0;
 			float r = coreMaterial.diffuse_r, g = coreMaterial.diffuse_g, b = coreMaterial.diffuse_b;
 			newMaterial.diffuse = make_float3(r, g, b);
+			newMaterial.specularity = coreMaterial.specular();
+			newMaterial.transmission = coreMaterial.transmission();
 		}
 		else {
 			newMaterial.texture = rayTracer.texList[texId];

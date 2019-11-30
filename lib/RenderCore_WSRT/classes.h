@@ -44,8 +44,8 @@ namespace lh2core
 	//  +-----------------------------------------------------------------------------+
 	class Material {
 	public:
-		float reflection;
-		float3 transmission;
+		float transmission;
+		float specularity;
 		float3 diffuse;
 		Texture* texture = 0;			// texture
 	};
