@@ -47,7 +47,9 @@ namespace lh2core
 		float transmission;
 		float specularity;
 		float3 diffuse;
+		float3 transmittance;
 		Texture* texture = 0;			// texture
+		bool isDielectic;
 	};
 
 	enum side { Front, Back };

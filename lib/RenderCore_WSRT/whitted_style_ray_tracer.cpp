@@ -9,13 +9,11 @@ constexpr float bias = 0.00001;
 constexpr float refractiveIndexGlass = 1.5168;
 constexpr float refractiveIndexAir = 1.0;
 
-
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::SetTarget                                                      |
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
 //  +-----------------------------------------------------------------------------+
 void WhittedStyleRayTracer::Render(const ViewPyramid& view, Bitmap* screen) {
-
 	float3 xDirection = (view.p2 - view.p1) / screen->width;
 	float3 yDirection = (view.p3 - view.p1) / screen->height;
 
@@ -41,7 +39,6 @@ void WhittedStyleRayTracer::Render(const ViewPyramid& view, Bitmap* screen) {
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
 //  +-----------------------------------------------------------------------------+
 float3 WhittedStyleRayTracer::Trace(Ray ray) {
-
 	if (ray.bounces < 0) return make_float3(0.0);
 
 	Intersection intersection;
@@ -50,32 +47,22 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 	if (!hasIntersection) return SkyDomeColor(ray, skyDome);
 
 	Material material = materials[intersection.materialIndex];
-
-	if (material.transmission > 0 && material.specularity > 0) {
-		return Fresnel(ray, intersection);
+	
+	if (material.isDielectic) {
+		return Dielectrics(ray, intersection);
 	}
 
-	if (material.transmission > 0) {
-		return Beer(ray, intersection);
-	}
+	float3 color = material.texture == NULL ? material.diffuse : GetColor(intersection.uv, *material.texture);
 
-	float3 color;
-
-	if (material.texture == NULL) {
-		color = material.diffuse;
+	if (material.specularity == 0) {
+		return color * Directllumination(intersection);
 	}
-	else {
-		color = GetColor(intersection.uv, *material.texture);
-	}
-
-	if (material.specularity > 0) {
+	else if (material.specularity == 1) {
+		return color * material.specularity * Trace(Reflect(ray, intersection));
+	} else {
 		float d = 1 - material.specularity;
-		return color * (material.specularity * Trace(Reflect(ray, intersection))
-			+ d * Directllumination(intersection));
+		return color * (material.specularity * Trace(Reflect(ray, intersection)) + d * Directllumination(intersection));
 	}
-
-	return color * Directllumination(intersection);
-
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -199,15 +186,6 @@ Ray WhittedStyleRayTracer::Reflect(const Ray &ray, const Intersection &intersect
 	return reflectRay;
 }
 
-Ray WhittedStyleRayTracer::Refract(const Ray &ray, Intersection intersection, const float n1n2, const float cosO1, const float k ) {
-	Ray refractRay;
-	refractRay.direction = n1n2 * ray.direction + intersection.normal * (n1n2 * cosO1 - sqrt(k));
-	refractRay.origin = intersection.position + bias * -intersection.normal;
-	refractRay.bounces = ray.bounces - 1;
-
-	return refractRay;
-}
-
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::SetTarget                                                      |
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
@@ -222,7 +200,7 @@ float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection
 		float lightDistance = length(intersectionLight);
 
 		// Code taken from: https://www.gamedev.net/blogs/entry/2260865-shadows-and-point-lights/
-		float contribution = dot(intersection.normal, lightDirection) / pow(lightDistance, 2);
+		float contribution = dot(intersection.normal, lightDirection) / (lightDistance * lightDistance);
 		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
 		ray.origin = intersection.position + bias * intersection.normal;
@@ -266,7 +244,7 @@ float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection
 			contribution = 1;
 		}
 
-		contribution *= dot(intersection.normal, lightDirection) / pow(lightDistance, 2);
+		contribution *= dot(intersection.normal, lightDirection) / (lightDistance * lightDistance);
 		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
 		ray.origin = intersection.position + bias * intersection.normal;
@@ -324,7 +302,7 @@ float3 WhittedStyleRayTracer::SkyDomeColor(const Ray &ray, const Texture &textur
 	return GetColor(uv, texture);
 }
 
-float3 WhittedStyleRayTracer::Beer(Ray ray, const Intersection &intersection) {
+float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const Intersection &intersection) {
 	float n1, n2;
 	switch (intersection.side) {
 	case Front:
@@ -338,54 +316,57 @@ float3 WhittedStyleRayTracer::Beer(Ray ray, const Intersection &intersection) {
 	}
 
 	float n1n2 = n1 / n2;
-	float cosO1 = dot(intersection.normal, -(ray.direction));
-
-	float k = 1 - n1n2 * n1n2 * (1 - cosO1 * cosO1);
-
-	switch (intersection.side) {
-	case Front:
-		return Trace(Refract(ray, intersection, n1n2, cosO1, k));
-	case Back:
-		float3 absorption;
-		absorption.x = exp(-8.0 * intersection.distance);
-		absorption.y = exp(-2.0 * intersection.distance);
-		absorption.z = exp(-0.1 * intersection.distance);
-
-		return absorption * Trace(Refract(ray, intersection, n1n2, cosO1, k));
-	}
-}
-
-float3 WhittedStyleRayTracer::Fresnel(Ray &ray, const Intersection &intersection) {
-	float n1, n2;
-	switch (intersection.side) {
-	case Front:
-		n1 = refractiveIndexAir;
-		n2 = refractiveIndexGlass;
-		break;
-	case Back:
-		n1 = refractiveIndexGlass;
-		n2 = refractiveIndexAir;
-		break;
-	}
-
-	float n1n2 = n1 / n2;
-	float cosO1 = dot(intersection.normal, -ray.direction);
-
-	float cosOt = sqrt(1 - pow(n1n2 * sin(acos(cosO1)), 2));
-	float cosOi = cosO1;
-
-	float sPolarizedLight = (n1 * cosOi - n2 * cosOt) / (n1 * cosOi + n2 * cosOt);
-	float pPolarizedLight = (n1 * cosOt - n2 * cosOi) / (n1 * cosOt + n2 * cosOi);
-	float fr = (pow(sPolarizedLight, 2) + pow(pPolarizedLight, 2)) / 2;
-	float ft = 1 - fr;
+	float cosO1 = dot(intersection.normal, -1 * ray.direction);
 
 	float k = 1 - n1n2 * n1n2 * (1 - cosO1 * cosO1);
 
 	// total internal reflection
 	if (k < 0) return Trace(Reflect(ray, intersection));
 
-	return fr * Trace(Reflect(ray, intersection)) + ft * Trace(Refract(ray, intersection, n1n2, cosO1, k));
+	Ray refractRay;
+	refractRay.direction = n1n2 * ray.direction + intersection.normal * (n1n2 * cosO1 - sqrt(k));
+	refractRay.origin = intersection.position + bias * -1 * intersection.normal;
+	refractRay.bounces = ray.bounces - 1;
+
+	float fr = Fresnel(ray, intersection, n1, n2, cosO1);
+	float ft = 1 - fr;
+
+	float3 diffuse;
+	if (fr == 1) {
+		diffuse = Trace(Reflect(ray, intersection));
+	}
+	else if (fr == 0) {
+		diffuse = Trace(refractRay);
+	}
+	else {
+		diffuse = fr * Trace(Reflect(ray, intersection)) + ft * Trace(refractRay);
+	}
+
+	Beer(ray, intersection, diffuse);
+
+	return diffuse;
 }
 
 
+void WhittedStyleRayTracer::Beer(const Ray ray, const Intersection &intersection, float3 diffuse) {
+	if (intersection.side == Back) {
+		Material material = materials[intersection.materialIndex];
 
+		diffuse.x *= exp(-material.transmittance.x * intersection.distance);
+		diffuse.y *= exp(-material.transmittance.y * intersection.distance);
+		diffuse.z *= exp(-material.transmittance.z * intersection.distance);
+	}
+}
+
+float WhittedStyleRayTracer::Fresnel(const Ray &ray, const Intersection &intersection, const float n1, const float n2, const float cosOi) {
+	float n1n2 = n1 / n2;
+
+	float n1n2SinCos01 = n1n2 * sin(acos(cosOi));
+	float cosOt = sqrt(1 - n1n2SinCos01 * n1n2SinCos01);
+
+	float sPolarizedLight = (n1 * cosOi - n2 * cosOt) / (n1 * cosOi + n2 * cosOt);
+	float pPolarizedLight = (n1 * cosOt - n2 * cosOi) / (n1 * cosOt + n2 * cosOi);
+	float fr = (sPolarizedLight * sPolarizedLight + pPolarizedLight * pPolarizedLight) / 2;
+
+	return fr;
+}

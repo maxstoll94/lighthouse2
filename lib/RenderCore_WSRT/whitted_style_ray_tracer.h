@@ -28,10 +28,10 @@ namespace lh2core
 		bool IntersectsWithTriangle(const Ray &ray, const float3 &v0, const float3 &v1,
 			const float3 &v2, float &t, side &side, float &u, float &v);
 		Ray Reflect(const Ray &ray, const Intersection &intersection);
-		Ray Refract(const Ray &ray, Intersection intersection, const float n1n2, const float cosO1, const float k);
 		float3 SkyDomeColor(const Ray &ray, const Texture &texture);
 		float3 GetColor(const float2 &uv, const Texture &texture);
-		float3 Fresnel(Ray &ray, const Intersection &intersection);
-		float3 Beer(Ray ray, const Intersection &intersection);
+		float3 Dielectrics(const Ray &ray, const Intersection &intersection);
+		float Fresnel(const Ray &ray, const Intersection &intersection, const float n1, const float n2, const float cosOi);
+		void Beer(Ray ray, const Intersection &intersection, float3 diffuse);
 	};
 }

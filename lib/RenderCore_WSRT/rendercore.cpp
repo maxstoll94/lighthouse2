@@ -129,8 +129,6 @@ void RenderCore::SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, co
 			newMaterial.texture = 0;
 			float r = coreMaterial.diffuse_r, g = coreMaterial.diffuse_g, b = coreMaterial.diffuse_b;
 			newMaterial.diffuse = make_float3(r, g, b);
-			newMaterial.specularity = coreMaterial.specular();
-			newMaterial.transmission = coreMaterial.transmission();
 		}
 		else {
 			newMaterial.texture = rayTracer.texList[texId];
@@ -138,6 +136,12 @@ void RenderCore::SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, co
 			newMaterial.texture->width  = mat[i].texwidth0; 
 			newMaterial.texture->height = mat[i].texheight0;
 		}
+
+		uint flags = coreMaterial.flags;
+
+		newMaterial.specularity = coreMaterial.specular();
+		newMaterial.transmission = coreMaterial.transmission();
+		newMaterial.isDielectic = MAT_ISDIELECTRIC;
 
 		rayTracer.materials.push_back(newMaterial);
 	}
