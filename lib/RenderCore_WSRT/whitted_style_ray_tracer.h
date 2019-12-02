@@ -32,6 +32,6 @@ namespace lh2core
 		float3 GetColor(const float2 &uv, const Texture &texture);
 		float3 Dielectrics(const Ray &ray, const Intersection &intersection);
 		float Fresnel(const Ray &ray, const Intersection &intersection, const float n1, const float n2, const float cosOi);
-		void Beer(Ray ray, const Intersection &intersection, float3 diffuse);
+		float3 Beer(Ray ray, const Intersection &intersection, float3 diffuse);
 	};
 }

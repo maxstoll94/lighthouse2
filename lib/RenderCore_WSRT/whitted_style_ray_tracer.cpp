@@ -4,7 +4,7 @@
 using namespace lh2core;
 
 constexpr float kEpsilon = 1e-8;
-constexpr float defaultRayBounces = 4;
+constexpr float defaultRayBounces = 2;
 constexpr float bias = 0.00001;
 constexpr float refractiveIndexGlass = 1.5168;
 constexpr float refractiveIndexAir = 1.0;
@@ -47,22 +47,26 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 	if (!hasIntersection) return SkyDomeColor(ray, skyDome);
 
 	Material material = materials[intersection.materialIndex];
-	
-	if (material.isDielectic) {
-		return Dielectrics(ray, intersection);
+
+	float refractive = material.transmission;
+	float reflective = (1 - refractive) * material.specularity;
+	float diffusive = 1 - refractive - reflective;
+
+	float3 color = make_float3(0.0);
+
+	float3 diffuse = material.texture == NULL ? material.diffuse : GetColor(intersection.uv, *material.texture);
+
+	if (refractive > 0) {
+		color += refractive * Dielectrics(ray, intersection);
+	}
+	if (reflective > 0) {
+		color += diffuse * reflective * Trace(Reflect(ray, intersection));
+	}
+	if (diffusive > 0) {
+		color += diffusive * diffuse * Directllumination(intersection);
 	}
 
-	float3 color = material.texture == NULL ? material.diffuse : GetColor(intersection.uv, *material.texture);
-
-	if (material.specularity == 0) {
-		return color * Directllumination(intersection);
-	}
-	else if (material.specularity == 1) {
-		return color * material.specularity * Trace(Reflect(ray, intersection));
-	} else {
-		float d = 1 - material.specularity;
-		return color * (material.specularity * Trace(Reflect(ray, intersection)) + d * Directllumination(intersection));
-	}
+	return color;
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -92,6 +96,41 @@ bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const bool bounded, 
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
 //  +-----------------------------------------------------------------------------+
 bool WhittedStyleRayTracer::NearestIntersection(const Ray &ray, Intersection &intersection) {
+	//float3 pos = make_float3(0, 0, 0);
+	//float radius = 1.0f;
+	//float a = dot(ray.direction, ray.direction);
+	//float b = dot(2 * ray.direction, ray.origin - pos);
+	//float c = dot(ray.origin - pos, ray.origin - pos) - radius * radius;
+	//if (b * b - 4 * a * c < 0) {
+	//	return false;
+	//}
+	//float t;
+	//if (b * b - 4 * a * c == 0) {
+	//	t = -b / (2 * a);
+	//}
+	//else {
+	//	float t1 = (-b - sqrt(b * b - 4 * a * c)) / (2 * a);
+	//	float t2 = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+	//	if (t1 > kEpsilon) {
+	//		t = t1;
+	//		intersection.side = Front;
+	//	}
+	//	else if (t2 > kEpsilon) {
+	//		t = t2;
+	//		intersection.side = Back;
+	//	}
+	//	else {
+	//		return false;
+	//	}
+	//}
+
+	//intersection.position = ray.origin + ray.direction * t;
+	//intersection.normal = normalize(intersection.position - pos);
+	//if (intersection.side == Back) intersection.normal = -intersection.normal;
+	//intersection.materialIndex = 0;
+	//intersection.distance = t;
+	//return true;
+
 	float currentT, currentU, currentV;
 	float nearestT, nearestU, nearestV;
 	side nearestSide, currentSide;
@@ -331,30 +370,31 @@ float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const Intersection &in
 	float fr = Fresnel(ray, intersection, n1, n2, cosO1);
 	float ft = 1 - fr;
 
-	float3 diffuse;
-	if (fr == 1) {
-		diffuse = Trace(Reflect(ray, intersection));
+	float3 diffuse = make_float3(0);
+	if (fr > kEpsilon) {
+		diffuse += fr * Trace(Reflect(ray, intersection));
 	}
-	else if (fr == 0) {
-		diffuse = Trace(refractRay);
+	if (ft > kEpsilon) {
+		diffuse += ft * Beer(ray, intersection, Trace(refractRay));
 	}
-	else {
-		diffuse = fr * Trace(Reflect(ray, intersection)) + ft * Trace(refractRay);
-	}
-
-	Beer(ray, intersection, diffuse);
 
 	return diffuse;
 }
 
 
-void WhittedStyleRayTracer::Beer(const Ray ray, const Intersection &intersection, float3 diffuse) {
-	if (intersection.side == Back) {
+float3 WhittedStyleRayTracer::Beer(const Ray ray, const Intersection &intersection, float3 diffuse) {
+	switch (intersection.side) {
+	case Front:
+		return diffuse;
+	case Back:
 		Material material = materials[intersection.materialIndex];
 
-		diffuse.x *= exp(-material.transmittance.x * intersection.distance);
-		diffuse.y *= exp(-material.transmittance.y * intersection.distance);
-		diffuse.z *= exp(-material.transmittance.z * intersection.distance);
+		float3 absorption;
+		absorption.x = exp(-material.transmittance.x * intersection.distance);
+		absorption.y = exp(-material.transmittance.y * intersection.distance);
+		absorption.z = exp(-material.transmittance.z * intersection.distance);
+
+		return diffuse * absorption;
 	}
 }
 
