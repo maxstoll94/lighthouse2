@@ -573,12 +573,11 @@ int HostScene::AddMaterial( const float3 color )
 //  |  HostScene::AddPointLight                                                   |
 //  |  Create a point light and add it to the scene.                        LH2'19|
 //  +-----------------------------------------------------------------------------+
-int HostScene::AddPointLight( const float3 pos, const float3 radiance, const float energy, bool enabled )
+int HostScene::AddPointLight( const float3 pos, const float3 radiance, bool enabled )
 {
 	HostPointLight* light = new HostPointLight();
 	light->position = pos;
 	light->radiance = radiance;
-	light->energy = energy;
 	light->enabled = enabled;
 	light->ID = (int)pointLights.size();
 	pointLights.push_back( light );

@@ -82,9 +82,9 @@ public:
 	static void RemoveNode( const int instId );
 	static int AddQuad( const float3 N, const float3 pos, const float width, const float height, const int matId, const int meshID = -1 );
 	static int AddMaterial( const float3 color );
-	static int AddPointLight(const float3 pos, const float3 radiance, const float energy, bool enabled);
+	static int AddPointLight( const float3 pos, const float3 radiance, bool enabled = true );
 	static int AddSpotLight( const float3 pos, const float3 direction, const float inner, const float outer, const float3 radiance, bool enabled = true );
-	static int AddDirectionalLight(const float3 direction, const float3 radiance, bool enabled);
+	static int AddDirectionalLight( const float3 direction, const float3 radiance, bool enabled = true );
 	// data members
 	static vector<int> rootNodes;
 	static vector<HostNode*> nodePool;
