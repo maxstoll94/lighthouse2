@@ -12,6 +12,7 @@ namespace lh2core
 	{
 	public:
 		vector<Mesh> meshes;							// mesh data storage
+		vector<CoreLightTri> areaLights;				// point lights of the scene
 		vector<CorePointLight> pointLights;				// point lights of the scene
 		vector<CoreDirectionalLight> directionLights;	// direction lights of the scene
 		vector<CoreSpotLight> spotLights;				// spot lights of the scene

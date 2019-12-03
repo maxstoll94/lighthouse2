@@ -70,6 +70,10 @@ void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const
 void RenderCore::SetLights(const CoreLightTri* areaLights, const int areaLightCount, const CorePointLight* corePointLights, const int pointLightCount,
 	const CoreSpotLight* coreSpotLights, const int spotLightCount, const CoreDirectionalLight* coreDirectionalLights, const int directionalLightCount)
 {
+	for (int i = 0; i < areaLightCount; i++) {
+		rayTracer.areaLights.push_back(areaLights[i]);
+	}
+
 	for (int i = 0; i < pointLightCount; i++) {
 		rayTracer.pointLights.push_back(corePointLights[i]);
 	}

@@ -8,6 +8,7 @@ constexpr float defaultRayBounces = 2;
 constexpr float bias = 0.00001;
 constexpr float refractiveIndexGlass = 1.5168;
 constexpr float refractiveIndexAir = 1.0;
+constexpr uint softLightRays = 1;
 
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::SetTarget                                                      |
@@ -48,13 +49,17 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 
 	Material material = materials[intersection.materialIndex];
 
+	float3 diffuse = material.texture == NULL ? material.diffuse : GetColor(intersection.uv, *material.texture);
+
+	// just render the color of the light
+	if (diffuse.x > 1.0 || diffuse.y > 1.0 || diffuse.z > 1.0) return diffuse;
+
 	float refractive = material.transmission;
 	float reflective = (1 - refractive) * material.specularity;
 	float diffusive = 1 - refractive - reflective;
 
 	float3 color = make_float3(0.0);
 
-	float3 diffuse = material.texture == NULL ? material.diffuse : GetColor(intersection.uv, *material.texture);
 
 	if (refractive > 0) {
 		color += refractive * Dielectrics(ray, intersection);
@@ -219,7 +224,7 @@ Ray WhittedStyleRayTracer::Reflect(const Ray &ray, const Intersection &intersect
 	Ray reflectRay;
 	// taken from lecture slides "whitted-style" slide 13
 	reflectRay.direction = ray.direction - 2 * dot(intersection.normal, ray.direction) * intersection.normal;
-	reflectRay.origin = intersection.position + bias * intersection.normal;
+	reflectRay.origin = intersection.position + bias * reflectRay.direction;
 	reflectRay.bounces = ray.bounces - 1;
 
 	return reflectRay;
@@ -233,6 +238,29 @@ float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection
 	float3 illumination = make_float3(0.0);
 	Ray ray;
 
+	for (CoreLightTri areaLight : areaLights) {
+		for (int i = 0; i < softLightRays; i++) {
+			float r1 = ((double)rand() / RAND_MAX);
+			float r2 = ((double)rand() / RAND_MAX);
+			float sqrtR1 = sqrt(r1);
+			float3 position = (1 - sqrtR1) * areaLight.vertex0 + (sqrtR1 * (1 - r2)) * areaLight.vertex1 + (sqrtR1 * r2) * areaLight.vertex2;
+
+			float3 intersectionLight = position - intersection.position;
+			float3 lightDirection = normalize(intersectionLight);
+			float lightDistance = length(intersectionLight);
+
+			float contribution = areaLight.area * dot(intersection.normal, lightDirection) * dot(areaLight.N, -lightDirection) / (lightDistance * lightDistance);
+			if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
+
+			ray.origin = intersection.position + bias * lightDirection;
+			ray.direction = lightDirection;
+
+			if (!HasIntersection(ray, true, lightDistance - 2 * bias)) {
+				illumination += areaLight.radiance * contribution / softLightRays;
+			}
+		}
+	}
+
 	for (CorePointLight pointLight : pointLights) {
 		float3 intersectionLight = pointLight.position - intersection.position;
 		float3 lightDirection = normalize(intersectionLight);
@@ -242,7 +270,7 @@ float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection
 		float contribution = dot(intersection.normal, lightDirection) / (lightDistance * lightDistance);
 		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
-		ray.origin = intersection.position + bias * intersection.normal;
+		ray.origin = intersection.position + bias * lightDirection;
 		ray.direction = lightDirection;
 
 		if (!HasIntersection(ray, true, lightDistance)) {
@@ -257,7 +285,7 @@ float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection
 		float contribution = dot(intersection.normal, lightDirection);
 		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
-		ray.origin = intersection.position + bias * intersection.normal;
+		ray.origin = intersection.position + bias * lightDirection;
 		ray.direction = lightDirection;
 
 		if (!HasIntersection(ray, false, 0)) {
@@ -286,7 +314,7 @@ float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection
 		contribution *= dot(intersection.normal, lightDirection) / (lightDistance * lightDistance);
 		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
-		ray.origin = intersection.position + bias * intersection.normal;
+		ray.origin = intersection.position + bias * lightDirection;
 		ray.direction = lightDirection;
 
 		if (!HasIntersection(ray, true, lightDistance)) {
@@ -364,7 +392,7 @@ float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const Intersection &in
 
 	Ray refractRay;
 	refractRay.direction = n1n2 * ray.direction + intersection.normal * (n1n2 * cosO1 - sqrt(k));
-	refractRay.origin = intersection.position + bias * -1 * intersection.normal;
+	refractRay.origin = intersection.position + bias * -1 * refractRay.direction;
 	refractRay.bounces = ray.bounces - 1;
 
 	float fr = Fresnel(ray, intersection, n1, n2, cosO1);
@@ -380,7 +408,6 @@ float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const Intersection &in
 
 	return diffuse;
 }
-
 
 float3 WhittedStyleRayTracer::Beer(const Ray ray, const Intersection &intersection, float3 diffuse) {
 	switch (intersection.side) {
