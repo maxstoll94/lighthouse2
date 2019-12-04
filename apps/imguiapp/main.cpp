@@ -40,58 +40,27 @@ static CoreStats coreStats;
 //  +-----------------------------------------------------------------------------+
 void PrepareScene()
 {
-//	// initialize scene
-//#if 1
-//	// radio
-//	materialFile = string( "data/receiver/red_materials.xml" );
-//	renderer->AddScene( "scene.gltf", "data/receiver/", mat4::Scale( 0.2f ) * mat4::Translate( 0, 0, 0 ) );
-//	int rootNode = renderer->FindNode( "RootNode (gltf orientation matrix)" );
-//	renderer->SetNodeTransform( rootNode, mat4::RotateX( -PI / 2 ) );
-//	int floorMat = renderer->AddMaterial( make_float3( 0.5f, 0.5f, 0.6f ) );
-//	int floorQuad = renderer->AddQuad( make_float3( 0, 1, 0 ), make_float3( 0, -1.5f, 0 ), 40, 40, floorMat );
-//	renderer->AddInstance( floorQuad );
-//	animPaused = true;
-//#else
-//	// classic scene
-//	materialFile = string( "data/pica/pica_materials.xml" );
-//	renderer->AddScene( "scene.gltf", "data/pica/", mat4::Translate( 0, -10.2f, 0 ) );
-//	int rootNode = renderer->FindNode( "RootNode (gltf orientation matrix)" );
-//	renderer->SetNodeTransform( rootNode, mat4::RotateX( -PI / 2 ) );
-//#endif
-//#if 1
-//	// overhead light, use regular PT
-//	int lightMat = renderer->AddMaterial( make_float3( 50, 50, 45 ) );
-//	int lightQuad = renderer->AddQuad( make_float3( 0, -1, 0 ), make_float3( 0, 26.0f, 0 ), 6.9f, 6.9f, lightMat );
-//#else
-//	// difficult light; use BDPT
-//	int lightMat = renderer->AddMaterial( make_float3( 500, 500, 400 ) );
-//	int lightQuad = renderer->AddQuad( make_float3( 0.15188693, -0.32204545, 0.93446094 ), make_float3( -12.938412, -5.0068984, -25.725601 ), 1.9f, 1.9f, lightMat );
-//#endif
-//	//int lightInst = renderer->AddInstance( lightQuad );
-//	// optional animated models
-//	// renderer->AddScene( "CesiumMan.glb", "data/", mat4::Translate( 0, -2, -9 ) );
-//	// renderer->AddScene( "project_polly.glb", "data/", mat4::Translate( 4.5f, -5.45f, -5.2f ) * mat4::Scale( 2 ) );
-//	// load changed materials
-//	renderer->DeserializeMaterials( materialFile.c_str() );
+	// area light
+	int lightMat = renderer->AddMaterial( make_float3( 10.0f, 10.0f, 10.0f ) );
+	int lightQuad = renderer->AddQuad( make_float3( 0.0f, -1.0f, 0.0f ), make_float3( 0.0f, 3.0f, 0.0f ), 1.9f, 1.9f, lightMat );
+	int lightInst = renderer->AddInstance( lightQuad );
 
 	// spot light
-	renderer->AddSpotLight(make_float3(0, 3, 0), make_float3(-0.1, -1, 0.2), 0.9, 0.0, make_float3(10, 10, 10), true);
+	// renderer->AddSpotLight(make_float3(0, 3, 0), make_float3(-0.1, -1, 0.2), 0.9, 0.0, make_float3(10, 10, 10), true);
 
-	// spot light
+	// point light
 	// renderer->AddPointLight(make_float3(20, 30, 10), make_float3(1000, 1000, 1000), 1.0, true);
-
 
 	// directional light
 	// renderer->AddDirectionalLight(make_float3(0.2, -1, 0), make_float3(1, 1, 1), true);
 
-	// dice
+	// textured dice
 	// int diceId = renderer->AddMesh("dice.obj", "data/dice/", 1.0f);
 	// renderer->AddInstance(diceId);
 
-	//// multiMaterial
+	// multiMaterial
 	int multimaterialId = renderer->AddMesh("multimaterial.obj", "data/multimaterial/", 1.0f);
 	renderer->AddInstance(multimaterialId);
-
 }
 
 //  +-----------------------------------------------------------------------------+

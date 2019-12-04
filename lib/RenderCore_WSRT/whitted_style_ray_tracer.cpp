@@ -8,7 +8,7 @@ constexpr float defaultRayBounces = 2;
 constexpr float bias = 0.00001;
 constexpr float refractiveIndexGlass = 1.5168;
 constexpr float refractiveIndexAir = 1.0;
-constexpr uint softLightRays = 1;
+constexpr uint softLightRays = 10;
 
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::SetTarget                                                      |
