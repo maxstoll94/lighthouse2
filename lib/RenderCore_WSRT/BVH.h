@@ -1,11 +1,10 @@
 #pragma once
-
 #include "rendersystem.h"
 
 namespace lh2core
 {
-	struct Primitive {
-		// TODO
+	enum Axis {
+		Xaxis = 0, Yaxis = 1, Zaxis = 2
 	};
 
 	//  +-----------------------------------------------------------------------------+
@@ -19,26 +18,30 @@ namespace lh2core
 	//	|  6: count the number of primitives(only applicable if isLeaf)         LH2'19|
 	//  +-----------------------------------------------------------------------------+
 	struct BVHNode {
-		aabb bounds = aabb();
-		int left, right;
-		int first, count;
-
-		// methods
-		bool IsLeaf();
-		void Subdivide();
-		void Partition();
+	public:
+		aabb bounds;
+		uint leftFirst;
+		uint count;
 
 		__inline bool IsLeaf() { return count != 0; }
+		__inline uint GetLeft() { return leftFirst; }
+		__inline uint GetRight() { return leftFirst + 1; }
 	};
 
 	class BVH {
 	public:
 		BVHNode* pool;
-		BVHNode root;
-		int poolPtr;
+		uint poolPtr;
+		CoreTri* primitives;
+		uint* indices;
 
 		// methods
-		void ConstructBVH(Primitive* primitive);
-		aabb CalculateBounds(Primitive* primitive, int first, int count);
+		void ConstructBVH(CoreTri* primitive, uint primitiveCount);
+		void Subdivide(uint nodeIndex, uint first, uint last);
+		bool Partition(aabb bounds, uint & splitIndex, uint first, uint last);
+		aabb CalculateBounds(uint first, uint last);
+		void QuickSortPrimitives(Axis axis, uint first, uint last);
+		float GetAxis(Axis axis, float3 vector);
+		void Swap(uint * a, uint * b);
 	};
 }

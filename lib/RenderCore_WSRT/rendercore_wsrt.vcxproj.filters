@@ -8,6 +8,9 @@
     <ClCompile Include="whitted_style_ray_tracer.cpp">
       <Filter>Whitted_Style_Ray_Tracer</Filter>
     </ClCompile>
+    <ClCompile Include="BVH.cpp">
+      <Filter>Bounded_Volume_Hierarchy</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="rendercore.h" />
