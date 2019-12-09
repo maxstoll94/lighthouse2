@@ -16,6 +16,7 @@
 #pragma once
 #include "rendersystem.h"
 #include "whitted_style_ray_tracer.h"
+#include "BVH.h"
 
 namespace lh2core
 {

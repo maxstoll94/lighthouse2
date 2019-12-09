@@ -48,18 +48,21 @@ void RenderCore::SetTarget( GLTexture* target )
 //  +-----------------------------------------------------------------------------+
 void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangleData, const uint* alphaFlags )
 {
-	if (meshIdx >= rayTracer.meshes.size())
-	{
-		Mesh newMesh;
+	if (meshIdx >= rayTracer.bvhs.size()) {
+		Mesh *mesh = new Mesh();
 		// copy the supplied vertices; we cannot assume that the render system does not modify
 		// the original data after we leave this function.
-		newMesh.vertices = new float4[vertexCount];
-		newMesh.vcount = vertexCount;
-		memcpy(newMesh.vertices, vertexData, vertexCount * sizeof(float4));
+		mesh->vertices = new float4[vertexCount];
+		mesh->vcount = vertexCount;
+		memcpy(mesh->vertices, vertexData, vertexCount * sizeof(float4));
 		// copy the supplied 'fat triangles'
-		newMesh.triangles = new CoreTri[vertexCount / 3];
-		memcpy(newMesh.triangles, triangleData, (vertexCount / 3) * sizeof(CoreTri));
-		rayTracer.meshes.push_back(newMesh);
+		mesh->triangles = new CoreTri[vertexCount / 3];
+		memcpy(mesh->triangles, triangleData, (vertexCount / 3) * sizeof(CoreTri));
+
+		BVH bvh;
+		bvh.ConstructBVH(mesh);
+
+		rayTracer.bvhs.push_back(bvh);
 	}
 }
 

@@ -1,4 +1,5 @@
 #include "BVH.h"
+#include <iostream>
 
 using namespace lh2core;
 
@@ -17,15 +18,28 @@ void BVH::ConstructBVH(Mesh* _mesh) {
 	uint last = primitiveCount - 1;
 	uint poolPtr = 2;
 	Subdivide(nodeIndex, first, last, poolPtr);
+
+	//for (int i = 0; i < primitiveCount * 2; i++) {
+	//	if (pool[i].IsLeaf()) {
+	//		cout << i << ": LEAF[" << pool[i].GetFirst() << ": " << pool[i].GetCount() << "], ";
+	//	}
+	//	else {
+	//		cout << i << ": BRANCH[" << pool[i].GetLeft() << ", " << pool[i].GetRight() << "], ";
+	//	}
+	//}
+	//cout << endl;
 }
 
 void BVH::Subdivide(const uint nodeIndex, const uint first, const uint last, uint &poolPtr) {
-	BVHNode node = pool[nodeIndex];
+	BVHNode &node = pool[nodeIndex];
 	CalculateBounds(first, last, node.bounds);
-	uint splitIndex;
-	bool hasSplit = Partition(node, first, last, splitIndex);
+	int splitIndex = Partition(node, first, last);
 
-	if (hasSplit) {
+	if (splitIndex == -1) {
+		node.count = last - first + 1;
+		node.leftFirst = first;
+	}
+	else {
 		node.leftFirst = poolPtr;
 		poolPtr += 2;
 		node.count = 0;
@@ -33,27 +47,25 @@ void BVH::Subdivide(const uint nodeIndex, const uint first, const uint last, uin
 		Subdivide(node.GetLeft(), first, splitIndex, poolPtr);
 		Subdivide(node.GetRight(), splitIndex + 1, last, poolPtr);
 	}
-	else {
-		node.count = last - first;
-		node.leftFirst = first;
-	}
 }
 
-bool BVH::Partition(const BVHNode &node, const uint first, const uint last, uint &splitIndex) {
+int BVH::Partition(const BVHNode &node, const uint first, const uint last) {
+	if (last - first < 3) {
+		return -1;
+	}
+
 	Axis splitAxis = (Axis)(node.bounds.LongestAxis());
 	QuickSortPrimitives(splitAxis, first, last);
-	splitIndex = floor((last + first) / 2);
-
-	return last - first < 3;
+	return floor((last + first) / 2);
 }
 
 void BVH::CalculateBounds(const uint first, const uint last, aabb &bounds) {
 	uint first3 = first * 3;
-	uint last3 = last * 3;
+	uint last3 = (last + 1) * 3;
 
 	bounds = aabb(make_float3(mesh->vertices[first3]), make_float3(mesh->vertices[first3]));
 
-	for (int i = first3 + 1; i < last3; i++) {
+	for (int i = first3 + 1; i < last3; i ++) {
 		bounds.Grow(make_float3(mesh->vertices[i]));
 	}
 }

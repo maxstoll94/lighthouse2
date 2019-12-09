@@ -1,6 +1,7 @@
 #pragma once
 #include "rendersystem.h"
 #include "classes.h"
+#include "BVH.h"
 
 namespace lh2core
 {
@@ -10,8 +11,8 @@ namespace lh2core
 	//  +-----------------------------------------------------------------------------+
 	class WhittedStyleRayTracer
 	{
-	public:
-		vector<Mesh> meshes;							// mesh data storage
+	public: 
+		vector<BVH> bvhs;								// storing all bvh's
 		vector<CoreLightTri> areaLights;				// point lights of the scene
 		vector<CorePointLight> pointLights;				// point lights of the scene
 		vector<CoreDirectionalLight> directionLights;	// direction lights of the scene
@@ -25,7 +26,9 @@ namespace lh2core
 		float3 Directllumination(const Intersection &intersection);
 		float3 Trace(Ray ray);
 		bool NearestIntersection(const Ray &ray, Intersection &intersection); // Returns the nearest intersection point, the normal and the material type.
+		bool NearestIntersection(const BVH &bvh, const uint nodeIndex, const Ray & ray, Intersection & intersection);
 		bool HasIntersection(const Ray &ray, const bool isBounded, const float distance);
+		bool HasIntersection(const Ray &ray, const aabb &aabb, const bool isBounded, const float distance);
 		bool IntersectsWithTriangle(const Ray &ray, const float3 &v0, const float3 &v1,
 			const float3 &v2, float &t, side &side, float &u, float &v);
 		Ray Reflect(const Ray &ray, const Intersection &intersection);

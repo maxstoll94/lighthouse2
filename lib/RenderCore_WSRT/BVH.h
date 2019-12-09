@@ -1,6 +1,6 @@
 #pragma once
 #include "rendersystem.h"
-#include "rendercore.h"
+#include "classes.h"
 
 namespace lh2core
 {
@@ -24,23 +24,25 @@ namespace lh2core
 		uint leftFirst;
 		uint count;
 
+		__inline aabb GetBounds() { return bounds; }
 		__inline bool IsLeaf() { return count != 0; }
 		__inline uint GetLeft() { return leftFirst; }
 		__inline uint GetRight() { return leftFirst + 1; }
+
+		__inline uint GetCount() { return count; }
+		__inline uint GetFirst() { return leftFirst; }
+
 	};
 
 	class BVH {
 	public:
-		void ConstructBVH(Mesh *mesh);
-
-	private:
+		BVHNode* pool;
 		Mesh* mesh;
 		uint* indices;
-		BVHNode* pool;
 
-		// methods
+		void ConstructBVH(Mesh *mesh);
 		void Subdivide(const uint nodeIndex, const uint first, const uint last, uint &poolPtr);
-		bool Partition(const BVHNode &node, const uint first, const uint last, uint &splitIndex);
+		int Partition(const BVHNode &node, const uint first, const uint last);
 		void CalculateBounds(const uint first, const uint last, aabb &aabb);
 		float GetAxis(const Axis axis, const float4 &vector);
 		void QuickSortPrimitives(const Axis axis, const uint first, const uint last);

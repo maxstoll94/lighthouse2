@@ -51,6 +51,8 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 
 	float3 diffuse = material.texture == NULL ? material.diffuse : GetColor(intersection.uv, *material.texture);
 
+	return diffuse * Directllumination(intersection);
+
 	// just render the color of the light
 	if (diffuse.x > 1.0 || diffuse.y > 1.0 || diffuse.z > 1.0) return diffuse;
 
@@ -59,7 +61,6 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 	float diffusive = 1 - refractive - reflective;
 
 	float3 color = make_float3(0.0);
-
 
 	if (refractive > 0) {
 		color += refractive * Dielectrics(ray, intersection);
@@ -79,21 +80,54 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
 //  +-----------------------------------------------------------------------------+
 bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const bool bounded, const float distance) {
-	float t;
-	float u;
-	float v;
-	side side;
-
-	for (Mesh& mesh : meshes) for (int i = 0; i < mesh.vcount; i += 3) {
-		float3 a = make_float3(mesh.vertices[i]);
-		float3 b = make_float3(mesh.vertices[i + 1]);
-		float3 c = make_float3(mesh.vertices[i + 2]);
-
-		if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v) && t > kEpsilon && (!bounded || t < distance)) {
-			return true;
-		}
-	}
 	return false;
+}
+
+// Code based on https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
+bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const aabb &bounds, const bool isBounded, const float distance) {
+	float3 inverseDirection = 1 / ray.direction;
+
+	float tmin = (bounds.bmin3.x - ray.origin.x) / ray.direction.x;
+	float tmax = (bounds.bmax3.x - ray.origin.x) / ray.direction.x;
+
+	if (tmin > tmax) swap(tmin, tmax);
+
+	float tymin = (bounds.bmin3.y - ray.origin.y) / ray.direction.y;
+	float tymax = (bounds.bmax3.y - ray.origin.y) / ray.direction.y;
+
+	if (tymin > tymax) swap(tymin, tymax);
+
+	if ((tmin > tymax) || (tymin > tmax))
+		return false;
+
+	if (tymin > tmin)
+		tmin = tymin;
+
+	if (tymax < tmax)
+		tmax = tymax;
+
+	float tzmin = (bounds.bmin3.z - ray.origin.z) / ray.direction.z;
+	float tzmax = (bounds.bmax3.z - ray.origin.z) / ray.direction.z;
+
+	if (tzmin > tzmax) {
+		float tmp = tzmin;
+		tzmin = tzmax;
+		tzmax = tmp;
+	}
+
+	if ((tmin > tzmax) || (tzmin > tmax)) {
+		return false;
+	}
+
+	if (tzmin > tmin) {
+		tmin = tzmin;
+	}
+
+	if (tzmax < tmax) {
+		tmax = tzmax;
+	}
+
+	return true;
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -101,82 +135,73 @@ bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const bool bounded, 
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
 //  +-----------------------------------------------------------------------------+
 bool WhittedStyleRayTracer::NearestIntersection(const Ray &ray, Intersection &intersection) {
-	//float3 pos = make_float3(0, 0, 0);
-	//float radius = 1.0f;
-	//float a = dot(ray.direction, ray.direction);
-	//float b = dot(2 * ray.direction, ray.origin - pos);
-	//float c = dot(ray.origin - pos, ray.origin - pos) - radius * radius;
-	//if (b * b - 4 * a * c < 0) {
-	//	return false;
-	//}
-	//float t;
-	//if (b * b - 4 * a * c == 0) {
-	//	t = -b / (2 * a);
-	//}
-	//else {
-	//	float t1 = (-b - sqrt(b * b - 4 * a * c)) / (2 * a);
-	//	float t2 = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
-	//	if (t1 > kEpsilon) {
-	//		t = t1;
-	//		intersection.side = Front;
-	//	}
-	//	else if (t2 > kEpsilon) {
-	//		t = t2;
-	//		intersection.side = Back;
-	//	}
-	//	else {
-	//		return false;
-	//	}
-	//}
-
-	//intersection.position = ray.origin + ray.direction * t;
-	//intersection.normal = normalize(intersection.position - pos);
-	//if (intersection.side == Back) intersection.normal = -intersection.normal;
-	//intersection.materialIndex = 0;
-	//intersection.distance = t;
-	//return true;
-
-	float currentT, currentU, currentV;
-	float nearestT, nearestU, nearestV;
-	side nearestSide, currentSide;
-	CoreTri nearestTriangle;
-	bool hasIntersection = false;
-
-	for (Mesh& mesh : meshes) for (int i = 0; i < mesh.vcount; i += 3) {
-		float3 a = make_float3(mesh.vertices[i]);
-		float3 b = make_float3(mesh.vertices[i + 1]);
-		float3 c = make_float3(mesh.vertices[i + 2]);
-
-		if (IntersectsWithTriangle(ray, a, b, c, currentT, currentSide, currentU, currentV)
-			&& currentT > kEpsilon
-			&& (!hasIntersection || currentT < nearestT)
-			) {
-			nearestT = currentT;
-			nearestU = currentU;
-			nearestV = currentV;
-			nearestSide = currentSide;
-			nearestTriangle = mesh.triangles[i / 3];
-			hasIntersection = true;
+	for (BVH bvh:bvhs) {
+		if (NearestIntersection(bvh, 0, ray, intersection)) {
+			return true;
 		}
 	}
+	return false;
+}
 
-	if (hasIntersection) {
-		intersection.position = ray.origin + ray.direction * nearestT;
-		intersection.normal = (1 - nearestU - nearestV) * nearestTriangle.vN0 + nearestU * nearestTriangle.vN1 + nearestV * nearestTriangle.vN2;
-		if (nearestSide == Back) intersection.normal = -intersection.normal;
-		intersection.materialIndex = nearestTriangle.material;
-		intersection.side = nearestSide;
-		intersection.distance = nearestT;
+bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeIndex, const Ray &ray, Intersection &intersection) {
+	BVHNode *node = &(bvh.pool[nodeIndex]);
 
-		if (materials[intersection.materialIndex].texture != NULL) {
-			float2 uv0 = make_float2(nearestTriangle.u0, nearestTriangle.v0);
-			float2 uv1 = make_float2(nearestTriangle.u1, nearestTriangle.v1);
-			float2 uv2 = make_float2(nearestTriangle.u2, nearestTriangle.v2);
-			intersection.uv = (1 - nearestU - nearestV) * uv0 + nearestU * uv1 + nearestV * uv2;
-		}
+	if (!HasIntersection(ray, node->GetBounds(), false, 0)) {
+		return false;
 	}
 
-	return hasIntersection;
+	if (node->IsLeaf()) {
+		uint first = node->GetFirst() * 3;
+		uint last = first + node->GetCount() * 3;
+
+		float currentT, currentU, currentV;
+		float nearestT, nearestU, nearestV;
+		side nearestSide, currentSide;
+		CoreTri nearestTriangle;
+		bool hasIntersection = false;
+
+		for (int i = first; i < last; i += 3) {
+			float3 a = make_float3(bvh.mesh->vertices[i]);
+			float3 b = make_float3(bvh.mesh->vertices[i + 1]);
+			float3 c = make_float3(bvh.mesh->vertices[i + 2]);
+
+			if (IntersectsWithTriangle(ray, a, b, c, currentT, currentSide, currentU, currentV)
+				&& currentT > kEpsilon
+				&& (!hasIntersection || currentT < nearestT)
+				) {
+				nearestT = currentT;
+				nearestU = currentU;
+				nearestV = currentV;
+				nearestSide = currentSide;
+				nearestTriangle = bvh.mesh->triangles[i / 3];
+				hasIntersection = true;
+			}
+		}
+
+		if (hasIntersection) {
+			intersection.position = ray.origin + ray.direction * nearestT;
+			intersection.normal = (1 - nearestU - nearestV) * nearestTriangle.vN0 + nearestU * nearestTriangle.vN1 + nearestV * nearestTriangle.vN2;
+			if (nearestSide == Back) intersection.normal = -intersection.normal;
+			intersection.materialIndex = nearestTriangle.material;
+			intersection.side = nearestSide;
+			intersection.distance = nearestT;
+
+			if (materials[intersection.materialIndex].texture != NULL) {
+				float2 uv0 = make_float2(nearestTriangle.u0, nearestTriangle.v0);
+				float2 uv1 = make_float2(nearestTriangle.u1, nearestTriangle.v1);
+				float2 uv2 = make_float2(nearestTriangle.u2, nearestTriangle.v2);
+				intersection.uv = (1 - nearestU - nearestV) * uv0 + nearestU * uv1 + nearestV * uv2;
+			}
+		}
+
+		return hasIntersection;
+	}
+	else {
+		if (NearestIntersection(bvh, node->GetLeft(), ray, intersection)) return true;
+		if (NearestIntersection(bvh, node->GetRight(), ray, intersection)) return true;
+	}
+
+	return false;
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -437,3 +462,4 @@ float WhittedStyleRayTracer::Fresnel(const Ray &ray, const Intersection &interse
 
 	return fr;
 }
+
