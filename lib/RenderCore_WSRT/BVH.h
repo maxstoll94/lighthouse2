@@ -31,17 +31,16 @@ namespace lh2core
 	class BVH {
 	public:
 		BVHNode* pool;
-		uint poolPtr;
 		CoreTri* primitives;
 		uint* indices;
 
 		// methods
 		void ConstructBVH(CoreTri* primitive, uint primitiveCount);
-		void Subdivide(uint nodeIndex, uint first, uint last);
-		bool Partition(aabb bounds, uint & splitIndex, uint first, uint last);
+		void Subdivide(uint nodeIndex, uint first, uint last, uint &poolPtr);
+		bool Partition(aabb bounds, uint &splitIndex, uint first, uint last);
 		aabb CalculateBounds(uint first, uint last);
 		void QuickSortPrimitives(Axis axis, uint first, uint last);
 		float GetAxis(Axis axis, float3 vector);
-		void Swap(uint * a, uint * b);
+		void Swap(uint *a, uint *b);
 	};
 }

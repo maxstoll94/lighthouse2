@@ -11,22 +11,27 @@ void BVH::ConstructBVH(CoreTri* _primitives, uint primitiveCount) {
 	}
 
 	pool = new BVHNode[primitiveCount * 2];
-	poolPtr = 2;
-	Subdivide(0, 0, primitiveCount - 1);
+
+	uint nodeIndex = 0;
+	uint first = 0;
+	uint last = primitiveCount - 1;
+	uint poolPtr = 2;
+	Subdivide(nodeIndex, first, last, poolPtr);
 }
 
-void BVH::Subdivide(uint nodeIndex, uint first, uint last) {
+void BVH::Subdivide(uint nodeIndex, uint first, uint last, uint &poolPtr) {
 	BVHNode node = pool[nodeIndex];
 	node.bounds = CalculateBounds(first, last);
 	uint splitIndex;
 	bool hasSplit = Partition(node.bounds, splitIndex, first, last);
 
 	if (hasSplit) {
-		node.leftFirst = poolPtr++;
+		node.leftFirst = poolPtr;
+		poolPtr += 2;
 		node.count = 0;
 
-		Subdivide(node.GetLeft(), first, splitIndex);
-		Subdivide(node.GetRight(), splitIndex + 1, last);
+		Subdivide(node.GetLeft(), first, splitIndex, poolPtr);
+		Subdivide(node.GetRight(), splitIndex + 1, last, poolPtr);
 	}
 	else {
 		node.count = last - first;
