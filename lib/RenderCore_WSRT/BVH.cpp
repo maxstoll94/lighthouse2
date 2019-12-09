@@ -2,10 +2,10 @@
 
 using namespace lh2core;
 
-void BVH::ConstructBVH(CoreTri* _primitives, uint primitiveCount) {
+void BVH::ConstructBVH(Mesh* _mesh) {
+	mesh = _mesh;
+	uint primitiveCount = mesh->vcount;
 	indices = new uint[primitiveCount];
-	primitives = _primitives;
-
 	for (int i = 0; i < primitiveCount; i++) {
 		indices[i] = i;
 	}
@@ -19,11 +19,11 @@ void BVH::ConstructBVH(CoreTri* _primitives, uint primitiveCount) {
 	Subdivide(nodeIndex, first, last, poolPtr);
 }
 
-void BVH::Subdivide(uint nodeIndex, uint first, uint last, uint &poolPtr) {
+void BVH::Subdivide(const uint nodeIndex, const uint first, const uint last, uint &poolPtr) {
 	BVHNode node = pool[nodeIndex];
-	node.bounds = CalculateBounds(first, last);
+	CalculateBounds(first, last, node.bounds);
 	uint splitIndex;
-	bool hasSplit = Partition(node.bounds, splitIndex, first, last);
+	bool hasSplit = Partition(node, first, last, splitIndex);
 
 	if (hasSplit) {
 		node.leftFirst = poolPtr;
@@ -39,51 +39,48 @@ void BVH::Subdivide(uint nodeIndex, uint first, uint last, uint &poolPtr) {
 	}
 }
 
-bool BVH::Partition(aabb bounds, uint &splitIndex, uint first, uint last) {
-	Axis splitAxis = (Axis)(bounds.LongestAxis());
+bool BVH::Partition(const BVHNode &node, const uint first, const uint last, uint &splitIndex) {
+	Axis splitAxis = (Axis)(node.bounds.LongestAxis());
 	QuickSortPrimitives(splitAxis, first, last);
 	splitIndex = floor((last + first) / 2);
 
 	return last - first < 3;
 }
 
-aabb BVH::CalculateBounds(uint first, uint last) {
-	aabb bounds = aabb(primitives[first].vertex0, primitives[first].vertex0);
+void BVH::CalculateBounds(const uint first, const uint last, aabb &bounds) {
+	uint first3 = first * 3;
+	uint last3 = last * 3;
 
-	for (int i = first; i < last; i++) {
-		bounds.Grow(primitives[i].vertex0);
-		bounds.Grow(primitives[i].vertex1);
-		bounds.Grow(primitives[i].vertex2);
+	bounds = aabb(make_float3(mesh->vertices[first3]), make_float3(mesh->vertices[first3]));
+
+	for (int i = first3 + 1; i < last3; i++) {
+		bounds.Grow(make_float3(mesh->vertices[i]));
 	}
-
-	return bounds;
 }
 
 // Quicksort algorithm based on https://www.geeksforgeeks.org/cpp-program-for-quicksort/
-void BVH::QuickSortPrimitives(Axis axis, uint first, uint last) {
+void BVH::QuickSortPrimitives(const Axis axis, const uint first, const uint last) {
 	if (first < last) {
-		float pivot = GetAxis(axis, primitives[indices[first]].vertex0);
+		float pivot = GetAxis(axis, mesh->vertices[indices[first] * 3]);
 
-		int i = (first - 1);  // Index of smaller element 
+		int i = first - 1;
 
-		for (int j = first; j <= last - 1; j++) {
-			// If current element is smaller than or 
-			// equal to pivot 
-			if (GetAxis(axis, primitives[indices[j]].vertex0) <= pivot) {
-				i++;    // increment index of smaller element 
+		for (int j = first; j <= last - 1; j ++) {
+			if (GetAxis(axis, mesh->vertices[indices[j] * 3]) <= pivot) {
+				i++;
 				Swap(&indices[i], &indices[j]);
 			}
 		}
 		Swap(&indices[i + 1], &indices[last]);
 
-		int pivotIndex = (i + 1);
+		int pivotIndex = i + 1;
 
 		QuickSortPrimitives(axis, first, pivotIndex - 1);
 		QuickSortPrimitives(axis, pivotIndex + 1, last);
 	}
 }
 
-float BVH::GetAxis(Axis axis, float3 vector) {
+float BVH::GetAxis(const Axis axis, const float4 &vector) {
 	switch (axis) {
 	case Xaxis:
 		return vector.x;

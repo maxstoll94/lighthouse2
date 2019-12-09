@@ -1,5 +1,6 @@
 #pragma once
 #include "rendersystem.h"
+#include "rendercore.h"
 
 namespace lh2core
 {
@@ -30,17 +31,19 @@ namespace lh2core
 
 	class BVH {
 	public:
-		BVHNode* pool;
-		CoreTri* primitives;
+		void ConstructBVH(Mesh *mesh);
+
+	private:
+		Mesh* mesh;
 		uint* indices;
+		BVHNode* pool;
 
 		// methods
-		void ConstructBVH(CoreTri* primitive, uint primitiveCount);
-		void Subdivide(uint nodeIndex, uint first, uint last, uint &poolPtr);
-		bool Partition(aabb bounds, uint &splitIndex, uint first, uint last);
-		aabb CalculateBounds(uint first, uint last);
-		void QuickSortPrimitives(Axis axis, uint first, uint last);
-		float GetAxis(Axis axis, float3 vector);
+		void Subdivide(const uint nodeIndex, const uint first, const uint last, uint &poolPtr);
+		bool Partition(const BVHNode &node, const uint first, const uint last, uint &splitIndex);
+		void CalculateBounds(const uint first, const uint last, aabb &aabb);
+		float GetAxis(const Axis axis, const float4 &vector);
+		void QuickSortPrimitives(const Axis axis, const uint first, const uint last);
 		void Swap(uint *a, uint *b);
 	};
 }
