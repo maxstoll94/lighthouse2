@@ -3,6 +3,23 @@
 
 using namespace lh2core;
 
+void Swap(uint* a, uint* b) {
+	uint t = *a;
+	*a = *b;
+	*b = t;
+}
+
+float GetAxis(const Axis axis, const float4 &vector) {
+	switch (axis) {
+	case Xaxis:
+		return vector.x;
+	case Yaxis:
+		return vector.y;
+	case Zaxis:
+		return vector.z;
+	}
+}
+
 void BVH::ConstructBVH(Mesh* _mesh) {
 	mesh = _mesh;
 	uint primitiveCount = mesh->vcount / 3;
@@ -90,24 +107,7 @@ void BVH::QuickSortPrimitives(const Axis axis, const uint first, const uint last
 		QuickSortPrimitives(axis, first, pivotIndex - 1);
 		QuickSortPrimitives(axis, pivotIndex + 1, last);
 	}
-}
 
-float BVH::GetAxis(const Axis axis, const float4 &vector) {
-	switch (axis) {
-	case Xaxis:
-		return vector.x;
-	case Yaxis:
-		return vector.y;
-	case Zaxis:
-		return vector.z;
-	}
-}
-
-void BVH::Swap(uint* a, uint* b) {
-	uint t = *a;
-	*a = *b;
-	*b = t;
-}
 
 int BVH::PartitionSAH(BVHNode &node, uint first, uint last) {
 	float a = node.GetBounds().Area();
