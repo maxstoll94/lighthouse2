@@ -10,6 +10,100 @@ constexpr float refractiveIndexGlass = 1.5168;
 constexpr float refractiveIndexAir = 1.0;
 constexpr uint softLightRays = 10;
 
+float2 PyramidToScreen(const float3 pos, const ViewPyramid& view) {
+	// plane
+	float3 n = normalize((view.p2 + view.p3) * 0.5 - view.pos);
+	float3 N = normalize(cross(view.p2 - view.p1, view.p3 - view.p1));
+	float d = dot(view.p1, N);
+
+	// ray
+	float3 O = view.pos;
+	float3 D = normalize(pos - view.pos);
+
+	// plane ray intersection from lecture slide Introduction - slide 29
+	float t = -(dot(O, N) + d) / dot(D, N);
+	float3 p = O + t * D;
+
+	float u = dot(normalize(view.p2 - view.p1), normalize(p - view.p1));
+	float v = dot(normalize(view.p3 - view.p1), normalize(p - view.p3));
+
+	return make_float2(u, v);
+}
+
+// https://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C.2B.2B
+void DrawLine(const float2 v0, const float2 v1, const int colorHex, Bitmap* screen) {
+	float x1 = v0.x * screen->width;
+	float y1 = v0.y * screen->height;
+	float x2 = v1.x * screen->width; 
+	float y2 = v1.y * screen->height;
+
+	// Bresenham's line algorithm
+	const bool steep = (fabs(y2 - y1) > fabs(x2 - x1));
+	if (steep) {
+		std::swap(x1, y1);
+		std::swap(x2, y2);
+	}
+
+	if (x1 > x2) {
+		std::swap(x1, x2);
+		std::swap(y1, y2);
+	}
+
+	const float dx = x2 - x1;
+	const float dy = fabs(y2 - y1);
+
+	float error = dx / 2.0f;
+	const int ystep = (y1 < y2) ? 1 : -1;
+	int y = (int)y1;
+
+	const int maxX = (int)x2;
+
+	for (int x = (int)x1; x <= maxX; x++) {
+		if (steep) {
+			screen->Plot(y, x, colorHex);
+		}
+		else {
+			screen->Plot(x, y, colorHex);
+		}
+
+		error -= dy;
+		if (error < 0) {
+			y += ystep;
+			error += dx;
+		}
+	}
+}
+
+
+void DrawBoundingBox(const aabb bounds, const ViewPyramid& view, const int colorHex, Bitmap* screen) {
+	float3 min = bounds.bmin3;
+	float3 max = bounds.bmax3;
+
+	float2 a = PyramidToScreen(make_float3(min.x, min.y, min.z), view);
+	float2 b = PyramidToScreen(make_float3(max.x, min.y, min.z), view);
+	float2 c = PyramidToScreen(make_float3(min.x, min.y, max.z), view);
+	float2 d = PyramidToScreen(make_float3(max.x, min.y, max.z), view);
+	float2 e = PyramidToScreen(make_float3(min.x, max.y, min.z), view);
+	float2 f = PyramidToScreen(make_float3(max.x, max.y, min.z), view);
+	float2 g = PyramidToScreen(make_float3(min.x, max.y, max.z), view);
+	float2 h = PyramidToScreen(make_float3(max.x, max.y, max.z), view);
+
+	DrawLine(a, b, colorHex, screen);
+	DrawLine(a, c, colorHex, screen);
+	DrawLine(b, d, colorHex, screen);
+	DrawLine(c, d, colorHex, screen);
+
+	DrawLine(a, e, colorHex, screen);
+	DrawLine(b, f, colorHex, screen);
+	DrawLine(c, g, colorHex, screen);
+	DrawLine(d, h, colorHex, screen);
+
+	DrawLine(g, g, colorHex, screen);
+	DrawLine(g, e, colorHex, screen);
+	DrawLine(e, f, colorHex, screen);
+	DrawLine(f, h, colorHex, screen);
+}
+
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::SetTarget                                                      |
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
