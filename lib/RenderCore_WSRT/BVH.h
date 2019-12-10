@@ -42,8 +42,10 @@ namespace lh2core
 
 		void ConstructBVH(Mesh *mesh);
 		void Subdivide(const uint nodeIndex, const uint first, const uint last, uint &poolPtr);
-		int Partition(const BVHNode &node, const uint first, const uint last);
+		int PartitionMedian(const BVHNode &node, const uint first, const uint last);
 		void CalculateBounds(const uint first, const uint last, aabb &aabb);
 		void QuickSortPrimitives(const Axis axis, const uint first, const uint last);
+		int PartitionSAH(BVHNode &node, uint first, uint last);
+		int PartitionNever(BVHNode & node, uint first, uint last);
 	};
 }
