@@ -107,7 +107,7 @@ void BVH::QuickSortPrimitives(const Axis axis, const uint first, const uint last
 		QuickSortPrimitives(axis, first, pivotIndex - 1);
 		QuickSortPrimitives(axis, pivotIndex + 1, last);
 	}
-
+}
 
 int BVH::PartitionSAH(BVHNode &node, uint first, uint last) {
 	float a = node.GetBounds().Area();
