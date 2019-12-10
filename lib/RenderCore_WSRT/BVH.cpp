@@ -5,7 +5,7 @@ using namespace lh2core;
 
 void BVH::ConstructBVH(Mesh* _mesh) {
 	mesh = _mesh;
-	uint primitiveCount = mesh->vcount;
+	uint primitiveCount = mesh->vcount / 3;
 	indices = new uint[primitiveCount];
 	for (int i = 0; i < primitiveCount; i++) {
 		indices[i] = i;
@@ -33,7 +33,7 @@ void BVH::ConstructBVH(Mesh* _mesh) {
 void BVH::Subdivide(const uint nodeIndex, const uint first, const uint last, uint &poolPtr) {
 	BVHNode &node = pool[nodeIndex];
 	CalculateBounds(first, last, node.bounds);
-	int splitIndex = Partition(node, first, last);
+	int splitIndex = PartitionSAH(node, first, last);
 
 	if (splitIndex == -1) {
 		node.count = last - first + 1;
@@ -49,7 +49,7 @@ void BVH::Subdivide(const uint nodeIndex, const uint first, const uint last, uin
 	}
 }
 
-int BVH::Partition(const BVHNode &node, const uint first, const uint last) {
+int BVH::PartitionMedian(const BVHNode &node, const uint first, const uint last) {
 	if (last - first < 3) {
 		return -1;
 	}
@@ -107,4 +107,42 @@ void BVH::Swap(uint* a, uint* b) {
 	uint t = *a;
 	*a = *b;
 	*b = t;
+}
+
+int BVH::PartitionSAH(BVHNode &node, uint first, uint last) {
+	float a = node.GetBounds().Area();
+	uint n = last - first + 1;
+
+	int lowestCost = a * n;
+	int bestSplitIndex = -1;
+
+	Axis splitAxis = (Axis)(node.bounds.LongestAxis());
+	QuickSortPrimitives(splitAxis, first, last);
+
+	aabb lBounds;
+	aabb rBounds;
+
+	for (int currentSplitIndex = first + 1; currentSplitIndex < last; currentSplitIndex++) {
+
+		CalculateBounds(first, currentSplitIndex, lBounds);
+		CalculateBounds(currentSplitIndex + 1, last, rBounds);
+
+		float aLeft = lBounds.Area();
+		float aRight = rBounds.Area();
+		float nLeft = currentSplitIndex - first;
+		float nRight = last - currentSplitIndex + 1;
+
+		float currentCost = aLeft * nLeft + aRight * nRight;
+
+		if (currentCost < lowestCost) {
+			bestSplitIndex = currentSplitIndex;
+			lowestCost = currentCost;
+		}
+	}
+
+	return bestSplitIndex;
+}
+
+int BVH::PartitionNever(BVHNode &node, uint first, uint last) {
+	return -1;
 }
