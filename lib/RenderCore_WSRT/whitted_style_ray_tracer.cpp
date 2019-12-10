@@ -180,28 +180,22 @@ bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const bool bounded, 
 // Code based on https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
 bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const aabb &bounds, const bool isBounded, const float distance) {
 	float3 inverseDirection = 1 / ray.direction;
-
-	float tmin = (bounds.bmin3.x - ray.origin.x) / ray.direction.x;
-	float tmax = (bounds.bmax3.x - ray.origin.x) / ray.direction.x;
+	
+	float tmin = (bounds.bmin3.x - ray.origin.x) * inverseDirection.x;
+	float tmax = (bounds.bmax3.x - ray.origin.x) * inverseDirection.x;
 
 	if (tmin > tmax) swap(tmin, tmax);
 
-	float tymin = (bounds.bmin3.y - ray.origin.y) / ray.direction.y;
-	float tymax = (bounds.bmax3.y - ray.origin.y) / ray.direction.y;
+	float tymin = (bounds.bmin3.y - ray.origin.y) * inverseDirection.y;
+	float tymax = (bounds.bmax3.y - ray.origin.y) * inverseDirection.y;
 
 	if (tymin > tymax) swap(tymin, tymax);
+	if ((tmin > tymax) || (tymin > tmax)) return false;
+	if (tymin > tmin) tmin = tymin;
+	if (tymax < tmax) tmax = tymax;
 
-	if ((tmin > tymax) || (tymin > tmax))
-		return false;
-
-	if (tymin > tmin)
-		tmin = tymin;
-
-	if (tymax < tmax)
-		tmax = tymax;
-
-	float tzmin = (bounds.bmin3.z - ray.origin.z) / ray.direction.z;
-	float tzmax = (bounds.bmax3.z - ray.origin.z) / ray.direction.z;
+	float tzmin = (bounds.bmin3.z - ray.origin.z) * inverseDirection.z;
+	float tzmax = (bounds.bmax3.z - ray.origin.z) * inverseDirection.z;
 
 	if (tzmin > tzmax) {
 		float tmp = tzmin;
@@ -209,17 +203,9 @@ bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const aabb &bounds, 
 		tzmax = tmp;
 	}
 
-	if ((tmin > tzmax) || (tzmin > tmax)) {
-		return false;
-	}
-
-	if (tzmin > tmin) {
-		tmin = tzmin;
-	}
-
-	if (tzmax < tmax) {
-		tmax = tzmax;
-	}
+	if ((tmin > tzmax) || (tzmin > tmax)) return false;
+	if (tzmin > tmin) tmin = tzmin;
+	if (tzmax < tmax) tmax = tzmax;
 
 	return true;
 }
