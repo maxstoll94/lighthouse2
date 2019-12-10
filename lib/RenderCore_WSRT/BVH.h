@@ -44,8 +44,6 @@ namespace lh2core
 		void Subdivide(const uint nodeIndex, const uint first, const uint last, uint &poolPtr);
 		int Partition(const BVHNode &node, const uint first, const uint last);
 		void CalculateBounds(const uint first, const uint last, aabb &aabb);
-		float GetAxis(const Axis axis, const float4 &vector);
 		void QuickSortPrimitives(const Axis axis, const uint first, const uint last);
-		void Swap(uint *a, uint *b);
 	};
 }
