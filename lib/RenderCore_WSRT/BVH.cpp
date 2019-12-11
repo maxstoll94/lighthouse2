@@ -50,6 +50,8 @@ void BVH::ConstructBVH(Mesh* _mesh) {
 void BVH::Subdivide(const uint nodeIndex, const uint first, const uint last, uint &poolPtr) {
 	BVHNode &node = pool[nodeIndex];
 	CalculateBounds(first, last, node.bounds);
+	// int splitIndex = PartitionNever(node, first, last);
+	// int splitIndex = PartitionMedian(node, first, last);
 	int splitIndex = PartitionSAH(node, first, last);
 
 	if (splitIndex == -1) {
@@ -64,16 +66,6 @@ void BVH::Subdivide(const uint nodeIndex, const uint first, const uint last, uin
 		Subdivide(node.GetLeft(), first, splitIndex, poolPtr);
 		Subdivide(node.GetRight(), splitIndex + 1, last, poolPtr);
 	}
-}
-
-int BVH::PartitionMedian(const BVHNode &node, const uint first, const uint last) {
-	if (last - first < 3) {
-		return -1;
-	}
-
-	Axis splitAxis = (Axis)(node.bounds.LongestAxis());
-	QuickSortPrimitives(splitAxis, first, last);
-	return floor((last + first) / 2);
 }
 
 void BVH::CalculateBounds(const uint first, const uint last, aabb &bounds) {
@@ -107,6 +99,16 @@ void BVH::QuickSortPrimitives(const Axis axis, const uint first, const uint last
 		QuickSortPrimitives(axis, first, pivotIndex - 1);
 		QuickSortPrimitives(axis, pivotIndex + 1, last);
 	}
+}
+
+int BVH::PartitionMedian(const BVHNode &node, const uint first, const uint last) {
+	if (last - first < 3) {
+		return -1;
+	}
+
+	Axis splitAxis = (Axis)(node.bounds.LongestAxis());
+	QuickSortPrimitives(splitAxis, first, last);
+	return floor((last + first) / 2);
 }
 
 int BVH::PartitionSAH(BVHNode &node, uint first, uint last) {
