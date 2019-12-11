@@ -122,15 +122,14 @@ int BVH::PartitionSAH(BVHNode &node, uint first, uint last) {
 	aabb lBounds;
 	aabb rBounds;
 
-	for (int currentSplitIndex = first + 1; currentSplitIndex < last; currentSplitIndex++) {
-
+	for (int currentSplitIndex = first; currentSplitIndex < last; currentSplitIndex++) {
 		CalculateBounds(first, currentSplitIndex, lBounds);
 		CalculateBounds(currentSplitIndex + 1, last, rBounds);
 
 		float aLeft = lBounds.Area();
 		float aRight = rBounds.Area();
-		float nLeft = currentSplitIndex - first;
-		float nRight = last - currentSplitIndex + 1;
+		float nLeft = currentSplitIndex - first + 1;
+		float nRight = last - currentSplitIndex;
 
 		float currentCost = aLeft * nLeft + aRight * nRight;
 
