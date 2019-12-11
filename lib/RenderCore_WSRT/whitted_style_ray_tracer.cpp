@@ -247,8 +247,8 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 	}
 
 	if (node->IsLeaf()) {
-		uint first = node->GetFirst() * 3;
-		uint last = first + node->GetCount() * 3;
+		uint first = node->GetFirst();
+		uint last = first + node->GetCount();
 
 		float currentT, currentU, currentV;
 		float nearestT, nearestU, nearestV;
@@ -256,10 +256,11 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 		CoreTri nearestTriangle;
 		bool hasIntersection = false;
 
-		for (int i = first; i < last; i += 3) {
-			float3 a = make_float3(bvh.mesh->vertices[i]);
-			float3 b = make_float3(bvh.mesh->vertices[i + 1]);
-			float3 c = make_float3(bvh.mesh->vertices[i + 2]);
+		for (int i = first; i < last; i ++) {
+			int index = bvh.indices[i] * 3;
+			float3 a = make_float3(bvh.mesh->vertices[index]);
+			float3 b = make_float3(bvh.mesh->vertices[index + 1]);
+			float3 c = make_float3(bvh.mesh->vertices[index + 2]);
 
 			if (IntersectsWithTriangle(ray, a, b, c, currentT, currentSide, currentU, currentV)
 				&& currentT > kEpsilon
@@ -269,7 +270,7 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 				nearestU = currentU;
 				nearestV = currentV;
 				nearestSide = currentSide;
-				nearestTriangle = bvh.mesh->triangles[i / 3];
+				nearestTriangle = bvh.mesh->triangles[index / 3];
 				hasIntersection = true;
 			}
 		}

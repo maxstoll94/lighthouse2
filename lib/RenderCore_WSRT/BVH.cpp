@@ -69,13 +69,13 @@ void BVH::Subdivide(const uint nodeIndex, const uint first, const uint last, uin
 }
 
 void BVH::CalculateBounds(const uint first, const uint last, aabb &bounds) {
-	uint first3 = first * 3;
-	uint last3 = (last + 1) * 3;
+	bounds = aabb(make_float3(mesh->vertices[indices[first] * 3]), make_float3(mesh->vertices[indices[first] * 3]));
 
-	bounds = aabb(make_float3(mesh->vertices[first3]), make_float3(mesh->vertices[first3]));
-
-	for (int i = first3 + 1; i < last3; i ++) {
-		bounds.Grow(make_float3(mesh->vertices[i]));
+	for (int i = first; i <= last; i ++) {
+		int index = indices[i] * 3;
+		bounds.Grow(make_float3(mesh->vertices[index]));
+		bounds.Grow(make_float3(mesh->vertices[index + 1]));
+		bounds.Grow(make_float3(mesh->vertices[index + 2]));
 	}
 }
 
