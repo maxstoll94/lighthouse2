@@ -11,21 +11,25 @@ constexpr float refractiveIndexAir = 1.0;
 constexpr uint softLightRays = 10;
 
 float2 PyramidToScreen(const float3 pos, const ViewPyramid& view) {
-	// plane
-	float3 n = normalize((view.p2 + view.p3) * 0.5 - view.pos);
-	float3 N = normalize(cross(view.p2 - view.p1, view.p3 - view.p1));
-	float d = dot(view.p1, N);
-
-	// ray
 	float3 O = view.pos;
 	float3 D = normalize(pos - view.pos);
 
-	// plane ray intersection from lecture slide Introduction - slide 29
-	float t = -(dot(O, N) + d) / dot(D, N);
-	float3 p = O + t * D;
+	float3 v0 = view.p1;
+	float3 v1 = view.p2;
+	float3 v2 = view.p3;
 
-	float u = dot(normalize(view.p2 - view.p1), normalize(p - view.p1));
-	float v = dot(normalize(view.p3 - view.p1), normalize(p - view.p3));
+	float3 v0v1 = v1 - v0;
+	float3 v0v2 = v2 - v0;
+	float3 pvec = cross(D, v0v2);
+	float det = dot(v0v1, pvec);
+
+	float invDet = 1 / det;
+
+	float3 tvec = O - v0;
+	float u = dot(tvec, pvec) * invDet;
+
+	float3 qvec = cross(tvec, v0v1);
+	float v = dot(D, qvec) * invDet;
 
 	return make_float2(u, v);
 }
@@ -98,7 +102,7 @@ void DrawBoundingBox(const aabb bounds, const ViewPyramid& view, const int color
 	DrawLine(c, g, colorHex, screen);
 	DrawLine(d, h, colorHex, screen);
 
-	DrawLine(g, g, colorHex, screen);
+	DrawLine(g, h, colorHex, screen);
 	DrawLine(g, e, colorHex, screen);
 	DrawLine(e, f, colorHex, screen);
 	DrawLine(f, h, colorHex, screen);
