@@ -78,7 +78,6 @@ void DrawLine(const float2 v0, const float2 v1, const int colorHex, Bitmap* scre
 	}
 }
 
-
 void DrawBoundingBox(const aabb bounds, const ViewPyramid& view, const int colorHex, Bitmap* screen) {
 	float3 min = bounds.bmin3;
 	float3 max = bounds.bmax3;
@@ -108,6 +107,17 @@ void DrawBoundingBox(const aabb bounds, const ViewPyramid& view, const int color
 	DrawLine(f, h, colorHex, screen);
 }
 
+void DrawBoundingBoxes(const BVH bvh, const uint nodeIndex, const uint depth, const ViewPyramid& view, Bitmap* screen) {
+	BVHNode *node = &(bvh.pool[nodeIndex]);
+
+	DrawBoundingBox(node->bounds, view, 0xffffff, screen);
+
+	if (!node->IsLeaf()) {
+		DrawBoundingBoxes(bvh, node->GetLeft(), depth + 1, view, screen);
+		DrawBoundingBoxes(bvh, node->GetRight(), depth + 1, view, screen);
+	}
+}
+
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::SetTarget                                                      |
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
@@ -131,6 +141,8 @@ void WhittedStyleRayTracer::Render(const ViewPyramid& view, Bitmap* screen) {
 			screen->Plot(u, v, colorHex);
 		}
 	}
+
+	DrawBoundingBoxes(bvhs[0], 0, 0, view, screen);
 }
 
 //  +-----------------------------------------------------------------------------+
