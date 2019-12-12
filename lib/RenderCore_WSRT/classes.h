@@ -67,7 +67,7 @@ namespace lh2core
 	public:
 		__inline bool Improves(float _distance) { return !hasIntersection || _distance < distance; };
 		__inline bool HasIntersection() { return hasIntersection; };
-		__inline void Reset() { hasIntersection = false; };
+		__inline void Reset() { hasIntersection = false; numberOfIntersections = 0; };
 		__inline void Set(Side _side, float _distance, float _u, float _v, CoreTri *_tri) {
 			hasIntersection = true;
 			hasUv = hasNormal = false;
@@ -103,5 +103,7 @@ namespace lh2core
 			}
 			return uv;
 		}
+
+		int numberOfIntersections = 0;
 	};
 }

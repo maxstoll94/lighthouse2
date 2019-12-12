@@ -182,6 +182,46 @@ void WhittedStyleRayTracer::Render(const ViewPyramid& view, Bitmap* screen) {
 	//DrawBoundingBoxes(bvhs[0], 0, 0, view, screen);
 }
 
+float3 HSVtoRGB(int H, float S, float V) {
+	float C = S * V;
+	float X = C * (1 - abs(fmod(H / 60.0, 2) - 1));
+	float m = V - C;
+	float Rs, Gs, Bs;
+
+	if (H >= 0 && H < 60) {
+		Rs = C;
+		Gs = X;
+		Bs = 0;
+	}
+	else if (H >= 60 && H < 120) {
+		Rs = X;
+		Gs = C;
+		Bs = 0;
+	}
+	else if (H >= 120 && H < 180) {
+		Rs = 0;
+		Gs = C;
+		Bs = X;
+	}
+	else if (H >= 180 && H < 240) {
+		Rs = 0;
+		Gs = X;
+		Bs = C;
+	}
+	else if (H >= 240 && H < 300) {
+		Rs = X;
+		Gs = 0;
+		Bs = C;
+	}
+	else {
+		Rs = C;
+		Gs = 0;
+		Bs = X;
+	}
+
+	return make_float3(Rs + m, Gs + m, Bs + m);
+}
+
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::SetTarget                                                      |
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
@@ -192,6 +232,8 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 	Intersection intersection;
 	intersection.Reset();
 	NearestIntersection(ray, intersection);
+
+	return HSVtoRGB(intersection.numberOfIntersections, 1, 1);
 
 	if (!intersection.HasIntersection()) return SkyDomeColor(ray, skyDome);
 
@@ -277,6 +319,8 @@ void WhittedStyleRayTracer::NearestIntersection(const Ray &ray, Intersection &in
 void WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeIndex, const Ray &ray, Intersection &intersection) {
 	BVHNode *node = &(bvh.pool[nodeIndex]);
 
+	intersection.numberOfIntersections++;
+
 	if (!HasIntersection(ray, node->GetBounds(), false, 0)) {
 		return;
 	}
@@ -295,6 +339,7 @@ void WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 			float3 c = make_float3(bvh.mesh->vertices[index + 2]);
 
 			if (IntersectsWithTriangle(ray, a, b, c, distance, side, u, v) && distance > kEpsilon && (intersection.Improves(distance))) {
+				//intersection.numberOfIntersections++;
 				intersection.Set(side, distance, u, v, &(bvh.mesh->triangles[index / 3]));
 			}
 		}
