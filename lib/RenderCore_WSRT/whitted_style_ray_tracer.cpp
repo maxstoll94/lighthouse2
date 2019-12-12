@@ -10,6 +10,43 @@ constexpr float refractiveIndexGlass = 1.5168;
 constexpr float refractiveIndexAir = 1.0;
 constexpr uint softLightRays = 10;
 
+//  +-----------------------------------------------------------------------------+
+//  |  RenderCore::SetTarget                                                      |
+//  |  Set the OpenGL texture that serves as the render target.             LH2'19|
+//  +-----------------------------------------------------------------------------+
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection
+bool IntersectsWithTriangle(const Ray &ray, const float3 &v0, const float3 &v1, const float3 &v2, float &t, Side &side, float &u, float &v) {
+	float3 v0v1 = v1 - v0;
+	float3 v0v2 = v2 - v0;
+	float3 pvec = cross(ray.direction, v0v2);
+	float det = dot(v0v1, pvec);
+	// if the determinant is negative the triangle is backfacing
+	// if the determinant is close to 0, the ray misses the triangle
+	if (det > kEpsilon) {
+		side = Front;
+	}
+	else if (det < -kEpsilon) {
+		side = Back;
+	}
+	else {
+		return false;
+	}
+
+	float invDet = 1 / det;
+
+	float3 tvec = ray.origin - v0;
+	u = dot(tvec, pvec) * invDet;
+	if (u < 0 || u > 1) return false;
+
+	float3 qvec = cross(tvec, v0v1);
+	v = dot(ray.direction, qvec) * invDet;
+	if (v < 0 || u + v > 1) return false;
+
+	t = dot(v0v2, qvec) * invDet;
+
+	return true;
+}
+
 float2 PyramidToScreen(const float3 pos, const ViewPyramid& view) {
 	float3 O = view.pos;
 	float3 D = normalize(pos - view.pos);
@@ -38,7 +75,7 @@ float2 PyramidToScreen(const float3 pos, const ViewPyramid& view) {
 void DrawLine(const float2 v0, const float2 v1, const int colorHex, Bitmap* screen) {
 	float x1 = v0.x * screen->width;
 	float y1 = v0.y * screen->height;
-	float x2 = v1.x * screen->width; 
+	float x2 = v1.x * screen->width;
 	float y2 = v1.y * screen->height;
 
 	// Bresenham's line algorithm
@@ -142,7 +179,7 @@ void WhittedStyleRayTracer::Render(const ViewPyramid& view, Bitmap* screen) {
 		}
 	}
 
-	DrawBoundingBoxes(bvhs[0], 0, 0, view, screen);
+	//DrawBoundingBoxes(bvhs[0], 0, 0, view, screen);
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -153,13 +190,14 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 	if (ray.bounces < 0) return make_float3(0.0);
 
 	Intersection intersection;
-	bool hasIntersection = NearestIntersection(ray, intersection);
+	intersection.Reset();
+	NearestIntersection(ray, intersection);
 
-	if (!hasIntersection) return SkyDomeColor(ray, skyDome);
+	if (!intersection.HasIntersection()) return SkyDomeColor(ray, skyDome);
 
-	Material material = materials[intersection.materialIndex];
+	Material material = materials[intersection.GetTri()->material];
 
-	float3 diffuse = material.texture == NULL ? material.diffuse : GetColor(intersection.uv, *material.texture);
+	float3 diffuse = material.texture == NULL ? material.diffuse : GetColor(intersection.GetUV(), *material.texture);
 
 	return diffuse * Directllumination(intersection);
 
@@ -196,7 +234,7 @@ bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const bool bounded, 
 // Code based on https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
 bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const aabb &bounds, const bool isBounded, const float distance) {
 	float3 inverseDirection = 1 / ray.direction;
-	
+
 	float tmin = (bounds.bmin3.x - ray.origin.x) * inverseDirection.x;
 	float tmax = (bounds.bmax3.x - ray.origin.x) * inverseDirection.x;
 
@@ -230,31 +268,25 @@ bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const aabb &bounds, 
 //  |  RenderCore::SetTarget                                                      |
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
 //  +-----------------------------------------------------------------------------+
-bool WhittedStyleRayTracer::NearestIntersection(const Ray &ray, Intersection &intersection) {
+void WhittedStyleRayTracer::NearestIntersection(const Ray &ray, Intersection &intersection) {
 	for (BVH bvh:bvhs) {
-		if (NearestIntersection(bvh, 0, ray, intersection)) {
-			return true;
-		}
+		NearestIntersection(bvh, 0, ray, intersection);
 	}
-	return false;
 }
 
-bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeIndex, const Ray &ray, Intersection &intersection) {
+void WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeIndex, const Ray &ray, Intersection &intersection) {
 	BVHNode *node = &(bvh.pool[nodeIndex]);
 
 	if (!HasIntersection(ray, node->GetBounds(), false, 0)) {
-		return false;
+		return;
 	}
 
 	if (node->IsLeaf()) {
 		uint first = node->GetFirst();
 		uint last = first + node->GetCount();
 
-		float currentT, currentU, currentV;
-		float nearestT, nearestU, nearestV;
-		side nearestSide, currentSide;
-		CoreTri nearestTriangle;
-		bool hasIntersection = false;
+		float distance, u, v;
+		Side side;
 
 		for (int i = first; i < last; i ++) {
 			int index = bvh.indices[i] * 3;
@@ -262,91 +294,30 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 			float3 b = make_float3(bvh.mesh->vertices[index + 1]);
 			float3 c = make_float3(bvh.mesh->vertices[index + 2]);
 
-			if (IntersectsWithTriangle(ray, a, b, c, currentT, currentSide, currentU, currentV)
-				&& currentT > kEpsilon
-				&& (!hasIntersection || currentT < nearestT)
-				) {
-				nearestT = currentT;
-				nearestU = currentU;
-				nearestV = currentV;
-				nearestSide = currentSide;
-				nearestTriangle = bvh.mesh->triangles[index / 3];
-				hasIntersection = true;
+			if (IntersectsWithTriangle(ray, a, b, c, distance, side, u, v) && distance > kEpsilon && (intersection.Improves(distance))) {
+				intersection.Set(side, distance, u, v, &(bvh.mesh->triangles[index / 3]));
 			}
 		}
-
-		if (hasIntersection) {
-			intersection.position = ray.origin + ray.direction * nearestT;
-			intersection.normal = (1 - nearestU - nearestV) * nearestTriangle.vN0 + nearestU * nearestTriangle.vN1 + nearestV * nearestTriangle.vN2;
-			if (nearestSide == Back) intersection.normal = -intersection.normal;
-			intersection.materialIndex = nearestTriangle.material;
-			intersection.side = nearestSide;
-			intersection.distance = nearestT;
-
-			if (materials[intersection.materialIndex].texture != NULL) {
-				float2 uv0 = make_float2(nearestTriangle.u0, nearestTriangle.v0);
-				float2 uv1 = make_float2(nearestTriangle.u1, nearestTriangle.v1);
-				float2 uv2 = make_float2(nearestTriangle.u2, nearestTriangle.v2);
-				intersection.uv = (1 - nearestU - nearestV) * uv0 + nearestU * uv1 + nearestV * uv2;
-			}
-		}
-
-		return hasIntersection;
 	}
 	else {
-		if (NearestIntersection(bvh, node->GetLeft(), ray, intersection)) return true;
-		if (NearestIntersection(bvh, node->GetRight(), ray, intersection)) return true;
+		NearestIntersection(bvh, node->GetLeft(), ray, intersection);
+		NearestIntersection(bvh, node->GetRight(), ray, intersection);
 	}
-
-	return false;
 }
 
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::SetTarget                                                      |
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
 //  +-----------------------------------------------------------------------------+
-// https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection
-bool WhittedStyleRayTracer::IntersectsWithTriangle(const Ray &ray, const float3 &v0, const float3 &v1, const float3 &v2, float &t, side &side, float &u, float &v) {
-	float3 v0v1 = v1 - v0;
-	float3 v0v2 = v2 - v0;
-	float3 pvec = cross(ray.direction, v0v2);
-	float det = dot(v0v1, pvec);
-	// if the determinant is negative the triangle is backfacing
-	// if the determinant is close to 0, the ray misses the triangle
-	if (det > kEpsilon) {
-		side = Front;
-	}
-	else if (det < -kEpsilon) {
-		side = Back;
-	}
-	else {
-		return false;
-	}
-
-	float invDet = 1 / det;
-
-	float3 tvec = ray.origin - v0;
-	u = dot(tvec, pvec) * invDet;
-	if (u < 0 || u > 1) return false;
-
-	float3 qvec = cross(tvec, v0v1);
-	v = dot(ray.direction, qvec) * invDet;
-	if (v < 0 || u + v > 1) return false;
-
-	t = dot(v0v2, qvec) * invDet;
-
-	return true;
-}
-
-//  +-----------------------------------------------------------------------------+
-//  |  RenderCore::SetTarget                                                      |
-//  |  Set the OpenGL texture that serves as the render target.             LH2'19|
-//  +-----------------------------------------------------------------------------+
-Ray WhittedStyleRayTracer::Reflect(const Ray &ray, const Intersection &intersection) {
+Ray WhittedStyleRayTracer::Reflect(const Ray &ray, Intersection &intersection) {
 	Ray reflectRay;
+
+	float3 N = intersection.GetNormal();
+	float3 P = intersection.GetPosition();
+
 	// taken from lecture slides "whitted-style" slide 13
-	reflectRay.direction = ray.direction - 2 * dot(intersection.normal, ray.direction) * intersection.normal;
-	reflectRay.origin = intersection.position + bias * reflectRay.direction;
+	reflectRay.direction = ray.direction - 2 * dot(N, ray.direction) * N;
+	reflectRay.origin = P + bias * reflectRay.direction;
 	reflectRay.bounces = ray.bounces - 1;
 
 	return reflectRay;
@@ -356,9 +327,12 @@ Ray WhittedStyleRayTracer::Reflect(const Ray &ray, const Intersection &intersect
 //  |  RenderCore::SetTarget                                                      |
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
 //  +-----------------------------------------------------------------------------+
-float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection) {
+float3 WhittedStyleRayTracer::Directllumination(Intersection &intersection) {
 	float3 illumination = make_float3(0.0);
 	Ray ray;
+
+	float3 N = intersection.GetNormal();
+	float3 P = intersection.GetPosition();
 
 	for (CoreLightTri areaLight : areaLights) {
 		for (int i = 0; i < softLightRays; i++) {
@@ -367,14 +341,14 @@ float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection
 			float sqrtR1 = sqrt(r1);
 			float3 position = (1 - sqrtR1) * areaLight.vertex0 + (sqrtR1 * (1 - r2)) * areaLight.vertex1 + (sqrtR1 * r2) * areaLight.vertex2;
 
-			float3 intersectionLight = position - intersection.position;
+			float3 intersectionLight = position - P;
 			float3 lightDirection = normalize(intersectionLight);
 			float lightDistance = length(intersectionLight);
 
-			float contribution = areaLight.area * dot(intersection.normal, lightDirection) * dot(areaLight.N, -lightDirection) / (lightDistance * lightDistance);
+			float contribution = areaLight.area * dot(N, lightDirection) * dot(areaLight.N, -lightDirection) / (lightDistance * lightDistance);
 			if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
-			ray.origin = intersection.position + bias * lightDirection;
+			ray.origin = P + bias * lightDirection;
 			ray.direction = lightDirection;
 
 			if (!HasIntersection(ray, true, lightDistance - 2 * bias)) {
@@ -384,15 +358,15 @@ float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection
 	}
 
 	for (CorePointLight pointLight : pointLights) {
-		float3 intersectionLight = pointLight.position - intersection.position;
+		float3 intersectionLight = pointLight.position - P;
 		float3 lightDirection = normalize(intersectionLight);
 		float lightDistance = length(intersectionLight);
 
 		// Code taken from: https://www.gamedev.net/blogs/entry/2260865-shadows-and-point-lights/
-		float contribution = dot(intersection.normal, lightDirection) / (lightDistance * lightDistance);
+		float contribution = dot(N, lightDirection) / (lightDistance * lightDistance);
 		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
-		ray.origin = intersection.position + bias * lightDirection;
+		ray.origin = P + bias * lightDirection;
 		ray.direction = lightDirection;
 
 		if (!HasIntersection(ray, true, lightDistance)) {
@@ -404,10 +378,10 @@ float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection
 		// TODO move normalization to SetLights
 		float3 lightDirection = -normalize(directionLight.direction);
 
-		float contribution = dot(intersection.normal, lightDirection);
+		float contribution = dot(N, lightDirection);
 		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
-		ray.origin = intersection.position + bias * lightDirection;
+		ray.origin = P + bias * lightDirection;
 		ray.direction = lightDirection;
 
 		if (!HasIntersection(ray, false, 0)) {
@@ -416,7 +390,7 @@ float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection
 	}
 
 	for (CoreSpotLight spotLight : spotLights) {
-		float3 intersectionLight = spotLight.position - intersection.position;
+		float3 intersectionLight = spotLight.position - P;
 		float3 lightDirection = normalize(intersectionLight);
 		float lightDistance = length(intersectionLight);
 
@@ -433,10 +407,10 @@ float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection
 			contribution = 1;
 		}
 
-		contribution *= dot(intersection.normal, lightDirection) / (lightDistance * lightDistance);
+		contribution *= dot(N, lightDirection) / (lightDistance * lightDistance);
 		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
-		ray.origin = intersection.position + bias * lightDirection;
+		ray.origin = P + bias * lightDirection;
 		ray.direction = lightDirection;
 
 		if (!HasIntersection(ray, true, lightDistance)) {
@@ -491,9 +465,11 @@ float3 WhittedStyleRayTracer::SkyDomeColor(const Ray &ray, const Texture &textur
 	return GetColor(uv, texture);
 }
 
-float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const Intersection &intersection) {
+float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, Intersection &intersection) {
+	float3 N = intersection.GetNormal();
+
 	float n1, n2;
-	switch (intersection.side) {
+	switch (intersection.GetSide()) {
 	case Front:
 		n1 = refractiveIndexAir;
 		n2 = refractiveIndexGlass;
@@ -505,7 +481,7 @@ float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const Intersection &in
 	}
 
 	float n1n2 = n1 / n2;
-	float cosO1 = dot(intersection.normal, -1 * ray.direction);
+	float cosO1 = dot(N, -1 * ray.direction);
 
 	float k = 1 - n1n2 * n1n2 * (1 - cosO1 * cosO1);
 
@@ -513,8 +489,8 @@ float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const Intersection &in
 	if (k < 0) return Trace(Reflect(ray, intersection));
 
 	Ray refractRay;
-	refractRay.direction = n1n2 * ray.direction + intersection.normal * (n1n2 * cosO1 - sqrt(k));
-	refractRay.origin = intersection.position + bias * -1 * refractRay.direction;
+	refractRay.direction = n1n2 * ray.direction + N * (n1n2 * cosO1 - sqrt(k));
+	refractRay.origin = intersection.GetPosition() + bias * -1 * refractRay.direction;
 	refractRay.bounces = ray.bounces - 1;
 
 	float fr = Fresnel(ray, intersection, n1, n2, cosO1);
@@ -531,23 +507,23 @@ float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const Intersection &in
 	return diffuse;
 }
 
-float3 WhittedStyleRayTracer::Beer(const Ray ray, const Intersection &intersection, float3 diffuse) {
-	switch (intersection.side) {
+float3 WhittedStyleRayTracer::Beer(const Ray ray, Intersection &intersection, float3 diffuse) {
+	switch (intersection.GetSide()) {
 	case Front:
 		return diffuse;
 	case Back:
-		Material material = materials[intersection.materialIndex];
+		Material material = materials[intersection.GetTri()->material];
 
 		float3 absorption;
-		absorption.x = exp(-material.transmittance.x * intersection.distance);
-		absorption.y = exp(-material.transmittance.y * intersection.distance);
-		absorption.z = exp(-material.transmittance.z * intersection.distance);
+		absorption.x = exp(-material.transmittance.x * intersection.GetDistance());
+		absorption.y = exp(-material.transmittance.y * intersection.GetDistance());
+		absorption.z = exp(-material.transmittance.z * intersection.GetDistance());
 
 		return diffuse * absorption;
 	}
 }
 
-float WhittedStyleRayTracer::Fresnel(const Ray &ray, const Intersection &intersection, const float n1, const float n2, const float cosOi) {
+float WhittedStyleRayTracer::Fresnel(const Ray &ray, Intersection &intersection, const float n1, const float n2, const float cosOi) {
 	float n1n2 = n1 / n2;
 
 	float n1n2SinCos01 = n1n2 * sin(acos(cosOi));
@@ -559,4 +535,3 @@ float WhittedStyleRayTracer::Fresnel(const Ray &ray, const Intersection &interse
 
 	return fr;
 }
-

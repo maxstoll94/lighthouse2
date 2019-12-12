@@ -51,16 +51,57 @@ namespace lh2core
 		Texture* texture = 0;
 	};
 
-	enum side { Front, Back };
+	enum Side { Front, Back };
 
 	class Intersection
 	{
-	public:
-		float3 position;
-		float3 normal;
-		float2 uv;
-		side side;
-		uint materialIndex;
+	private:
+		Side side;
 		float distance;
+		float u, v;
+		CoreTri *tri;
+		bool hasIntersection;
+		bool hasPosition; float3 position;
+		bool hasUv; float2 uv;
+		bool hasNormal; float3 normal;
+	public:
+		__inline bool Improves(float _distance) { return !hasIntersection || _distance < distance; };
+		__inline bool HasIntersection() { return hasIntersection; };
+		__inline void Reset() { hasIntersection = false; };
+		__inline void Set(Side _side, float _distance, float _u, float _v, CoreTri *_tri) {
+			hasIntersection = true;
+			hasUv = hasNormal = false;
+			side = _side;
+			distance = _distance;
+			u = _u; v = _v;
+			tri = _tri;
+		}
+		__inline float GetDistance() { return distance; }
+		__inline Side GetSide() { return side; }
+		//__inline float GetU() { return u; }
+		//__inline float GetV() { return v; }
+		__inline float3 GetPosition() {
+			if (!hasUv) {
+				position = (1 - u - v) * tri->vertex0 + u * tri->vertex1 + v * tri->vertex2;
+				hasPosition = true;
+			}
+			return position;
+		}
+		__inline CoreTri* GetTri() { return tri; }
+		__inline float3 GetNormal() {
+			if (!hasNormal) {
+				normal = (1 - u - v) * tri->vN0 + u * tri->vN1 + v * tri->vN2;
+				if (side == Back) normal = -normal;
+				hasNormal = true;
+			}
+			return normal;
+		}
+		__inline float2 GetUV() {
+			if (!hasUv) {
+				uv = (1 - u - v) * make_float2(tri->u0, tri->v0) + u * make_float2(tri->u1, tri->v1) + v * make_float2(tri->u2, tri->v2);
+				hasUv = true;
+			}
+			return uv;
+		}
 	};
 }

@@ -23,19 +23,17 @@ namespace lh2core
 
 		void Render(const ViewPyramid& view, Bitmap* screen);
 	private:
-		float3 Directllumination(const Intersection &intersection);
+		float3 Directllumination(Intersection &intersection);
 		float3 Trace(Ray ray);
-		bool NearestIntersection(const Ray &ray, Intersection &intersection); // Returns the nearest intersection point, the normal and the material type.
-		bool NearestIntersection(const BVH &bvh, const uint nodeIndex, const Ray & ray, Intersection & intersection);
+		void NearestIntersection(const Ray &ray, Intersection &intersection); // Returns the nearest intersection point, the normal and the material type.
+		void NearestIntersection(const BVH &bvh, const uint nodeIndex, const Ray &ray, Intersection &intersection);
 		bool HasIntersection(const Ray &ray, const bool isBounded, const float distance);
 		bool HasIntersection(const Ray &ray, const aabb &aabb, const bool isBounded, const float distance);
-		bool IntersectsWithTriangle(const Ray &ray, const float3 &v0, const float3 &v1,
-			const float3 &v2, float &t, side &side, float &u, float &v);
-		Ray Reflect(const Ray &ray, const Intersection &intersection);
+		Ray Reflect(const Ray &ray, Intersection &intersection);
 		float3 SkyDomeColor(const Ray &ray, const Texture &texture);
 		float3 GetColor(const float2 &uv, const Texture &texture);
-		float3 Dielectrics(const Ray &ray, const Intersection &intersection);
-		float Fresnel(const Ray &ray, const Intersection &intersection, const float n1, const float n2, const float cosOi);
-		float3 Beer(Ray ray, const Intersection &intersection, float3 diffuse);
+		float3 Dielectrics(const Ray &ray, Intersection &intersection);
+		float Fresnel(const Ray &ray, Intersection &intersection, const float n1, const float n2, const float cosOi);
+		float3 Beer(Ray ray, Intersection &intersection, float3 diffuse);
 	};
 }
