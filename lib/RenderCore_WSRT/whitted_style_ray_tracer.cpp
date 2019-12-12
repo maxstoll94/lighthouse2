@@ -179,7 +179,7 @@ void WhittedStyleRayTracer::Render(const ViewPyramid& view, Bitmap* screen) {
 		}
 	}
 
-	DrawBoundingBoxes(bvhs[0], 0, 0, view, screen);
+	//DrawBoundingBoxes(bvhs[0], 0, 0, view, screen);
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -190,9 +190,10 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 	if (ray.bounces < 0) return make_float3(0.0);
 
 	Intersection intersection;
-	bool hasIntersection = NearestIntersection(ray, intersection);
+	intersection.Reset();
+	NearestIntersection(ray, intersection);
 
-	if (!hasIntersection) return SkyDomeColor(ray, skyDome);
+	if (!intersection.HasIntersection()) return SkyDomeColor(ray, skyDome);
 
 	Material material = materials[intersection.GetTri()->material];
 
@@ -267,31 +268,25 @@ bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const aabb &bounds, 
 //  |  RenderCore::SetTarget                                                      |
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
 //  +-----------------------------------------------------------------------------+
-bool WhittedStyleRayTracer::NearestIntersection(const Ray &ray, Intersection &intersection) {
+void WhittedStyleRayTracer::NearestIntersection(const Ray &ray, Intersection &intersection) {
 	for (BVH bvh:bvhs) {
-		if (NearestIntersection(bvh, 0, ray, intersection)) {
-			return true;
-		}
+		NearestIntersection(bvh, 0, ray, intersection);
 	}
-	return false;
 }
 
-bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeIndex, const Ray &ray, Intersection &intersection) {
+void WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeIndex, const Ray &ray, Intersection &intersection) {
 	BVHNode *node = &(bvh.pool[nodeIndex]);
 
 	if (!HasIntersection(ray, node->GetBounds(), false, 0)) {
-		return false;
+		return;
 	}
 
 	if (node->IsLeaf()) {
 		uint first = node->GetFirst();
 		uint last = first + node->GetCount();
 
-		float currentT, currentU, currentV;
-		float nearestT, nearestU, nearestV;
-		Side nearestSide, currentSide;
-		CoreTri* nearestTriangle;
-		bool hasIntersection = false;
+		float distance, u, v;
+		Side side;
 
 		for (int i = first; i < last; i ++) {
 			int index = bvh.indices[i] * 3;
@@ -299,31 +294,15 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 			float3 b = make_float3(bvh.mesh->vertices[index + 1]);
 			float3 c = make_float3(bvh.mesh->vertices[index + 2]);
 
-			if (IntersectsWithTriangle(ray, a, b, c, currentT, currentSide, currentU, currentV)
-				&& currentT > kEpsilon
-				&& (!hasIntersection || currentT < nearestT)
-				) {
-				nearestT = currentT;
-				nearestU = currentU;
-				nearestV = currentV;
-				nearestSide = currentSide;
-				nearestTriangle = &(bvh.mesh->triangles[index / 3]);
-				hasIntersection = true;
+			if (IntersectsWithTriangle(ray, a, b, c, distance, side, u, v) && distance > kEpsilon && (intersection.Improves(distance))) {
+				intersection.Set(side, distance, u, v, &(bvh.mesh->triangles[index / 3]));
 			}
 		}
-
-		if (hasIntersection) {
-			intersection.Set(nearestSide, nearestT, nearestTriangle, ray.origin + ray.direction * nearestT);
-		}
-
-		return hasIntersection;
 	}
 	else {
-		if (NearestIntersection(bvh, node->GetLeft(), ray, intersection)) return true;
-		if (NearestIntersection(bvh, node->GetRight(), ray, intersection)) return true;
+		NearestIntersection(bvh, node->GetLeft(), ray, intersection);
+		NearestIntersection(bvh, node->GetRight(), ray, intersection);
 	}
-
-	return false;
 }
 
 //  +-----------------------------------------------------------------------------+
