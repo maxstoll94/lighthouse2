@@ -75,7 +75,7 @@ float2 PyramidToScreen(const float3 pos, const ViewPyramid& view) {
 void DrawLine(const float2 v0, const float2 v1, const int colorHex, Bitmap* screen) {
 	float x1 = v0.x * screen->width;
 	float y1 = v0.y * screen->height;
-	float x2 = v1.x * screen->width; 
+	float x2 = v1.x * screen->width;
 	float y2 = v1.y * screen->height;
 
 	// Bresenham's line algorithm
@@ -115,7 +115,6 @@ void DrawLine(const float2 v0, const float2 v1, const int colorHex, Bitmap* scre
 	}
 }
 
-
 void DrawBoundingBox(const aabb bounds, const ViewPyramid& view, const int colorHex, Bitmap* screen) {
 	float3 min = bounds.bmin3;
 	float3 max = bounds.bmax3;
@@ -145,6 +144,17 @@ void DrawBoundingBox(const aabb bounds, const ViewPyramid& view, const int color
 	DrawLine(f, h, colorHex, screen);
 }
 
+void DrawBoundingBoxes(const BVH bvh, const uint nodeIndex, const uint depth, const ViewPyramid& view, Bitmap* screen) {
+	BVHNode *node = &(bvh.pool[nodeIndex]);
+
+	DrawBoundingBox(node->bounds, view, 0xffffff, screen);
+
+	if (!node->IsLeaf()) {
+		DrawBoundingBoxes(bvh, node->GetLeft(), depth + 1, view, screen);
+		DrawBoundingBoxes(bvh, node->GetRight(), depth + 1, view, screen);
+	}
+}
+
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::SetTarget                                                      |
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
@@ -168,6 +178,8 @@ void WhittedStyleRayTracer::Render(const ViewPyramid& view, Bitmap* screen) {
 			screen->Plot(u, v, colorHex);
 		}
 	}
+
+	DrawBoundingBoxes(bvhs[0], 0, 0, view, screen);
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -221,7 +233,7 @@ bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const bool bounded, 
 // Code based on https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
 bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const aabb &bounds, const bool isBounded, const float distance) {
 	float3 inverseDirection = 1 / ray.direction;
-	
+
 	float tmin = (bounds.bmin3.x - ray.origin.x) * inverseDirection.x;
 	float tmax = (bounds.bmax3.x - ray.origin.x) * inverseDirection.x;
 
@@ -272,8 +284,8 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 	}
 
 	if (node->IsLeaf()) {
-		uint first = node->GetFirst() * 3;
-		uint last = first + node->GetCount() * 3;
+		uint first = node->GetFirst();
+		uint last = first + node->GetCount();
 
 		float currentT, currentU, currentV;
 		float nearestT, nearestU, nearestV;
@@ -281,10 +293,11 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 		CoreTri* nearestTriangle;
 		bool hasIntersection = false;
 
-		for (int i = first; i < last; i += 3) {
-			float3 a = make_float3(bvh.mesh->vertices[i]);
-			float3 b = make_float3(bvh.mesh->vertices[i + 1]);
-			float3 c = make_float3(bvh.mesh->vertices[i + 2]);
+		for (int i = first; i < last; i ++) {
+			int index = bvh.indices[i] * 3;
+			float3 a = make_float3(bvh.mesh->vertices[index]);
+			float3 b = make_float3(bvh.mesh->vertices[index + 1]);
+			float3 c = make_float3(bvh.mesh->vertices[index + 2]);
 
 			if (IntersectsWithTriangle(ray, a, b, c, currentT, currentSide, currentU, currentV)
 				&& currentT > kEpsilon
@@ -294,7 +307,7 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 				nearestU = currentU;
 				nearestV = currentV;
 				nearestSide = currentSide;
-				nearestTriangle = &(bvh.mesh->triangles[i / 3]);
+				nearestTriangle = &(bvh.mesh->triangles[index / 3]);
 				hasIntersection = true;
 			}
 		}
@@ -543,4 +556,3 @@ float WhittedStyleRayTracer::Fresnel(const Ray &ray, Intersection &intersection,
 
 	return fr;
 }
-
