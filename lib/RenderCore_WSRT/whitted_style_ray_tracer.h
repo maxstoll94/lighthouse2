@@ -25,8 +25,8 @@ namespace lh2core
 	private:
 		float3 Directllumination(Intersection &intersection);
 		float3 Trace(Ray ray);
-		void NearestIntersection(const Ray &ray, Intersection &intersection); // Returns the nearest intersection point, the normal and the material type.
-		void NearestIntersection(const BVH &bvh, const uint nodeIndex, const Ray &ray, Intersection &intersection);
+		void NearestIntersection(const Ray &ray, Intersection &intersection, int &numberIntersections); // Returns the nearest intersection point, the normal and the material type.
+		void NearestIntersection(const BVH &bvh, const uint nodeIndex, const Ray &ray, Intersection &intersection, int &numberIntersections);
 		bool HasIntersection(const Ray &ray, const bool isBounded, const float distance);
 		bool HasIntersection(const Ray &ray, const aabb &aabb, const bool isBounded, const float distance);
 		Ray Reflect(const Ray &ray, Intersection &intersection);
