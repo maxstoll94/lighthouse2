@@ -41,9 +41,9 @@ void BVH::ConstructBVH(Mesh* _mesh) {
 void BVH::Subdivide(const int nodeIndex, const int first, const int last, int &poolPtr) {
 	BVHNode &node = pool[nodeIndex];
 	CalculateBounds(first, last, node.bounds);
-	int splitIndex = Median(node, first, last);
-	//int splitIndex = BinningSurfaceAreaHeuristic(node, first, last);
-
+	//int splitIndex = Median(node, first, last);
+	int splitIndex = BinningSurfaceAreaHeuristic(node, first, last);
+	
 	if (splitIndex == -1) {
 		node.count = last - first + 1;
 		node.leftFirst = first;
@@ -116,9 +116,6 @@ int BVH::Median(BVHNode &node, int first, int last) {
 	int nRight = last - splitIndex;
 	if (nRight == 0) return -1;
 
-	if (nLeft < 0) cout << "negative nleft" << nLeft << ", " << splitIndex << ", " << first << endl;
-	if (nRight < 0) cout << "negative nrigth" << nRight << ", " << splitIndex << ", " << last << endl;
-
 	CalculateBounds(first, splitIndex, lBounds);
 	CalculateBounds(splitIndex + 1, last, rBounds);
 
@@ -144,11 +141,11 @@ int BVH::BinningSurfaceAreaHeuristic(BVHNode &node, int first, int last) {
 
 	for (int i = 0, l = numberOfBins - 1; i < l; i++) {
 		float splitPlane = minAxis + (maxAxis - minAxis) / numberOfBins * (i + 1);
-		int splitIndex = i == 0 ? first : splitIndices[i - 1] + 1;
-		for (int j = splitIndex; j < last; j++) {
+		int splitIndex = i == 0 ? first - 1 : splitIndices[i - 1];
+		for (int j = splitIndex + 1; j <= last; j++) {
 			if (get_axis(longestAxis, mesh->vertices[indices[j] * 3]) < splitPlane) {
-				Swap(&indices[splitIndex], &indices[j]);
 				splitIndex++;
+				Swap(&indices[splitIndex], &indices[j]);
 			}
 		}
 		splitIndices[i] = splitIndex;
@@ -166,9 +163,9 @@ int BVH::BinningSurfaceAreaHeuristic(BVHNode &node, int first, int last) {
 		int currentSplitIndex = splitIndices[i];
 
 		int nLeft = currentSplitIndex - first + 1;
-		if (nLeft <= 0) continue;
+		if (nLeft == 0) continue;
 		int nRight = last - currentSplitIndex;
-		if (nRight <= 0) continue;
+		if (nRight == 0) continue;
 
 		CalculateBounds(first, currentSplitIndex, lBounds);
 		CalculateBounds(currentSplitIndex + 1, last, rBounds);
