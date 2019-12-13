@@ -18,6 +18,7 @@
 #include <math.h>
 #include "rendercore.h"
 #include "rendersystem.h"
+#include <ctime>
 
 using namespace lh2core;
 
@@ -59,8 +60,13 @@ void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const
 		mesh->triangles = new CoreTri[vertexCount / 3];
 		memcpy(mesh->triangles, triangleData, (vertexCount / 3) * sizeof(CoreTri));
 
+		clock_t begin = clock();
 		BVH bvh;
 		bvh.ConstructBVH(mesh);
+		clock_t end = clock();
+
+		double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+		cout << "constructed bvh of " << vertexCount << " triangles in " << elapsed_secs << "s" << endl;
 
 		rayTracer.bvhs.push_back(bvh);
 	}
