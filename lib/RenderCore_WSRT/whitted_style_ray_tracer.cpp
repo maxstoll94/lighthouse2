@@ -43,118 +43,21 @@ bool IntersectsWithTriangle(const Ray &ray, const float3 &v0, const float3 &v1, 
 	return true;
 }
 
-float2 PyramidToScreen(const float3 pos, const ViewPyramid& view) {
-	float3 O = view.pos;
-	float3 D = normalize(pos - view.pos);
+// https://medium.com/@bromanz/another-view-on-the-classic-ray-aabb-intersection-algorithm-for-bvh-traversal-41125138b525
+bool BoundingBoxIntersection(const Ray &ray, const aabb &bounds, float &tmin, float &tmax) {
+	float3 invD = 1 / ray.direction;
+	float3 t0s = (bounds.bmin3 - ray.origin) * invD;
+	float3 t1s = (bounds.bmax3 - ray.origin) * invD;
 
-	float3 v0 = view.p1;
-	float3 v1 = view.p2;
-	float3 v2 = view.p3;
+	float3 tsmaller = fminf(t0s, t1s);
+	float3 tbigger = fmaxf(t0s, t1s);
 
-	float3 v0v1 = v1 - v0;
-	float3 v0v2 = v2 - v0;
-	float3 pvec = cross(D, v0v2);
-	float det = dot(v0v1, pvec);
+	tmin = max(tsmaller.x, max(tsmaller.y, tsmaller.z));
+	tmax = min(tbigger.x, min(tbigger.y, tbigger.z));
 
-	float invDet = 1 / det;
-
-	float3 tvec = O - v0;
-	float u = dot(tvec, pvec) * invDet;
-
-	float3 qvec = cross(tvec, v0v1);
-	float v = dot(D, qvec) * invDet;
-
-	return make_float2(u, v);
+	return tmin < tmax;
 }
 
-// https://rosettacode.org/wiki/Bitmap/Bresenham%27s_line_algorithm#C.2B.2B
-void DrawLine(const float2 v0, const float2 v1, const int colorHex, Bitmap* screen) {
-	float x1 = v0.x * screen->width;
-	float y1 = v0.y * screen->height;
-	float x2 = v1.x * screen->width;
-	float y2 = v1.y * screen->height;
-
-	// Bresenham's line algorithm
-	const bool steep = (fabs(y2 - y1) > fabs(x2 - x1));
-	if (steep) {
-		std::swap(x1, y1);
-		std::swap(x2, y2);
-	}
-
-	if (x1 > x2) {
-		std::swap(x1, x2);
-		std::swap(y1, y2);
-	}
-
-	const float dx = x2 - x1;
-	const float dy = fabs(y2 - y1);
-
-	float error = dx / 2.0f;
-	const int ystep = (y1 < y2) ? 1 : -1;
-	int y = (int)y1;
-
-	const int maxX = (int)x2;
-
-	for (int x = (int)x1; x <= maxX; x++) {
-		if (steep) {
-			screen->Plot(y, x, colorHex);
-		}
-		else {
-			screen->Plot(x, y, colorHex);
-		}
-
-		error -= dy;
-		if (error < 0) {
-			y += ystep;
-			error += dx;
-		}
-	}
-}
-
-void DrawBoundingBox(const aabb bounds, const ViewPyramid& view, const int colorHex, Bitmap* screen) {
-	float3 min = bounds.bmin3;
-	float3 max = bounds.bmax3;
-
-	float2 a = PyramidToScreen(make_float3(min.x, min.y, min.z), view);
-	float2 b = PyramidToScreen(make_float3(max.x, min.y, min.z), view);
-	float2 c = PyramidToScreen(make_float3(min.x, min.y, max.z), view);
-	float2 d = PyramidToScreen(make_float3(max.x, min.y, max.z), view);
-	float2 e = PyramidToScreen(make_float3(min.x, max.y, min.z), view);
-	float2 f = PyramidToScreen(make_float3(max.x, max.y, min.z), view);
-	float2 g = PyramidToScreen(make_float3(min.x, max.y, max.z), view);
-	float2 h = PyramidToScreen(make_float3(max.x, max.y, max.z), view);
-
-	DrawLine(a, b, colorHex, screen);
-	DrawLine(a, c, colorHex, screen);
-	DrawLine(b, d, colorHex, screen);
-	DrawLine(c, d, colorHex, screen);
-
-	DrawLine(a, e, colorHex, screen);
-	DrawLine(b, f, colorHex, screen);
-	DrawLine(c, g, colorHex, screen);
-	DrawLine(d, h, colorHex, screen);
-
-	DrawLine(g, h, colorHex, screen);
-	DrawLine(g, e, colorHex, screen);
-	DrawLine(e, f, colorHex, screen);
-	DrawLine(f, h, colorHex, screen);
-}
-
-void DrawBoundingBoxes(const BVH bvh, const uint nodeIndex, const uint depth, const ViewPyramid& view, Bitmap* screen) {
-	BVHNode *node = &(bvh.pool[nodeIndex]);
-
-	DrawBoundingBox(node->bounds, view, 0xffffff, screen);
-
-	if (!node->IsLeaf()) {
-		DrawBoundingBoxes(bvh, node->GetLeft(), depth + 1, view, screen);
-		DrawBoundingBoxes(bvh, node->GetRight(), depth + 1, view, screen);
-	}
-}
-
-//  +-----------------------------------------------------------------------------+
-//  |  RenderCore::SetTarget                                                      |
-//  |  Set the OpenGL texture that serves as the render target.             LH2'19|
-//  +-----------------------------------------------------------------------------+
 void WhittedStyleRayTracer::Render(const ViewPyramid& view, Bitmap* screen) {
 	float3 xDirection = (view.p2 - view.p1) / screen->width;
 	float3 yDirection = (view.p3 - view.p1) / screen->height;
@@ -174,77 +77,47 @@ void WhittedStyleRayTracer::Render(const ViewPyramid& view, Bitmap* screen) {
 			screen->Plot(u, v, colorHex);
 		}
 	}
-
-	//DrawBoundingBoxes(bvhs[0], 0, 0, view, screen);
 }
 
-float3 HSVtoRGB(int H, float S, float V) {
-	float C = S * V;
-	float X = C * (1 - abs(fmod(H / 60.0, 2) - 1));
-	float m = V - C;
-	float Rs, Gs, Bs;
-
-	if (H >= 0 && H < 60) {
-		Rs = C;
-		Gs = X;
-		Bs = 0;
-	}
-	else if (H >= 60 && H < 120) {
-		Rs = X;
-		Gs = C;
-		Bs = 0;
-	}
-	else if (H >= 120 && H < 180) {
-		Rs = 0;
-		Gs = C;
-		Bs = X;
-	}
-	else if (H >= 180 && H < 240) {
-		Rs = 0;
-		Gs = X;
-		Bs = C;
-	}
-	else if (H >= 240 && H < 300) {
-		Rs = X;
-		Gs = 0;
-		Bs = C;
-	}
-	else {
-		Rs = C;
-		Gs = 0;
-		Bs = X;
-	}
-
-	return make_float3(Rs + m, Gs + m, Bs + m);
-}
-
-//  +-----------------------------------------------------------------------------+
-//  |  RenderCore::SetTarget                                                      |
-//  |  Set the OpenGL texture that serves as the render target.             LH2'19|
-//  +-----------------------------------------------------------------------------+
 float3 WhittedStyleRayTracer::Trace(Ray ray) {
-	if (ray.bounces < 0) return make_float3(0.0);
+	if (ray.bounces < 0) return make_float3(0); //SkyDomeColor(ray, skyDome);
 
 	int numberIntersections = 0;
 
 	Intersection intersection;
-	intersection.t = std::numeric_limits<float>::infinity();
-	intersection.tri = nullptr;
-	NearestIntersection(ray, intersection, numberIntersections);
+	intersection.t = 1e34f;
+	bool foundIntersection = NearestIntersection(ray, intersection, numberIntersections);
 
-	//if (intersection.tri == nullptr) return make_float3(0.0f);
+	//return HSVtoRGB(numberIntersections, 1, 1);
 
-	//return HSVtoRGB((int)(intersection.t * 100) % 360, 1, 1);
+	// normal view
+	if (!foundIntersection) return make_float3(0); else return (intersection.normal + 1.0f) * 0.5f;
 
-	return HSVtoRGB(numberIntersections, 1, 1);
+	//return HSVtoRGB((int)(intersection.t * 400) % 360, 1, 1);
 
-	//if (!intersection.HasIntersection()) return SkyDomeColor(ray, skyDome);
+	//if (!foundIntersection) return SkyDomeColor(ray, skyDome);
 
-	//Material material = materials[intersection.GetTri()->material];
+	Material material = materials[intersection.tri->material];
 
-	//float3 diffuse = material.texture == NULL ? material.diffuse : GetColor(intersection.GetUV(), *material.texture);
+	float3 diffuse;
+	if (material.texture == NULL) {
+		diffuse = material.diffuse;
+	}
+	else {
+		float2 uv0 = make_float2(intersection.tri->u0, intersection.tri->v0);
+		float2 uv1 = make_float2(intersection.tri->u1, intersection.tri->v1);
+		float2 uv2 = make_float2(intersection.tri->u2, intersection.tri->v2);
+		float2 uv = (1 - intersection.u - intersection.v) * uv0 + intersection.u * uv1 + intersection.v * uv2;
+		GetColor(uv, *material.texture);
+	}
+
+	// return diffuse;
 
 	//return diffuse * Directllumination(intersection);
+
+	//return Trace(Reflect(ray, intersection));
+
+	return Dielectrics(ray, intersection);
 
 	//// just render the color of the light
 	//if (diffuse.x > 1.0 || diffuse.y > 1.0 || diffuse.z > 1.0) return diffuse;
@@ -268,147 +141,119 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 	//return color;
 }
 
-//  +-----------------------------------------------------------------------------+
-//  |  RenderCore::SetTarget                                                      |
-//  |  Set the OpenGL texture that serves as the render target.             LH2'19|
-//  +-----------------------------------------------------------------------------+
 bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const bool bounded, const float distance) {
 	return false;
 }
 
-// Code based on https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
-//bool BoundingBoxIntersection(const Ray &ray, const aabb &bounds) {
-//	float3 inverseDirection = 1 / ray.direction;
-//	float3 min = bounds.bmin3;
-//	float3 max = bounds.bmax3;
-//
-//	float tmin;
-//	float tmax;
-//
-//	if (ray.direction.x >= 0) {
-//		tmin = (min.x - ray.origin.x) * inverseDirection.x;
-//		tmax = (max.x - ray.origin.x) * inverseDirection.x;
-//	}
-//	else {
-//		tmin = (max.x - ray.origin.x) * inverseDirection.x;
-//		tmax = (min.x - ray.origin.x) * inverseDirection.x;
-//	}
-//
-//	if (tmin > tmax) {
-//		float tmp = tmin;
-//		tmin = tmax;
-//		tmax = tmp;
-//	}
-//
-//	float tymin = (min.y - ray.origin.y) * inverseDirection.y;
-//	float tymax = (max.y - ray.origin.y) * inverseDirection.y;
-//
-//	if (tymin > tymax) {
-//		float tmp = tymin;
-//		tymin = tymax;
-//		tymax = tmp;
-//	}
-//	if ((tmin > tymax) || (tymin > tmax)) return false;
-//	if (tymin > tmin) tmin = tymin;
-//	if (tymax < tmax) tmax = tymax;
-//
-//	float tzmin = (min.z - ray.origin.z) * inverseDirection.z;
-//	float tzmax = (max.z - ray.origin.z) * inverseDirection.z;
-//
-//	if (tzmin > tzmax) {
-//		float tmp = tzmin;
-//		tzmin = tzmax;
-//		tzmax = tmp;
-//	}
-//
-//	if ((tmin > tzmax) || (tzmin > tmax)) return false;
-//	if (tzmin > tmin) tmin = tzmin;
-//	if (tzmax < tmax) tmax = tzmax;
-//
-//	return tmin > 0;
-//}
-// https://medium.com/@bromanz/another-view-on-the-classic-ray-aabb-intersection-algorithm-for-bvh-traversal-41125138b525
-bool BoundingBoxIntersection(const Ray &ray, const aabb &bounds, float &tmin, float &tmax) {
-	float3 invD = 1 / ray.direction;
-	float3 t0s = (bounds.bmin3 - ray.origin) * invD;
-	float3 t1s = (bounds.bmax3 - ray.origin) * invD;
+int FindBestMatch(int a, const vector<BVHTopNode>&topNodes) {
+	float3 centerA = (topNodes[a].bounds.bmin3 + topNodes[a].bounds.bmax3) * 0.5f;
 
-	float3 tsmaller = fminf(t0s, t1s);
-	float3 tbigger = fmaxf(t0s, t1s);
+	int bestNode;
+	float bestDistance = 1e34f;
 
-	tmin = max(tsmaller.x, max(tsmaller.y, tsmaller.z));
-	tmax = min(tbigger.x, min(tbigger.y, tbigger.z));
+	for (int b = 0; b < topNodes.size(); b++) {
+		if (b == a) continue;
 
-	return tmin < tmax;
+		float3 centerB = (topNodes[b].bounds.bmin3 + topNodes[b].bounds.bmax3) * 0.5f;
+		float distance = length(centerB - centerA);
+		if (distance < bestDistance) {
+			bestDistance = distance;
+			bestNode = b;
+		}
+	}
+
+	return bestNode;
 }
 
-//  +-----------------------------------------------------------------------------+
-//  |  RenderCore::SetTarget                                                      |
-//  |  Set the OpenGL texture that serves as the render target.             LH2'19|
-//  +-----------------------------------------------------------------------------+
-void WhittedStyleRayTracer::NearestIntersection(const Ray &ray, Intersection &intersection, int &numberIntersections) {
-	for (BVH bvh:bvhs) {
-		NearestIntersection(bvh, 0, ray, intersection, numberIntersections);
+bool WhittedStyleRayTracer::NearestIntersection(const Ray &ray, Intersection &intersection, int &numberIntersections) {
+	//if (instances.size() == 0) return false;
+
+	//vector<BVHTopNode> topNodes(instances);
+
+	//if (topNodes.size() > 1) {
+	//	int a = 0;
+	//	int b = FindBestMatch(a, topNodes);
+
+	//	while (topNodes.size() > 1) {
+	//		int c = FindBestMatch(b, topNodes);
+
+	//		if (a == c) {
+	//			BVHTopNode topNode;
+	//			topNode.bvh = nullptr;
+	//			topNode.left = &(topNodes[a]);
+	//			topNode.right = &(topNodes[b]);
+	//			topNode.bounds = topNodes[a].bounds.Union(topNodes[b].bounds);
+
+	//			topNodes.erase(topNodes.begin() + a);
+	//			topNodes.erase(topNodes.begin() + b);
+	//			topNodes.push_back(topNode);
+
+	//			a = topNodes.size() - 1;
+	//			b = FindBestMatch(a, topNodes);
+	//		}
+	//		else {
+	//			a = b;
+	//			b = c;
+	//		}
+	//	}
+	//}
+
+	//bool foundIntersection = NearestIntersection(topNodes[0], ray, intersection, numberIntersections);
+
+	bool foundIntersection = false;
+
+	for (BVHTopNode topNode:instances) {
+		if (NearestIntersection(topNode, ray, intersection, numberIntersections)) foundIntersection = true;
 	}
-	
-	if (intersection.tri != nullptr) {
+
+	if (foundIntersection) {
 		intersection.position = ray.origin + intersection.t * ray.direction;
 		intersection.normal = (1 - intersection.u - intersection.v) * intersection.tri->vN0 + intersection.u * intersection.tri->vN1 + intersection.v * intersection.tri->vN2;
 		if (intersection.side == Back) intersection.normal = -intersection.normal;
+		intersection.normal = make_float3(make_float4(intersection.normal, 0.0f) * intersection.transform);
+	}
+
+	return foundIntersection;
+}
+
+bool WhittedStyleRayTracer::NearestIntersection(const BVHTopNode &node, const Ray &ray, Intersection &intersection, int &numberIntersections) {
+	float tmin, tmax;
+	numberIntersections++;
+	if (!BoundingBoxIntersection(ray, node.bounds, tmin, tmax)) return false;
+	if (tmin < 0 || tmin > intersection.t) return false;
+
+	if (node.bvh != nullptr) {
+		Ray transfomedRay;
+		mat4 transform = node.transform.Inverted();
+		transfomedRay.origin = make_float3(make_float4(ray.origin, 1.0f) * transform);
+		transfomedRay.direction = make_float3(make_float4(ray.direction, 0.0f) * transform);
+		bool foundIntersection = NearestIntersection(*(node.bvh), 0, transfomedRay, intersection, numberIntersections);
+		if (foundIntersection) {
+			intersection.transform = node.transform;
+		}
+		return foundIntersection;
+	}
+	else {
+		bool foundIntersection = false;
+		if (NearestIntersection(*node.left, ray, intersection, numberIntersections)) foundIntersection = true;
+		if (NearestIntersection(*node.right, ray, intersection, numberIntersections)) foundIntersection = true;
+		return foundIntersection;
 	}
 }
 
-void WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeIndex, const Ray &ray, Intersection &intersection, int &numberIntersections) {
+bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeIndex, const Ray &ray, Intersection &intersection, int &numberIntersections) {
 	BVHNode *node = &(bvh.pool[nodeIndex]);
 
 	float tmin, tmax;
 	numberIntersections++;
-	if (!BoundingBoxIntersection(ray, node->bounds, tmin, tmax)) return;
-	if (tmin < 0 || tmin > intersection.t) return;
+	if (!BoundingBoxIntersection(ray, node->bounds, tmin, tmax)) return false;
+	if (tmin < 0 || tmin > intersection.t) return false;
 
-	if (node->IsLeaf()) {
-		uint first = node->GetFirst();
-		uint last = first + node->GetCount();
+	float foundIntersection = false;
 
-		float bestT = intersection.t;
-		float bestU, bestV;
-		Side bestSide;
-		CoreTri* bestTri;
-
-		float t, u, v;
-		Side side;
-
-		float improves = false;
-
-		for (int i = first; i < last; i ++) {
-			int index = bvh.indices[i] * 3;
-			float3 a = make_float3(bvh.mesh->vertices[index]);
-			float3 b = make_float3(bvh.mesh->vertices[index + 1]);
-			float3 c = make_float3(bvh.mesh->vertices[index + 2]);
-
-			if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v) && t > kEpsilon && t < bestT) {
-				bestT = t;
-				bestU = u;
-				bestV = v;
-				bestSide = side;
-				bestTri = &(bvh.mesh->triangles[bvh.indices[i]]);
-				improves = true;
-			}
-		}
-
-		if (improves) {
-			intersection.t = bestT;
-			intersection.u = bestU;
-			intersection.v = bestV;
-			intersection.tri = bestTri;
-			intersection.side = bestSide;
-		}
-	}
-	else {
+	if (node->count == 0) {
 		int splitAxis = node->bounds.LongestAxis();
-		float rayDirection = get_axis(splitAxis, ray.direction);
-		bool signedRayDirection = rayDirection > 0;
-		//float rayOrigin = get_axis(splitAxis, ray.origin);
+		bool signedRayDirection = get_axis(splitAxis, ray.direction) > 0;
 
 		int left;
 		int right;
@@ -421,36 +266,54 @@ void WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 			left = right + 1;
 		}
 
-		//float intersectPosition;;
-		//intersectPosition = rayOrigin + intersection.t * rayDirection;
-		//if (signedRayDirection) {
-		//	if (bvh.pool[left].bounds.bmax[splitAxis] < rayOrigin) return; 
-		//	if (intersectPosition < bvh.pool[left].bounds.bmin[splitAxis]) return;
-		//}
-		//else {
-		//	if (bvh.pool[left].bounds.bmin[splitAxis] > rayOrigin) return;
-		//	if (intersectPosition > bvh.pool[left].bounds.bmax[splitAxis]) return;
-		//}
-		NearestIntersection(bvh, left, ray, intersection, numberIntersections);
-
-		//intersectPosition = rayOrigin + intersection.t * rayDirection;
-		//if (signedRayDirection) {
-		//	if (bvh.pool[right].bounds.bmax[splitAxis] < rayOrigin) return;
-		//	if (intersectPosition < bvh.pool[right].bounds.bmin[splitAxis]) return;
-		//}
-		//else {
-		//	if (bvh.pool[right].bounds.bmin[splitAxis] > rayOrigin) return;
-		//	if (intersectPosition > bvh.pool[right].bounds.bmax[splitAxis]) return;
-		//}
-		NearestIntersection(bvh, right, ray, intersection, numberIntersections);
+		if (NearestIntersection(bvh, left, ray, intersection, numberIntersections)) foundIntersection = true;
+		if (NearestIntersection(bvh, right, ray, intersection, numberIntersections)) foundIntersection = true;
 	}
+	else {
+		uint first = node->leftFirst;
+		uint last = first + node->count;
+
+		float bestT = intersection.t;
+		float bestU, bestV;
+		Side bestSide;
+		int bestTri;
+
+		float t, u, v;
+		Side side;
+
+		for (int i = first; i < last; i ++) {
+			int index = bvh.indices[i] * 3;
+			float3 a = make_float3(bvh.mesh->vertices[index]);
+			float3 b = make_float3(bvh.mesh->vertices[index + 1]);
+			float3 c = make_float3(bvh.mesh->vertices[index + 2]);
+
+			if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v) && t > kEpsilon && t < bestT) {
+				bestT = t;
+				bestU = u;
+				bestV = v;
+				bestSide = side;
+				bestTri = i;
+				foundIntersection = true;
+			}
+		}
+
+		if (foundIntersection) {
+			intersection.t = bestT;
+			intersection.u = bestU;
+			intersection.v = bestV;
+			intersection.tri = &(bvh.mesh->triangles[bvh.indices[bestTri]]);
+			intersection.side = bestSide;
+		}
+	}
+
+	return foundIntersection;
 }
 
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::SetTarget                                                      |
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
 //  +-----------------------------------------------------------------------------+
-Ray WhittedStyleRayTracer::Reflect(const Ray &ray, Intersection &intersection) {
+Ray WhittedStyleRayTracer::Reflect(const Ray &ray, const Intersection &intersection) {
 	Ray reflectRay;
 
 	float3 N = intersection.normal;
@@ -468,7 +331,7 @@ Ray WhittedStyleRayTracer::Reflect(const Ray &ray, Intersection &intersection) {
 //  |  RenderCore::SetTarget                                                      |
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
 //  +-----------------------------------------------------------------------------+
-float3 WhittedStyleRayTracer::Directllumination(Intersection &intersection) {
+float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection) {
 	float3 illumination = make_float3(0.0);
 	Ray ray;
 
@@ -605,7 +468,7 @@ float3 WhittedStyleRayTracer::SkyDomeColor(const Ray &ray, const Texture &textur
 	return GetColor(uv, texture);
 }
 
-float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, Intersection &intersection) {
+float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const Intersection &intersection) {
 	float3 N = intersection.normal;
 	float3 P = intersection.position;
 
@@ -648,7 +511,7 @@ float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, Intersection &intersec
 	return diffuse;
 }
 
-float3 WhittedStyleRayTracer::Beer(const Ray ray, Intersection &intersection, float3 diffuse) {
+float3 WhittedStyleRayTracer::Beer(const Ray ray, const Intersection &intersection, float3 diffuse) {
 	switch (intersection.side) {
 	case Front:
 		return diffuse;
@@ -664,7 +527,7 @@ float3 WhittedStyleRayTracer::Beer(const Ray ray, Intersection &intersection, fl
 	}
 }
 
-float WhittedStyleRayTracer::Fresnel(const Ray &ray, Intersection &intersection, const float n1, const float n2, const float cosOi) {
+float WhittedStyleRayTracer::Fresnel(const Ray &ray, const Intersection &intersection, const float n1, const float n2, const float cosOi) {
 	float n1n2 = n1 / n2;
 
 	float n1n2SinCos01 = n1n2 * sin(acos(cosOi));

@@ -43,7 +43,8 @@ void BVH::Subdivide(const int nodeIndex, const int first, const int last, int &p
 	CalculateBounds(first, last, node.bounds);
 	//int splitIndex = Median(node, first, last);
 	int splitIndex = BinningSurfaceAreaHeuristic(node, first, last);
-	
+	//int splitIndex = SurfaceAreaHeuristic(node, first, last);
+
 	if (splitIndex == -1) {
 		node.count = last - first + 1;
 		node.leftFirst = first;
@@ -59,7 +60,7 @@ void BVH::Subdivide(const int nodeIndex, const int first, const int last, int &p
 }
 
 void BVH::CalculateBounds(const int first, const int last, aabb &bounds) {
-	bounds = aabb(make_float3(mesh->vertices[indices[first] * 3]), make_float3(mesh->vertices[indices[first] * 3]));
+	bounds.Reset();
 
 	for (int i = first; i <= last; i ++) {
 		int index = indices[i] * 3;
@@ -72,7 +73,7 @@ void BVH::CalculateBounds(const int first, const int last, aabb &bounds) {
 // Quicksort algorithm based on https://www.geeksforgeeks.org/cpp-program-for-quicksort/
 void BVH::QuickSortPrimitives(const int axis, const int first, const int last) {
 	if (first < last) {
-		float pivot = get_axis(axis, mesh->vertices[indices[first] * 3]);
+		float pivot = get_axis(axis, mesh->vertices[indices[(first + last) / 2] * 3]);
 
 		int i = first - 1;
 
@@ -132,6 +133,8 @@ int BVH::Median(BVHNode &node, int first, int last) {
 }
 
 int BVH::BinningSurfaceAreaHeuristic(BVHNode &node, int first, int last) {
+	if (last - first <= 3) return -1;
+
 	int longestAxis = node.bounds.LongestAxis();
 
 	float minAxis = get_axis(longestAxis, node.GetBounds().bmin3);
@@ -153,7 +156,7 @@ int BVH::BinningSurfaceAreaHeuristic(BVHNode &node, int first, int last) {
 
 	float a = node.GetBounds().Area();
 	int n = last - first + 1;
-	int lowestCost = a * n;
+	float lowestCost = a * n;
 	int bestSplitIndex = -1;
 
 	aabb lBounds;
@@ -170,9 +173,40 @@ int BVH::BinningSurfaceAreaHeuristic(BVHNode &node, int first, int last) {
 		CalculateBounds(first, currentSplitIndex, lBounds);
 		CalculateBounds(currentSplitIndex + 1, last, rBounds);
 
+		float aLeft = lBounds.Area();
+		float aRight = rBounds.Area();
+
+		float currentCost = aLeft * nLeft + aRight * nRight;
+
+		if (currentCost < lowestCost) {
+			bestSplitIndex = currentSplitIndex;
+			lowestCost = currentCost;
+		}
+	}
+
+	return bestSplitIndex;
+}
+
+int BVH::SurfaceAreaHeuristic(BVHNode &node, int first, int last) {
+	int longestAxis = node.bounds.LongestAxis();
+	QuickSortPrimitives(longestAxis, first, last);
+
+	float a = node.GetBounds().Area();
+	int n = last - first + 1;
+	float lowestCost = a * n;
+	int bestSplitIndex = -1;
+
+	aabb lBounds;
+	aabb rBounds;
+
+	for (int currentSplitIndex = first; currentSplitIndex < last; currentSplitIndex++) {
+		CalculateBounds(first, currentSplitIndex, lBounds);
+		CalculateBounds(currentSplitIndex + 1, last, rBounds);
 
 		float aLeft = lBounds.Area();
 		float aRight = rBounds.Area();
+		int nLeft = currentSplitIndex - first + 1;
+		int nRight = last - currentSplitIndex;
 
 		float currentCost = aLeft * nLeft + aRight * nRight;
 

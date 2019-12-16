@@ -21,7 +21,7 @@
 static RenderAPI* renderer = 0;
 static GLTexture* renderTarget = 0;
 static Shader* shader = 0;
-static uint scrwidth = 0, scrheight = 0, scrspp = 1;
+static uint scrwidth = 0, scrheight = 0, scrspp = 1, bunny = 0;
 static bool camMoved = false, spaceDown = false, hasFocus = true, running = true, animPaused = false;
 static std::bitset<1024> keystates;
 static std::bitset<8> mbstates;
@@ -41,9 +41,9 @@ static CoreStats coreStats;
 void PrepareScene()
 {
 	// area light
-	int lightMat = renderer->AddMaterial( make_float3( 10.0f, 10.0f, 10.0f ) );
-	int lightQuad = renderer->AddQuad( make_float3( 0.0f, -1.0f, 0.0f ), make_float3( 0.0f, 3.0f, 0.0f ), 1.9f, 1.9f, lightMat );
-	int lightInst = renderer->AddInstance( lightQuad );
+	//int lightMat = renderer->AddMaterial( make_float3( 10.0f, 10.0f, 10.0f ) );
+	//int lightQuad = renderer->AddQuad( make_float3( 0.0f, -1.0f, 0.0f ), make_float3( 0.0f, 3.0f, 0.0f ), 1.9f, 1.9f, lightMat );
+	//int lightInst = renderer->AddInstance( lightQuad );
 
 	// spot light
 	// renderer->AddSpotLight(make_float3(0, 3, 0), make_float3(-0.1, -1, 0.2), 0.9, 0.0, make_float3(10, 10, 10), true);
@@ -52,15 +52,23 @@ void PrepareScene()
 	// renderer->AddPointLight(make_float3(20, 30, 10), make_float3(1000, 1000, 1000), 1.0, true);
 
 	// directional light
-	// renderer->AddDirectionalLight(make_float3(0.2, -1, 0), make_float3(1, 1, 1), true);
+	//renderer->AddDirectionalLight(make_float3(0.2, -1, 0), make_float3(1, 1, 1), true);
 
 	// textured dice
 	// int diceId = renderer->AddMesh("dice.obj", "data/dice/", 1.0f);
 	// renderer->AddInstance(diceId);
 
 	// multiMaterial
-	int multimaterialId = renderer->AddMesh("multimaterial.obj", "data/multimaterial/", 1.0f);
-	renderer->AddInstance(multimaterialId);
+	//int multimaterialId = renderer->AddMesh("multimaterial.obj", "data/multimaterial/", 1.0f);
+	//renderer->AddInstance(multimaterialId);
+
+	// bunny
+	int bunnyId = renderer->AddMesh("bunny.obj", "data/bunny/", 1.0f);
+	bunny = renderer->AddInstance(bunnyId);
+
+	// teapot
+	/*int teapotId = renderer->AddMesh("teapot.obj", "data/teapot/", 1.0f);
+	renderer->AddInstance(teapotId);*/
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -155,6 +163,12 @@ int main()
 		camMoved = false;
 		deltaTime = timer.elapsed();
 		if (HandleInput( deltaTime )) camMoved = true;
+
+		static float r = 0;
+		renderer->SetNodeTransform(bunny, mat4::RotateY(r * 2.0f) * mat4::RotateZ(0.2f * sinf(r * 8.0f)));
+		r += deltaTime * 0.3f; if (r > 2 * PI) r -= 2 * PI;
+		camMoved = true;
+
 		// handle material changes
 		if (HandleMaterialChange()) camMoved = true;
 		// poll events, may affect probepos so needs to happen between HandleInput and Render

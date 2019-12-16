@@ -41,5 +41,21 @@ namespace lh2core
 		void QuickSortPrimitives(const int axis, const int first, const int last);
 		int Median(BVHNode &node, const int first, const int last);
 		int BinningSurfaceAreaHeuristic(BVHNode &node, const int first, const int last);
+		int SurfaceAreaHeuristic(BVHNode &node, const int first, const int last);
+	};
+
+	class BVHTopNode {
+	public:
+		aabb bounds;
+		
+		// leaf
+		BVH* bvh;
+		mat4 transform;
+
+		// tree
+		BVHTopNode* left;
+		BVHTopNode* right;
+
+		__inline bool IsLeaf() const { return bvh == nullptr; }
 	};
 }

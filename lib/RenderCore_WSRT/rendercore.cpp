@@ -72,6 +72,38 @@ void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const
 	}
 }
 
+void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const mat4& transform) {
+	if (modelIdx == -1) {
+		if (rayTracer.instances.size() > instanceIdx) rayTracer.instances.resize(instanceIdx);
+		return;
+	}
+
+	BVHTopNode *bvhTopNode;
+
+	if (instanceIdx >= rayTracer.instances.size()) {
+		BVHTopNode a;
+		bvhTopNode = &a;
+		rayTracer.instances.push_back(a);
+	}
+	else {
+		bvhTopNode = &(rayTracer.instances[instanceIdx]);
+	}
+
+	bvhTopNode->bvh = &(rayTracer.bvhs[modelIdx]);
+	bvhTopNode->transform = transform;
+	float3 bmin = rayTracer.bvhs[modelIdx].pool[0].bounds.bmin3;
+	float3 bmax = rayTracer.bvhs[modelIdx].pool[0].bounds.bmax3;
+	bvhTopNode->bounds.Reset();
+	bvhTopNode->bounds.Grow(make_float3(make_float4(bmin.x, bmin.y, bmin.z, 1.0f) * transform));
+	bvhTopNode->bounds.Grow(make_float3(make_float4(bmin.x, bmax.y, bmin.z, 1.0f) * transform));
+	bvhTopNode->bounds.Grow(make_float3(make_float4(bmin.x, bmax.y, bmax.z, 1.0f) * transform));
+	bvhTopNode->bounds.Grow(make_float3(make_float4(bmin.x, bmin.y, bmax.z, 1.0f) * transform));
+	bvhTopNode->bounds.Grow(make_float3(make_float4(bmax.x, bmin.y, bmin.z, 1.0f) * transform));
+	bvhTopNode->bounds.Grow(make_float3(make_float4(bmax.x, bmax.y, bmin.z, 1.0f) * transform));
+	bvhTopNode->bounds.Grow(make_float3(make_float4(bmax.x, bmax.y, bmax.z, 1.0f) * transform));
+	bvhTopNode->bounds.Grow(make_float3(make_float4(bmax.x, bmin.y, bmax.z, 1.0f) * transform));
+}
+
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::SetLights													  |
 //  |  Update the point lights, spot lights and directional lights.         LH2'19|
