@@ -91,24 +91,24 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 	//return HSVtoRGB(numberIntersections, 1, 1);
 
 	// normal view
+	if (!foundIntersection) return SkyDomeColor(ray, *skyDome);
 	if (!foundIntersection) return make_float3(0); else return (intersection.normal + 1.0f) * 0.5f;
 
 	//return HSVtoRGB((int)(intersection.t * 400) % 360, 1, 1);
 
-	//if (!foundIntersection) return SkyDomeColor(ray, skyDome);
 
-	Material material = materials[intersection.tri->material];
+	Material*material = materials[intersection.tri->material];
 
 	float3 diffuse;
-	if (material.texture == NULL) {
-		diffuse = material.diffuse;
+	if (material->texture == NULL) {
+		diffuse = material->diffuse;
 	}
 	else {
 		float2 uv0 = make_float2(intersection.tri->u0, intersection.tri->v0);
 		float2 uv1 = make_float2(intersection.tri->u1, intersection.tri->v1);
 		float2 uv2 = make_float2(intersection.tri->u2, intersection.tri->v2);
 		float2 uv = (1 - intersection.u - intersection.v) * uv0 + intersection.u * uv1 + intersection.v * uv2;
-		GetColor(uv, *material.texture);
+		GetColor(uv, *(material->texture));
 	}
 
 	// return diffuse;
@@ -202,8 +202,8 @@ bool WhittedStyleRayTracer::NearestIntersection(const Ray &ray, Intersection &in
 
 	bool foundIntersection = false;
 
-	for (BVHTopNode topNode:instances) {
-		if (NearestIntersection(topNode, ray, intersection, numberIntersections)) foundIntersection = true;
+	for (BVHTopNode*topNode:instances) {
+		if (NearestIntersection(*topNode, ray, intersection, numberIntersections)) foundIntersection = true;
 	}
 
 	if (foundIntersection) {
@@ -228,9 +228,7 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVHTopNode &node, const Ra
 		transfomedRay.origin = make_float3(make_float4(ray.origin, 1.0f) * transform);
 		transfomedRay.direction = make_float3(make_float4(ray.direction, 0.0f) * transform);
 		bool foundIntersection = NearestIntersection(*(node.bvh), 0, transfomedRay, intersection, numberIntersections);
-		if (foundIntersection) {
-			intersection.transform = node.transform;
-		}
+		if (foundIntersection) intersection.transform = node.transform;
 		return foundIntersection;
 	}
 	else {
@@ -283,9 +281,9 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 
 		for (int i = first; i < last; i ++) {
 			int index = bvh.indices[i] * 3;
-			float3 a = make_float3(bvh.mesh->vertices[index]);
-			float3 b = make_float3(bvh.mesh->vertices[index + 1]);
-			float3 c = make_float3(bvh.mesh->vertices[index + 2]);
+			float3 a = make_float3(bvh.vertices[index]);
+			float3 b = make_float3(bvh.vertices[index + 1]);
+			float3 c = make_float3(bvh.vertices[index + 2]);
 
 			if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v) && t > kEpsilon && t < bestT) {
 				bestT = t;
@@ -301,7 +299,7 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 			intersection.t = bestT;
 			intersection.u = bestU;
 			intersection.v = bestV;
-			intersection.tri = &(bvh.mesh->triangles[bvh.indices[bestTri]]);
+			intersection.tri = &(bvh.triangles[bvh.indices[bestTri]]);
 			intersection.side = bestSide;
 		}
 	}
@@ -338,31 +336,31 @@ float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection
 	float3 N = intersection.normal;
 	float3 P = intersection.position;
 
-	for (CoreLightTri areaLight : areaLights) {
+	for (CoreLightTri*areaLight : areaLights) {
 		for (int i = 0; i < softLightRays; i++) {
 			float r1 = ((double)rand() / RAND_MAX);
 			float r2 = ((double)rand() / RAND_MAX);
 			float sqrtR1 = sqrt(r1);
-			float3 position = (1 - sqrtR1) * areaLight.vertex0 + (sqrtR1 * (1 - r2)) * areaLight.vertex1 + (sqrtR1 * r2) * areaLight.vertex2;
+			float3 position = (1 - sqrtR1) * areaLight->vertex0 + (sqrtR1 * (1 - r2)) * areaLight->vertex1 + (sqrtR1 * r2) * areaLight->vertex2;
 
 			float3 intersectionLight = position - P;
 			float3 lightDirection = normalize(intersectionLight);
 			float lightDistance = length(intersectionLight);
 
-			float contribution = areaLight.area * dot(N, lightDirection) * dot(areaLight.N, -lightDirection) / (lightDistance * lightDistance);
+			float contribution = areaLight->area * dot(N, lightDirection) * dot(areaLight->N, -lightDirection) / (lightDistance * lightDistance);
 			if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
 
 			ray.origin = P + bias * lightDirection;
 			ray.direction = lightDirection;
 
 			if (!HasIntersection(ray, true, lightDistance - 2 * bias)) {
-				illumination += areaLight.radiance * contribution / softLightRays;
+				illumination += areaLight->radiance * contribution / softLightRays;
 			}
 		}
 	}
 
-	for (CorePointLight pointLight : pointLights) {
-		float3 intersectionLight = pointLight.position - P;
+	for (CorePointLight*pointLight : pointLights) {
+		float3 intersectionLight = pointLight->position - P;
 		float3 lightDirection = normalize(intersectionLight);
 		float lightDistance = length(intersectionLight);
 
@@ -374,13 +372,13 @@ float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection
 		ray.direction = lightDirection;
 
 		if (!HasIntersection(ray, true, lightDistance)) {
-			illumination += pointLight.radiance * contribution;
+			illumination += pointLight->radiance * contribution;
 		}
 	}
 
-	for (CoreDirectionalLight directionLight : directionLights) {
+	for (CoreDirectionalLight*directionLight : directionLights) {
 		// TODO move normalization to SetLights
-		float3 lightDirection = -normalize(directionLight.direction);
+		float3 lightDirection = -normalize(directionLight->direction);
 
 		float contribution = dot(N, lightDirection);
 		if (contribution <= 0) continue; // don't calculate illumination for intersections facing away from the light
@@ -389,23 +387,23 @@ float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection
 		ray.direction = lightDirection;
 
 		if (!HasIntersection(ray, false, 0)) {
-			illumination += directionLight.radiance * contribution;
+			illumination += directionLight->radiance * contribution;
 		}
 	}
 
-	for (CoreSpotLight spotLight : spotLights) {
-		float3 intersectionLight = spotLight.position - P;
+	for (CoreSpotLight*spotLight : spotLights) {
+		float3 intersectionLight = spotLight->position - P;
 		float3 lightDirection = normalize(intersectionLight);
 		float lightDistance = length(intersectionLight);
 
-		float angle = dot(-lightDirection, spotLight.direction);
+		float angle = dot(-lightDirection, spotLight->direction);
 		float contribution;
 
-		if (angle < spotLight.cosOuter) {
+		if (angle < spotLight->cosOuter) {
 			continue;
 		}
-		else if (angle < spotLight.cosInner) {
-			contribution = 1 - ((angle - spotLight.cosInner) / (spotLight.cosOuter - spotLight.cosInner));
+		else if (angle < spotLight->cosInner) {
+			contribution = 1 - ((angle - spotLight->cosInner) / (spotLight->cosOuter - spotLight->cosInner));
 		}
 		else {
 			contribution = 1;
@@ -418,7 +416,7 @@ float3 WhittedStyleRayTracer::Directllumination(const Intersection &intersection
 		ray.direction = lightDirection;
 
 		if (!HasIntersection(ray, true, lightDistance)) {
-			illumination += spotLight.radiance * contribution;
+			illumination += spotLight->radiance * contribution;
 		}
 
 	}
@@ -516,12 +514,12 @@ float3 WhittedStyleRayTracer::Beer(const Ray ray, const Intersection &intersecti
 	case Front:
 		return diffuse;
 	case Back:
-		Material material = materials[intersection.tri->material];
+		Material*material = materials[intersection.tri->material];
 
 		float3 absorption;
-		absorption.x = exp(-material.transmittance.x * intersection.t);
-		absorption.y = exp(-material.transmittance.y * intersection.t);
-		absorption.z = exp(-material.transmittance.z * intersection.t);
+		absorption.x = exp(-material->transmittance.x * intersection.t);
+		absorption.y = exp(-material->transmittance.y * intersection.t);
+		absorption.z = exp(-material->transmittance.z * intersection.t);
 
 		return diffuse * absorption;
 	}

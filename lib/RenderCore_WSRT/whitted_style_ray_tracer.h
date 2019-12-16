@@ -12,15 +12,15 @@ namespace lh2core
 	class WhittedStyleRayTracer
 	{
 	public: 
-		vector<BVH> bvhs;								// storing all bvh's
-		vector<BVHTopNode> instances;
-		vector<CoreLightTri> areaLights;				// point lights of the scene
-		vector<CorePointLight> pointLights;				// point lights of the scene
-		vector<CoreDirectionalLight> directionLights;	// direction lights of the scene
-		vector<CoreSpotLight> spotLights;				// spot lights of the scene
-		vector<Material> materials;						// materials of the scene
+		vector<BVH*> bvhs;								// storing all bvh's
+		vector<BVHTopNode*> instances;
+		vector<CoreLightTri*> areaLights;				// point lights of the scene
+		vector<CorePointLight*> pointLights;			// point lights of the scene
+		vector<CoreDirectionalLight*> directionLights;	// direction lights of the scene
+		vector<CoreSpotLight*> spotLights;				// spot lights of the scene
+		vector<Material*> materials;					// materials of the scene
 		vector<Texture*> texList;						// 2D representation of the texture
-		Texture skyDome;								// sky dome of the scene
+		Texture*skyDome;								// sky dome of the scene
 
 		void Render(const ViewPyramid& view, Bitmap* screen);
 	private:

@@ -50,19 +50,19 @@ void RenderCore::SetTarget( GLTexture* target )
 void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangleData, const uint* alphaFlags )
 {
 	if (meshIdx >= rayTracer.bvhs.size()) {
-		Mesh *mesh = new Mesh();
 		// copy the supplied vertices; we cannot assume that the render system does not modify
 		// the original data after we leave this function.
-		mesh->vertices = new float4[vertexCount];
-		mesh->vcount = vertexCount;
-		memcpy(mesh->vertices, vertexData, vertexCount * sizeof(float4));
+
+		BVH *bvh = new BVH;
+		bvh->vertices = new float4[vertexCount];
+		bvh->vcount = vertexCount;
+		memcpy(bvh->vertices, vertexData, vertexCount * sizeof(float4));
 		// copy the supplied 'fat triangles'
-		mesh->triangles = new CoreTri[vertexCount / 3];
-		memcpy(mesh->triangles, triangleData, (vertexCount / 3) * sizeof(CoreTri));
+		bvh->triangles = new CoreTri[vertexCount / 3];
+		memcpy(bvh->triangles, triangleData, (vertexCount / 3) * sizeof(CoreTri));
 
 		clock_t begin = clock();
-		BVH bvh;
-		bvh.ConstructBVH(mesh);
+		bvh->ConstructBVH();
 		clock_t end = clock();
 
 		double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
@@ -78,21 +78,20 @@ void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const ma
 		return;
 	}
 
-	BVHTopNode *bvhTopNode;
+	BVHTopNode *bvhTopNode = nullptr;
 
 	if (instanceIdx >= rayTracer.instances.size()) {
-		BVHTopNode a;
-		bvhTopNode = &a;
-		rayTracer.instances.push_back(a);
+		bvhTopNode = new BVHTopNode;
+		rayTracer.instances.push_back(bvhTopNode);
 	}
 	else {
-		bvhTopNode = &(rayTracer.instances[instanceIdx]);
+		bvhTopNode = rayTracer.instances[instanceIdx];
 	}
 
-	bvhTopNode->bvh = &(rayTracer.bvhs[modelIdx]);
+	bvhTopNode->bvh = rayTracer.bvhs[modelIdx];
 	bvhTopNode->transform = transform;
-	float3 bmin = rayTracer.bvhs[modelIdx].pool[0].bounds.bmin3;
-	float3 bmax = rayTracer.bvhs[modelIdx].pool[0].bounds.bmax3;
+	float3 bmin = bvhTopNode->bvh->pool[0].bounds.bmin3;
+	float3 bmax = bvhTopNode->bvh->pool[0].bounds.bmax3;
 	bvhTopNode->bounds.Reset();
 	bvhTopNode->bounds.Grow(make_float3(make_float4(bmin.x, bmin.y, bmin.z, 1.0f) * transform));
 	bvhTopNode->bounds.Grow(make_float3(make_float4(bmin.x, bmax.y, bmin.z, 1.0f) * transform));
@@ -113,22 +112,30 @@ void RenderCore::SetLights(const CoreLightTri* areaLights, const int areaLightCo
 {
 	rayTracer.areaLights.clear();
 	for (int i = 0; i < areaLightCount; i++) {
-		rayTracer.areaLights.push_back(areaLights[i]);
+		CoreLightTri*light = new CoreLightTri;
+		memcpy(light, &(areaLights[i]), sizeof(CoreLightTri));
+		rayTracer.areaLights.push_back(light);
 	}
 
 	rayTracer.pointLights.clear();
 	for (int i = 0; i < pointLightCount; i++) {
-		rayTracer.pointLights.push_back(corePointLights[i]);
+		CorePointLight*light = new CorePointLight;
+		memcpy(light, &(corePointLights[i]), sizeof(CorePointLight));
+		rayTracer.pointLights.push_back(light);
 	}
 
 	rayTracer.directionLights.clear();
 	for (int i = 0; i < directionalLightCount; i++) {
-		rayTracer.directionLights.push_back(coreDirectionalLights[i]);
+		CoreDirectionalLight*light = new CoreDirectionalLight;
+		memcpy(light, &(coreDirectionalLights[i]), sizeof(CoreDirectionalLight));
+		rayTracer.directionLights.push_back(light);
 	}
 
 	rayTracer.spotLights.clear();
 	for (int i = 0; i < spotLightCount; i++) {
-		rayTracer.spotLights.push_back(coreSpotLights[i]);
+		CoreSpotLight*light = new CoreSpotLight;
+		memcpy(light, &(coreSpotLights[i]), sizeof(CoreSpotLight));
+		rayTracer.spotLights.push_back(light);
 	}
 }
 
@@ -171,29 +178,29 @@ void RenderCore::SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, co
 	for (int i = 0; i < materialCount; i++) {
 		CoreMaterial coreMaterial = mat[i];
 
-		Material newMaterial;
+		Material*newMaterial = new Material;
 
 		int texId = matEx[i].texture[TEXTURE0];
 		if (texId == -1) {
-			newMaterial.texture = 0;
+			newMaterial->texture = 0;
 		}
 		else {
-			newMaterial.texture = rayTracer.texList[texId];
+			newMaterial->texture = rayTracer.texList[texId];
 			// we know this only now, so set it properly
-			newMaterial.texture->width  = mat[i].texwidth0; 
-			newMaterial.texture->height = mat[i].texheight0;
+			newMaterial->texture->width  = mat[i].texwidth0; 
+			newMaterial->texture->height = mat[i].texheight0;
 		}
 
-		newMaterial.diffuse.x = coreMaterial.diffuse_r;
-		newMaterial.diffuse.y = coreMaterial.diffuse_g;
-		newMaterial.diffuse.z = coreMaterial.diffuse_b;
+		newMaterial->diffuse.x = coreMaterial.diffuse_r;
+		newMaterial->diffuse.y = coreMaterial.diffuse_g;
+		newMaterial->diffuse.z = coreMaterial.diffuse_b;
 
-		newMaterial.transmittance.x = coreMaterial.transmittance_r;
-		newMaterial.transmittance.y = coreMaterial.transmittance_g;
-		newMaterial.transmittance.z = coreMaterial.transmittance_b;
+		newMaterial->transmittance.x = coreMaterial.transmittance_r;
+		newMaterial->transmittance.y = coreMaterial.transmittance_g;
+		newMaterial->transmittance.z = coreMaterial.transmittance_b;
 
-		newMaterial.specularity = coreMaterial.specular();
-		newMaterial.transmission = coreMaterial.transmission();
+		newMaterial->specularity = coreMaterial.specular();
+		newMaterial->transmission = coreMaterial.transmission();
 
 		rayTracer.materials.push_back(newMaterial);
 	}
@@ -204,12 +211,16 @@ void RenderCore::SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, co
 //  |  Specify the data required for sky dome rendering..                   LH2'19|
 //  +-----------------------------------------------------------------------------+
 void RenderCore::SetSkyData(const float3* pixels, const uint width, const uint height) {
-	rayTracer.skyDome.height = height;
-	rayTracer.skyDome.width = width;
-	rayTracer.skyDome.pixels = (float3*)MALLOC64(width * height * sizeof(float3));
+	Texture*texture = new Texture;
+
+	texture->height = height;
+	texture->width = width;
+	texture->pixels = (float3*)MALLOC64(width * height * sizeof(float3));
 	for (int i = 0; i < (width * height); i++) {
-		rayTracer.skyDome.pixels[i] = make_float3(pixels[i].x, pixels[i].y, pixels[i].z);
+		texture->pixels[i] = make_float3(pixels[i].x, pixels[i].y, pixels[i].z);
 	}
+
+	rayTracer.skyDome = texture;
 }
 
 //  +-----------------------------------------------------------------------------+

@@ -11,9 +11,8 @@ void Swap(int* a, int* b) {
 	*b = t;
 }
 
-void BVH::ConstructBVH(Mesh* _mesh) {
-	mesh = _mesh;
-	int primitiveCount = mesh->vcount / 3;
+void BVH::ConstructBVH() {
+	int primitiveCount = vcount / 3;
 	indices = new int[primitiveCount];
 	for (int i = 0; i < primitiveCount; i++) {
 		indices[i] = i;
@@ -64,21 +63,21 @@ void BVH::CalculateBounds(const int first, const int last, aabb &bounds) {
 
 	for (int i = first; i <= last; i ++) {
 		int index = indices[i] * 3;
-		bounds.Grow(make_float3(mesh->vertices[index]));
-		bounds.Grow(make_float3(mesh->vertices[index + 1]));
-		bounds.Grow(make_float3(mesh->vertices[index + 2]));
+		bounds.Grow(make_float3(vertices[index]));
+		bounds.Grow(make_float3(vertices[index + 1]));
+		bounds.Grow(make_float3(vertices[index + 2]));
 	}
 }
 
 // Quicksort algorithm based on https://www.geeksforgeeks.org/cpp-program-for-quicksort/
 void BVH::QuickSortPrimitives(const int axis, const int first, const int last) {
 	if (first < last) {
-		float pivot = get_axis(axis, mesh->vertices[indices[(first + last) / 2] * 3]);
+		float pivot = get_axis(axis, vertices[indices[(first + last) / 2] * 3]);
 
 		int i = first - 1;
 
 		for (int j = first; j <= last - 1; j ++) {
-			if (get_axis(axis, mesh->vertices[indices[j] * 3]) <= pivot) {
+			if (get_axis(axis, vertices[indices[j] * 3]) <= pivot) {
 				i++;
 				Swap(&indices[i], &indices[j]);
 			}
@@ -103,7 +102,7 @@ int BVH::Median(BVHNode &node, int first, int last) {
 	int splitIndex = first - 1;
 	float splitPlane = (minAxis + maxAxis) / 2;
 	for (int i = first; i <= last; i ++) {
-		if (get_axis(longestAxis, mesh->vertices[indices[i] * 3]) < splitPlane) {
+		if (get_axis(longestAxis, vertices[indices[i] * 3]) < splitPlane) {
 			splitIndex++;
 			Swap(&indices[splitIndex], &indices[i]);
 		}
@@ -146,7 +145,7 @@ int BVH::BinningSurfaceAreaHeuristic(BVHNode &node, int first, int last) {
 		float splitPlane = minAxis + (maxAxis - minAxis) / numberOfBins * (i + 1);
 		int splitIndex = i == 0 ? first - 1 : splitIndices[i - 1];
 		for (int j = splitIndex + 1; j <= last; j++) {
-			if (get_axis(longestAxis, mesh->vertices[indices[j] * 3]) < splitPlane) {
+			if (get_axis(longestAxis, vertices[indices[j] * 3]) < splitPlane) {
 				splitIndex++;
 				Swap(&indices[splitIndex], &indices[j]);
 			}

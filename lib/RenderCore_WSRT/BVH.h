@@ -32,10 +32,13 @@ namespace lh2core
 	class BVH {
 	public:
 		BVHNode* pool;
-		Mesh* mesh;
 		int* indices;
 
-		void ConstructBVH(Mesh *mesh);
+		float4* vertices = 0;		// vertex data received via SetGeometry
+		int vcount = 0;				// vertex count
+		CoreTri* triangles = 0;		// 'fat' triangle data
+
+		void ConstructBVH();
 		void Subdivide(const int nodeIndex, const int first, const int last, int &poolPtr);
 		void CalculateBounds(const int first, const int last, aabb &aabb);
 		void QuickSortPrimitives(const int axis, const int first, const int last);
