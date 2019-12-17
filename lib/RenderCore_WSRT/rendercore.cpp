@@ -22,16 +22,16 @@
 
 using namespace lh2core;
 
-int FindBestMatch(int a, const vector<BVHTopNode*>&topNodes) {
-	float3 centerA = (topNodes[a]->bounds.bmin3 + topNodes[a]->bounds.bmax3) * 0.5f;
+BVHTopNode* FindBestMatch(BVHTopNode* a, const vector<BVHTopNode*>&topNodes) {
+	float3 centerA = (a->bounds.bmin3 + a->bounds.bmax3) * 0.5f;
 
-	int bestNode = a;
+	BVHTopNode* bestNode = a;
 	float bestDistance = 1e34f;
 
-	for (int b = 0; b < topNodes.size(); b++) {
+	for (BVHTopNode*b:topNodes) {
 		if (b == a) continue;
 
-		float3 centerB = (topNodes[b]->bounds.bmin3 + topNodes[b]->bounds.bmax3) * 0.5f;
+		float3 centerB = (b->bounds.bmin3 + b->bounds.bmax3) * 0.5f;
 		float distance = length(centerB - centerA);
 		if (distance < bestDistance) {
 			bestDistance = distance;
@@ -96,7 +96,7 @@ void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const ma
 	if (modelIdx == -1) {
 		if (rayTracer.instances.size() > instanceIdx) rayTracer.instances.resize(instanceIdx);
 		if (rayTracer.topLevelBHVCount != instanceIdx) {
-			rayTracer.topLevelBVHs = (BVHTopNode*)MALLOC64(instanceIdx * sizeof(BVHTopNode));
+			rayTracer.topLevelBVHs = new BVHTopNode[instanceIdx]; // (BVHTopNode*)MALLOC64(instanceIdx * sizeof(BVHTopNode));
 			rayTracer.topLevelBHVCount = instanceIdx;
 		}
 		return;
@@ -271,28 +271,27 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge)
 }
 
 void RenderCore::UpdateTopLevel() {
-
 	vector<BVHTopNode*> topNodes(rayTracer.instances);
 	int topLevelBVHsPtr = 1;
 
-	int a = 0;
-	int b = FindBestMatch(a, topNodes);
+	BVHTopNode* a = topNodes.front();
+	BVHTopNode* b = FindBestMatch(a, topNodes);
 
 	while (topNodes.size() > 1) {
-		int c = FindBestMatch(b, topNodes);
+		BVHTopNode* c = FindBestMatch(b, topNodes);
 
 		if (a == c) {
-			BVHTopNode topNode = rayTracer.topLevelBVHs[topLevelBVHsPtr ++];
-			topNode.bvh = nullptr;
-			topNode.left = topNodes[a];
-			topNode.right = topNodes[b];
-			topNode.bounds = topNodes[a]->bounds.Union(topNodes[b]->bounds);
+			BVHTopNode*topNode = &rayTracer.topLevelBVHs[topLevelBVHsPtr ++];
+			topNode->bvh = nullptr;
+			topNode->left = a;
+			topNode->right = b;
+			topNode->bounds = a->bounds.Union(b->bounds);
 
-			topNodes.erase(topNodes.begin() + a);
-			topNodes.erase(topNodes.begin() + b);
-			topNodes.push_back(&topNode);
+			topNodes.erase(find(topNodes.begin(), topNodes.end(), a));
+			topNodes.erase(find(topNodes.begin(), topNodes.end(), b));
+			topNodes.push_back(topNode);
 
-			a = topNodes.size() - 1;
+			a = topNode;
 			b = FindBestMatch(a, topNodes);
 		}
 		else {
@@ -301,7 +300,7 @@ void RenderCore::UpdateTopLevel() {
 		}
 	}
 
-	rayTracer.topLevelBVHs[0] = *topNodes[0];
+	rayTracer.topLevelBVHs[0] = *topNodes.front();
 }
 
 //  +-----------------------------------------------------------------------------+
