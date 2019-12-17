@@ -4,10 +4,6 @@
 
 namespace lh2core
 {
-	enum Axis {
-		Xaxis = 0, Yaxis = 1, Zaxis = 2
-	};
-
 	//  +-----------------------------------------------------------------------------+
 	//  |  BVHNode                                                                    |
 	//  |  1: bounds contain 2 float3's to describe an axis aligned bounding box.	  |	
@@ -21,31 +17,48 @@ namespace lh2core
 	struct BVHNode {
 	public:
 		aabb bounds;
-		uint leftFirst;
-		uint count;
+		int leftFirst;
+		int count;
 
 		__inline aabb GetBounds() { return bounds; }
 		__inline bool IsLeaf() { return count != 0; }
-		__inline uint GetLeft() { return leftFirst; }
-		__inline uint GetRight() { return leftFirst + 1; }
+		__inline int GetLeft() { return leftFirst; }
+		__inline int GetRight() { return leftFirst + 1; }
 
-		__inline uint GetCount() { return count; }
-		__inline uint GetFirst() { return leftFirst; }
-
+		__inline int GetCount() { return count; }
+		__inline int GetFirst() { return leftFirst; }
 	};
 
 	class BVH {
 	public:
 		BVHNode* pool;
-		Mesh* mesh;
-		uint* indices;
+		int* indices;
 
-		void ConstructBVH(Mesh *mesh);
-		void Subdivide(const uint nodeIndex, const uint first, const uint last, uint &poolPtr);
-		void CalculateBounds(const uint first, const uint last, aabb &aabb);
-		void QuickSortPrimitives(const Axis axis, const uint first, const uint last);
-		int PartitionMedian(const BVHNode &node, const uint first, const uint last);
-		int PartitionSAH(BVHNode &node, uint first, uint last);
-		int PartitionNever(BVHNode & node, uint first, uint last);
+		float4* vertices = 0;		// vertex data received via SetGeometry
+		int vcount = 0;				// vertex count
+		CoreTri* triangles = 0;		// 'fat' triangle data
+
+		void ConstructBVH();
+		void Subdivide(const int nodeIndex, const int first, const int last, int &poolPtr);
+		void CalculateBounds(const int first, const int last, aabb &aabb);
+		void QuickSortPrimitives(const int axis, const int first, const int last);
+		int Median(BVHNode &node, const int first, const int last);
+		int BinningSurfaceAreaHeuristic(BVHNode &node, const int first, const int last);
+		int SurfaceAreaHeuristic(BVHNode &node, const int first, const int last);
+	};
+
+	class BVHTopNode {
+	public:
+		aabb bounds;
+		
+		// leaf
+		BVH* bvh;
+		mat4 transform;
+
+		// tree
+		BVHTopNode* left;
+		BVHTopNode* right;
+
+		__inline bool IsLeaf() const { return bvh == nullptr; }
 	};
 }
