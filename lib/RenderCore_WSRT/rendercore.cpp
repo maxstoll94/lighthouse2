@@ -271,6 +271,8 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge)
 }
 
 void RenderCore::UpdateTopLevel() {
+	if (rayTracer.instances.size() == 0) return;
+
 	vector<BVHTopNode*> topNodes(rayTracer.instances);
 	int topLevelBVHsPtr = 1;
 
