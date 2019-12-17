@@ -16,7 +16,6 @@
 #pragma once
 
 #include "system.h"
-#include "core_api_base.h"
 #ifdef RENDERSYSTEMBUILD
 // we will not expose these to the host application
 #define TINYGLTF_NO_STB_IMAGE_WRITE
@@ -53,6 +52,7 @@ typedef int tinyobjMaterial;
 #include "host_anim.h"
 #include "host_scene.h"
 #include "host_node.h"
+#include "core_api_base.h"
 #include "render_api.h"
 
 #ifdef RENDERSYSTEMBUILD
@@ -86,6 +86,7 @@ public:
 	void SetProbePos( int2 pos ) { if (core) core->SetProbePos( pos ); }
 	int GetTriangleMaterial( const int coreInstId, const int coreTriId );
 	int GetTriangleMesh( const int coreInstId, const int coreTriId );
+	int GetTriangleNode( const int coreInstId, const int coreTriId );
 	void Shutdown();
 	CoreStats GetCoreStats() { return core ? core->GetCoreStats() : CoreStats(); }
 	SystemStats GetSystemStats() { return stats; }

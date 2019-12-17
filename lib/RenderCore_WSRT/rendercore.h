@@ -37,8 +37,8 @@ public:
 		const CorePointLight* pointLights, const int pointLightCount, 
 		const CoreSpotLight* spotLights, const int spotLightCount, 
 		const CoreDirectionalLight* directionalLights, const int directionalLightCount);
-	void SetSkyData(const float3* pixels, const uint width, const uint height);
-	void SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, const int materialCount);
+	void SetSkyData(const float3* pixels, const uint width, const uint height, const mat4& worldToLight = mat4());
+	void SetMaterials(CoreMaterial* mat, const int materialCount);
 	void SetTextures(const CoreTexDesc* tex, const int textureCount);
 	void Render( const ViewPyramid& view, const Convergence converge );
 	void UpdateTopLevel();

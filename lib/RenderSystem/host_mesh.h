@@ -50,12 +50,12 @@ public:
 	// constructor / destructor
 	HostMesh() = default;
 	HostMesh( const int triCount );
-	HostMesh( const char* name, const char* dir, const float scale = 1.0f );
+	HostMesh( const char* name, const char* dir, const float scale = 1.0f, const bool flatShaded = false );
 	HostMesh( const tinygltfMesh& gltfMesh, const tinygltfModel& gltfModel, const int matIdxOffset, const int materialOverride = -1 );
 	~HostMesh();
 	// methods
-	void LoadGeometry( const char* file, const char* dir, const float scale = 1.0f );
-	void LoadGeometryFromOBJ( const string& fileName, const char* directory, const mat4& transform );
+	void LoadGeometry( const char* file, const char* dir, const float scale = 1.0f, const bool flatShaded = false );
+	void LoadGeometryFromOBJ( const string& fileName, const char* directory, const mat4& transform, const bool flatShaded = false );
 	void ConvertFromGTLFMesh( const tinygltfMesh& gltfMesh, const tinygltfModel& gltfModel, const int matIdxOffset, const int materialOverride );
 	void BuildFromIndexedData( const vector<int>& tmpIndices, const vector<float3>& tmpVertices,
 		const vector<float3>& tmpNormals, const vector<float2>& tmpUvs, const vector<Pose>& tmpPoses,
@@ -78,6 +78,7 @@ public:
 	vector<float4> weights;						// skinning: joint weights
 	vector<Pose> poses;							// morph target data
 	bool isAnimated;							// true when this mesh has animation data
+	bool excludeFromNavmesh = false;			// prevents mesh from influencing navmesh generation (e.g. curtains)
 	TRACKCHANGES;								// add Changed(), MarkAsDirty() methods, see system.h
 	// Note: design decision:
 	// Vertices and indices can be deduced from the list of HostTris, obviously. However, efficient intersection
