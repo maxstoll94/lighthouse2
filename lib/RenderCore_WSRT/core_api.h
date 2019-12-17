@@ -55,7 +55,7 @@ public:
 	// SetInstance: update the data on a single instance.
 	void SetInstance( const int instanceIdx, const int modelIdx, const mat4& transform );
 	// UpdateTopLevel: trigger a top-level BVH update.
-	void UpdateToplevel() { /* not implemented for the minimal core. */ }
+	void UpdateToplevel();
 };
 
 } // namespace lh2core

@@ -64,11 +64,14 @@ void PrepareScene()
 
 	// bunny
 	int bunnyId = renderer->AddMesh("bunny.obj", "data/bunny/", 1.0f);
-	bunny = renderer->AddInstance(bunnyId);
 
 	// teapot
-	/*int teapotId = renderer->AddMesh("teapot.obj", "data/teapot/", 1.0f);
-	renderer->AddInstance(teapotId);*/
+	//int teapotId = renderer->AddMesh("teapot.obj", "data/teapot/", 1.0f);
+	//renderer->AddInstance(teapotId, mat4::Translate(0.0, 0.0, 0.0));
+
+	for (int i = 0; i < 10; i++) {
+		renderer->AddInstance(bunnyId, mat4::Translate(0.0, 0.0, i * 5.0f));
+	}
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -165,7 +168,7 @@ int main()
 		if (HandleInput( deltaTime )) camMoved = true;
 
 		static float r = 0;
-		renderer->SetNodeTransform(bunny, mat4::RotateY(r * 2.0f) * mat4::RotateZ(0.2f * sinf(r * 8.0f)));
+		//renderer->SetNodeTransform(bunny, mat4::RotateY(r * 2.0f) * mat4::RotateZ(0.2f * sinf(r * 8.0f)));
 		r += deltaTime * 0.3f; if (r > 2 * PI) r -= 2 * PI;
 		camMoved = true;
 

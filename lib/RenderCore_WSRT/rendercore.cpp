@@ -22,6 +22,26 @@
 
 using namespace lh2core;
 
+int FindBestMatch(int a, const vector<BVHTopNode*>&topNodes) {
+	float3 centerA = (topNodes[a]->bounds.bmin3 + topNodes[a]->bounds.bmax3) * 0.5f;
+
+	int bestNode = a;
+	float bestDistance = 1e34f;
+
+	for (int b = 0; b < topNodes.size(); b++) {
+		if (b == a) continue;
+
+		float3 centerB = (topNodes[b]->bounds.bmin3 + topNodes[b]->bounds.bmax3) * 0.5f;
+		float distance = length(centerB - centerA);
+		if (distance < bestDistance) {
+			bestDistance = distance;
+			bestNode = b;
+		}
+	}
+
+	return bestNode;
+}
+
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::Init                                                           |
 //  |  Initialization.                                                      LH2'19|
@@ -34,20 +54,20 @@ void RenderCore::Init()
 //  |  RenderCore::SetTarget                                                      |
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
 //  +-----------------------------------------------------------------------------+
-void RenderCore::SetTarget( GLTexture* target )
+void RenderCore::SetTarget(GLTexture* target)
 {
 	// synchronize OpenGL viewport
 	targetTextureID = target->ID;
 	if (screen != 0 && target->width == screen->width && target->height == screen->height) return; // nothing changed
 	delete screen;
-	screen = new Bitmap( target->width, target->height );
+	screen = new Bitmap(target->width, target->height);
 }
 
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::SetGeometry                                                    |
 //  |  Set the geometry data for a model.                                   LH2'19|
 //  +-----------------------------------------------------------------------------+
-void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangleData, const uint* alphaFlags )
+void RenderCore::SetGeometry(const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangleData, const uint* alphaFlags)
 {
 	if (meshIdx >= rayTracer.bvhs.size()) {
 		// copy the supplied vertices; we cannot assume that the render system does not modify
@@ -75,6 +95,10 @@ void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const
 void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const mat4& transform) {
 	if (modelIdx == -1) {
 		if (rayTracer.instances.size() > instanceIdx) rayTracer.instances.resize(instanceIdx);
+		if (rayTracer.topLevelBHVCount != instanceIdx) {
+			rayTracer.topLevelBVHs = (BVHTopNode*)MALLOC64(instanceIdx * sizeof(BVHTopNode));
+			rayTracer.topLevelBHVCount = instanceIdx;
+		}
 		return;
 	}
 
@@ -163,8 +187,8 @@ void RenderCore::SetTextures(const CoreTexDesc* tex, const int textures) {
 			int hexValue = hexPixels[j];
 
 			t->pixels[j].x = ((hexValue >> 16) & 0xff) / 255.0;  // extract the rr byte
-			t->pixels[j].y = ((hexValue >> 8)  & 0xff) / 255.0;  // extract the gg byte
-			t->pixels[j].z = ((hexValue)       & 0xff) / 255.0;  // extract the bb byte
+			t->pixels[j].y = ((hexValue >> 8) & 0xff) / 255.0;  // extract the gg byte
+			t->pixels[j].z = ((hexValue) & 0xff) / 255.0;  // extract the bb byte
 		}
 	}
 }
@@ -187,7 +211,7 @@ void RenderCore::SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, co
 		else {
 			newMaterial->texture = rayTracer.texList[texId];
 			// we know this only now, so set it properly
-			newMaterial->texture->width  = mat[i].texwidth0; 
+			newMaterial->texture->width = mat[i].texwidth0;
 			newMaterial->texture->height = mat[i].texheight0;
 		}
 
@@ -244,6 +268,40 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screen->width, screen->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, screen->pixels);
 
 	coreStats.renderTime = frameTime.elapsed();
+}
+
+void RenderCore::UpdateTopLevel() {
+
+	vector<BVHTopNode*> topNodes(rayTracer.instances);
+	int topLevelBVHsPtr = 1;
+
+	int a = 0;
+	int b = FindBestMatch(a, topNodes);
+
+	while (topNodes.size() > 1) {
+		int c = FindBestMatch(b, topNodes);
+
+		if (a == c) {
+			BVHTopNode topNode = rayTracer.topLevelBVHs[topLevelBVHsPtr ++];
+			topNode.bvh = nullptr;
+			topNode.left = topNodes[a];
+			topNode.right = topNodes[b];
+			topNode.bounds = topNodes[a]->bounds.Union(topNodes[b]->bounds);
+
+			topNodes.erase(topNodes.begin() + a);
+			topNodes.erase(topNodes.begin() + b);
+			topNodes.push_back(&topNode);
+
+			a = topNodes.size() - 1;
+			b = FindBestMatch(a, topNodes);
+		}
+		else {
+			a = b;
+			b = c;
+		}
+	}
+
+	rayTracer.topLevelBVHs[0] = *topNodes[0];
 }
 
 //  +-----------------------------------------------------------------------------+

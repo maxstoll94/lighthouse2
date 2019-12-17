@@ -103,4 +103,9 @@ void CoreAPI::SetInstance( const int instanceIdx, const int modelIdx, const mat4
 	core->SetInstance( instanceIdx, modelIdx, transform );
 }
 
+void CoreAPI::UpdateToplevel() 
+{
+	core->UpdateTopLevel();
+}
+
 // EOF
