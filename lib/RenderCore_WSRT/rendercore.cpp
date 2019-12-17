@@ -69,27 +69,32 @@ void RenderCore::SetTarget(GLTexture* target)
 //  +-----------------------------------------------------------------------------+
 void RenderCore::SetGeometry(const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangleData, const uint* alphaFlags)
 {
+	BVH *bvh;
 	if (meshIdx >= rayTracer.bvhs.size()) {
 		// copy the supplied vertices; we cannot assume that the render system does not modify
 		// the original data after we leave this function.
 
-		BVH *bvh = new BVH;
+		bvh = new BVH;
 		bvh->vertices = new float4[vertexCount];
-		bvh->vcount = vertexCount;
-		memcpy(bvh->vertices, vertexData, vertexCount * sizeof(float4));
-		// copy the supplied 'fat triangles'
-		bvh->triangles = new CoreTri[vertexCount / 3];
-		memcpy(bvh->triangles, triangleData, (vertexCount / 3) * sizeof(CoreTri));
-
-		clock_t begin = clock();
-		bvh->ConstructBVH();
-		clock_t end = clock();
-
-		double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-		cout << "constructed bvh of " << vertexCount << " triangles in " << elapsed_secs << "s" << endl;
-
 		rayTracer.bvhs.push_back(bvh);
 	}
+	else {
+		bvh = rayTracer.bvhs[meshIdx];
+	}
+
+	bvh->vcount = vertexCount;
+	memcpy(bvh->vertices, vertexData, vertexCount * sizeof(float4));
+	// copy the supplied 'fat triangles'
+	bvh->triangles = new CoreTri[vertexCount / 3];
+	memcpy(bvh->triangles, triangleData, (vertexCount / 3) * sizeof(CoreTri));
+
+	clock_t begin = clock();
+	bvh->ConstructBVH();
+	clock_t end = clock();
+
+	double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+	cout << "constructed bvh of " << vertexCount << " triangles in " << elapsed_secs << "s" << endl;
+
 }
 
 void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const mat4& transform) {

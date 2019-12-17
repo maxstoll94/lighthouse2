@@ -63,15 +63,21 @@ void PrepareScene()
 	//renderer->AddInstance(multimaterialId);
 
 	// bunny
-	int bunnyId = renderer->AddMesh("bunny.obj", "data/bunny/", 1.0f);
+	//int bunnyId = renderer->AddMesh("bunny.obj", "data/bunny/", 1.0f);
 
 	// teapot
 	//int teapotId = renderer->AddMesh("teapot.obj", "data/teapot/", 1.0f);
 	//renderer->AddInstance(teapotId, mat4::Translate(0.0, 0.0, 0.0));
 
-	for (int i = 0; i < 10; i++) {
-		renderer->AddInstance(bunnyId, mat4::Translate(0.0, 0.0, i * 5.0f));
-	}
+	//for (int i = 0; i < 10; i++) {
+	//	renderer->AddInstance(bunnyId, mat4::Translate(0.0, 0.0, i * 5.0f));
+	//}
+/*
+	int cesiumId = renderer->AddScene("CesiumMan.glb", "data/");
+	renderer->AddInstance(cesiumId);*/
+
+	renderer->AddScene("CesiumMan.glb", "data/");
+	int rootNode = renderer->FindNode("RootNode (gltf orientation matrix)");
 }
 
 //  +-----------------------------------------------------------------------------+
