@@ -41,6 +41,7 @@ public:
 	void SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, const int materialCount);
 	void SetTextures(const CoreTexDesc* tex, const int textureCount);
 	void Render( const ViewPyramid& view, const Convergence converge );
+	void UpdateTopLevel();
 	void Shutdown();
 public:
 	WhittedStyleRayTracer rayTracer;

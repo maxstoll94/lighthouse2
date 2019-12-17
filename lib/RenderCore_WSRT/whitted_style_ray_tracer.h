@@ -14,6 +14,8 @@ namespace lh2core
 	public: 
 		vector<BVH*> bvhs;								// storing all bvh's
 		vector<BVHTopNode*> instances;
+		BVHTopNode* topLevelBVHs;
+		int topLevelBHVCount;
 		vector<CoreLightTri*> areaLights;				// point lights of the scene
 		vector<CorePointLight*> pointLights;			// point lights of the scene
 		vector<CoreDirectionalLight*> directionLights;	// direction lights of the scene
