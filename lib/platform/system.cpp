@@ -114,7 +114,7 @@ Bitmap::Bitmap( const char* f )
 	width = FreeImage_GetWidth( dib );
 	height = FreeImage_GetHeight( dib );
 	pixels = (uint*)MALLOC64( width * height * sizeof( uint ) );
-	for( uint y = 0; y < height; y++)
+	for (uint y = 0; y < height; y++)
 	{
 		unsigned const char *line = FreeImage_GetScanLine( dib, height - 1 - y );
 		memcpy( pixels + y * width, line, width * sizeof( uint ) );
@@ -149,6 +149,12 @@ bool FileExists( const char* f )
 {
 	std::ifstream s( f );
 	return s.good();
+}
+
+bool RemoveFile( const char* f )
+{
+	if (!FileExists( f )) return false;
+	return !remove( f );
 }
 
 uint FileSize( string filename )

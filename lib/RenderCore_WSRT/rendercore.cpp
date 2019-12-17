@@ -126,33 +126,24 @@ void RenderCore::SetTextures(const CoreTexDesc* tex, const int textures) {
 //  |  Update the material list used by the RenderCore. Textures referenced by    | 
 //  |  the materials must be set in advance.								LH2'19|
 //  +-----------------------------------------------------------------------------+
-void RenderCore::SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, const int materialCount) {
+void RenderCore::SetMaterials(CoreMaterial* mat, const int materialCount) {
 	for (int i = 0; i < materialCount; i++) {
 		CoreMaterial coreMaterial = mat[i];
 
 		Material newMaterial;
 
-		int texId = matEx[i].texture[TEXTURE0];
+		int texId = coreMaterial.color.textureID;
 		if (texId == -1) {
 			newMaterial.texture = 0;
 		}
 		else {
 			newMaterial.texture = rayTracer.texList[texId];
-			// we know this only now, so set it properly
-			newMaterial.texture->width  = mat[i].texwidth0; 
-			newMaterial.texture->height = mat[i].texheight0;
 		}
 
-		newMaterial.diffuse.x = coreMaterial.diffuse_r;
-		newMaterial.diffuse.y = coreMaterial.diffuse_g;
-		newMaterial.diffuse.z = coreMaterial.diffuse_b;
-
-		newMaterial.transmittance.x = coreMaterial.transmittance_r;
-		newMaterial.transmittance.y = coreMaterial.transmittance_g;
-		newMaterial.transmittance.z = coreMaterial.transmittance_b;
-
-		newMaterial.specularity = coreMaterial.specular();
-		newMaterial.transmission = coreMaterial.transmission();
+		newMaterial.diffuse = coreMaterial.color.value;
+		newMaterial.transmittance = coreMaterial.absorption.value;
+		newMaterial.specularity = coreMaterial.specular.value;
+		newMaterial.transmission = coreMaterial.transmission.value;
 
 		rayTracer.materials.push_back(newMaterial);
 	}
@@ -162,7 +153,7 @@ void RenderCore::SetMaterials(CoreMaterial* mat, const CoreMaterialEx* matEx, co
 //  |  RenderCore::SetSkyData                                                     |
 //  |  Specify the data required for sky dome rendering..                   LH2'19|
 //  +-----------------------------------------------------------------------------+
-void RenderCore::SetSkyData(const float3* pixels, const uint width, const uint height) {
+void RenderCore::SetSkyData(const float3* pixels, const uint width, const uint height, const mat4& worldToLight) {
 	rayTracer.skyDome.height = height;
 	rayTracer.skyDome.width = width;
 	rayTracer.skyDome.pixels = (float3*)MALLOC64(width * height * sizeof(float3));

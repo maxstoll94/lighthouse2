@@ -50,6 +50,16 @@ rd coredlls\release /S /Q
 
 rem | Clean up applications
 
+rd apps\ai_debugger\x64 /S /Q
+del apps\ai_debugger\data\textures\*.bin
+del apps\ai_debugger\data\sky_15.bin
+del apps\ai_debugger\*.exe /Q
+del apps\ai_debugger\*.iobj /Q
+del apps\ai_debugger\*.ipdb /Q
+del apps\ai_debugger\*.pdb /Q
+del apps\ai_debugger\*.ilk /Q
+del apps\ai_debugger\*.exp /Q
+del apps\ai_debugger\*.lib /Q
 rd apps\basicapp\x64 /S /Q
 del apps\basicapp\data\textures\*.bin
 del apps\basicapp\data\sky_15.bin
@@ -66,6 +76,8 @@ del apps\tinyapp\*.iobj /Q
 del apps\tinyapp\*.ipdb /Q
 del apps\tinyapp\*.pdb /Q
 del apps\tinyapp\*.ilk /Q
+del apps\tinyapp\*.exp /Q
+del apps\tinyapp\*.lib /Q
 rd apps\geneticapp\x64 /S /Q
 del apps\geneticapp\data\textures\*.bin
 del apps\geneticapp\data\sky_15.bin
