@@ -62,4 +62,12 @@ namespace lh2core
 
 		__inline bool IsLeaf() const { return bvh == nullptr; }
 	};
+
+	class BVHTop {
+	public:
+		BVHTopNode*root;
+		BVHTopNode* pool;
+		int bvhCount = 0;
+		void UpdateTopLevel(vector<BVHTopNode*> instances);
+	};
 }

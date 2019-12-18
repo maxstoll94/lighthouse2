@@ -22,32 +22,13 @@
 
 using namespace lh2core;
 
-BVHTopNode* FindBestMatch(BVHTopNode* a, const vector<BVHTopNode*>&topNodes) {
-	float3 centerA = (a->bounds.bmin3 + a->bounds.bmax3) * 0.5f;
-
-	BVHTopNode* bestNode = a;
-	float bestDistance = 1e34f;
-
-	for (BVHTopNode*b:topNodes) {
-		if (b == a) continue;
-
-		float3 centerB = (b->bounds.bmin3 + b->bounds.bmax3) * 0.5f;
-		float distance = length(centerB - centerA);
-		if (distance < bestDistance) {
-			bestDistance = distance;
-			bestNode = b;
-		}
-	}
-
-	return bestNode;
-}
-
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::Init                                                           |
 //  |  Initialization.                                                      LH2'19|
 //  +-----------------------------------------------------------------------------+
 void RenderCore::Init()
 {
+	rayTracer.bvhTop = new BVHTop();
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -100,9 +81,9 @@ void RenderCore::SetGeometry(const int meshIdx, const float4* vertexData, const 
 void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const mat4& transform) {
 	if (modelIdx == -1) {
 		if (rayTracer.instances.size() > instanceIdx) rayTracer.instances.resize(instanceIdx);
-		if (rayTracer.topLevelBHVCount != instanceIdx) {
-			rayTracer.topLevelBVHs = new BVHTopNode[instanceIdx]; // (BVHTopNode*)MALLOC64(instanceIdx * sizeof(BVHTopNode));
-			rayTracer.topLevelBHVCount = instanceIdx;
+		if (rayTracer.bvhTop->bvhCount != instanceIdx) {
+			rayTracer.bvhTop->pool = new BVHTopNode[instanceIdx - 1]; // (BVHTopNode*)MALLOC64(instanceIdx * sizeof(BVHTopNode));
+			rayTracer.bvhTop->bvhCount = instanceIdx;
 		}
 		return;
 	}
@@ -266,39 +247,8 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge)
 	coreStats.renderTime = frameTime.elapsed();
 }
 
-void RenderCore::UpdateTopLevel() {
-	if (rayTracer.instances.size() == 0) return;
-
-	vector<BVHTopNode*> topNodes(rayTracer.instances);
-	int topLevelBVHsPtr = 1;
-
-	BVHTopNode* a = topNodes.front();
-	BVHTopNode* b = FindBestMatch(a, topNodes);
-
-	while (topNodes.size() > 1) {
-		BVHTopNode* c = FindBestMatch(b, topNodes);
-
-		if (a == c) {
-			BVHTopNode*topNode = &rayTracer.topLevelBVHs[topLevelBVHsPtr ++];
-			topNode->bvh = nullptr;
-			topNode->left = a;
-			topNode->right = b;
-			topNode->bounds = a->bounds.Union(b->bounds);
-
-			topNodes.erase(find(topNodes.begin(), topNodes.end(), a));
-			topNodes.erase(find(topNodes.begin(), topNodes.end(), b));
-			topNodes.push_back(topNode);
-
-			a = topNode;
-			b = FindBestMatch(a, topNodes);
-		}
-		else {
-			a = b;
-			b = c;
-		}
-	}
-
-	rayTracer.topLevelBVHs[0] = *topNodes.front();
+void lh2core::RenderCore::UpdateTopLevel() {
+	rayTracer.bvhTop->UpdateTopLevel(rayTracer.instances);
 }
 
 //  +-----------------------------------------------------------------------------+

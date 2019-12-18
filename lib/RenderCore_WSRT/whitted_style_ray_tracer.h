@@ -12,10 +12,9 @@ namespace lh2core
 	class WhittedStyleRayTracer
 	{
 	public: 
-		vector<BVH*> bvhs;								// storing all bvh's
+		BVHTop* bvhTop;
 		vector<BVHTopNode*> instances;
-		BVHTopNode* topLevelBVHs;
-		int topLevelBHVCount;
+		vector<BVH*> bvhs;								// storing all bvh's
 		vector<CoreLightTri*> areaLights;				// point lights of the scene
 		vector<CorePointLight*> pointLights;			// point lights of the scene
 		vector<CoreDirectionalLight*> directionLights;	// direction lights of the scene

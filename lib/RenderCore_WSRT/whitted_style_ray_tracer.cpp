@@ -148,7 +148,7 @@ bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const bool bounded, 
 bool WhittedStyleRayTracer::NearestIntersection(const Ray &ray, Intersection &intersection, int &numberIntersections) {
 	bool foundIntersection = false;
 
-	if (topLevelBHVCount > 0) if (NearestIntersection(topLevelBVHs[0], ray, intersection, numberIntersections)) foundIntersection = true;
+	if (bvhTop->bvhCount > 0) if (NearestIntersection(*bvhTop->root, ray, intersection, numberIntersections)) foundIntersection = true;
 
 	if (foundIntersection) {
 		intersection.position = ray.origin + intersection.t * ray.direction;
