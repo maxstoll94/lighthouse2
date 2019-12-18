@@ -37,6 +37,23 @@ void BVH::ConstructBVH() {
 	//cout << endl;
 }
 
+void BVH::RefitBounds(const int nodeIndex) {
+	BVHNode&node = pool[nodeIndex];
+
+	if (node.IsLeaf()) {
+		CalculateBounds(node.GetLeft(), node.GetLeft() + node.GetCount() + 1, node.bounds);
+	}
+	else {
+		int left = node.GetLeft();
+		int right = node.GetRight();
+
+		RefitBounds(left);
+		RefitBounds(right);
+
+		node.bounds = pool[left].bounds.Union(pool[right].bounds);
+	}
+}
+
 void BVH::Subdivide(const int nodeIndex, const int first, const int last, int &poolPtr) {
 	BVHNode &node = pool[nodeIndex];
 	CalculateBounds(first, last, node.bounds);

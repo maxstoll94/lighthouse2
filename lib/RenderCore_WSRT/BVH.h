@@ -39,6 +39,7 @@ namespace lh2core
 		CoreTri* triangles = 0;		// 'fat' triangle data
 
 		void ConstructBVH();
+		void RefitBounds(const int nodeIndex);
 		void Subdivide(const int nodeIndex, const int first, const int last, int &poolPtr);
 		void CalculateBounds(const int first, const int last, aabb &aabb);
 		void QuickSortPrimitives(const int axis, const int first, const int last);
