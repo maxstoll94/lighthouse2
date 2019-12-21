@@ -58,6 +58,20 @@ void RenderCore::SetGeometry(const int meshIdx, const float4* vertexData, const 
 		bvh = new BVH;
 		bvh->vertices = new float4[vertexCount];
 		rayTracer.bvhs.push_back(bvh);
+
+		bvh->indices = new int[triangleCount];
+		for (int i = 0; i < triangleCount; i++) {
+			bvh->indices[i] = i;
+		}
+
+		bvh->centroids = new float4[triangleCount];
+		for (int i = 0; i < triangleCount; i++) {
+			bvh->centroids[i] = (vertexData[i * 3] + vertexData[i * 3 + 1] + vertexData[i * 3 + 2]) / 3;
+		}
+
+		bvh->pool = (BVHNode*)_aligned_malloc(triangleCount * 2 * sizeof(BVHNode), 64);
+
+		bvh->vcount = triangleCount;
 	}
 	else {
 		bvh = rayTracer.bvhs[meshIdx];
@@ -69,13 +83,7 @@ void RenderCore::SetGeometry(const int meshIdx, const float4* vertexData, const 
 	bvh->triangles = new CoreTri[vertexCount / 3];
 	memcpy(bvh->triangles, triangleData, (vertexCount / 3) * sizeof(CoreTri));
 
-	clock_t begin = clock();
-	bvh->ConstructBVH();
-	clock_t end = clock();
-
-	double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-	cout << "constructed bvh of " << vertexCount << " triangles in " << elapsed_secs << "s" << endl;
-
+	bvh->Update();
 }
 
 void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const mat4& transform) {

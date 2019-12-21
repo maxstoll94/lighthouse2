@@ -91,7 +91,7 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 	//return HSVtoRGB(numberIntersections, 1, 1);
 
 	// normal view
-	if (!foundIntersection) return SkyDomeColor(ray, *skyDome);
+	// if (!foundIntersection) return SkyDomeColor(ray, *skyDome);
 	if (!foundIntersection) return make_float3(0); else return (intersection.normal + 1.0f) * 0.5f;
 
 	//return HSVtoRGB((int)(intersection.t * 400) % 360, 1, 1);

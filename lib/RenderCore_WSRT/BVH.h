@@ -4,6 +4,8 @@
 
 namespace lh2core
 {
+	enum SubdivideHeuristic { Binning, MedianSplit, AllSplits };
+
 	//  +-----------------------------------------------------------------------------+
 	//  |  BVHNode                                                                    |
 	//  |  1: bounds contain 2 float3's to describe an axis aligned bounding box.	  |	
@@ -38,15 +40,16 @@ namespace lh2core
 		float4* centroids = 0;
 		int vcount = 0;				// vertex count
 		CoreTri* triangles = 0;		// 'fat' triangle data
+		int updateId = 0;
 
-		void ConstructBVH();
 		void RefitBounds(const int nodeIndex);
-		void Subdivide(const int nodeIndex, const int first, const int last, int&poolPtr);
+		void Subdivide(const SubdivideHeuristic subdivideHeuristc, const int nodeIndex, const int first, const int last, int&poolPtr);
 		void CalculateBounds(const int first, const int last, aabb&aabb);
 		void QuickSortPrimitives(const int axis, const int first, const int last);
 		int Median(BVHNode&node, const int first, const int last);
 		int BinningSurfaceAreaHeuristic(BVHNode&node, const int first, const int last);
 		int SurfaceAreaHeuristic(BVHNode&node, const int first, const int last);
+		void Update();
 	};
 
 	class BVHTopNode {

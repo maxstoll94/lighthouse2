@@ -11,42 +11,37 @@ void Swap(int* a, int* b) {
 	*b = t;
 }
 
-void BVH::ConstructBVH() {
-	int primitiveCount = vcount / 3;
-	indices = new int[primitiveCount];
-	for (int i = 0; i < primitiveCount; i++) {
-		indices[i] = i;
+void BVH::Update() {
+
+	//clock_t begin = clock();
+	//ConstructBVH();
+	//clock_t end = clock();
+
+	//double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+	//cout << "constructed bvh of " << vcount << " triangles in " << elapsed_secs << "s" << endl;
+
+	// only reconstruct BVH every 10 frames
+	// refit bvh every other time
+	if (updateId % 10 == 0) {
+		int nodeIndex = 0;
+		int first = 0;
+		int last = vcount / 3 - 1;
+		int poolPtr = 2;
+		Subdivide(Binning, nodeIndex, first, last, poolPtr);
+	}
+	else {
+		RefitBounds(0);
 	}
 
-	centroids = new float4[primitiveCount];
-	for (int i = 0; i < primitiveCount; i++) {
-		centroids[i] = (vertices[i * 3] + vertices[i * 3 + 1] + vertices[i * 3 + 2]) / 3;
-	}
+	updateId += 1;
 
-	pool = (BVHNode*)_aligned_malloc(primitiveCount * 2 * sizeof(BVHNode), 64);
-
-	int nodeIndex = 0;
-	int first = 0;
-	int last = primitiveCount - 1;
-	int poolPtr = 2;
-	Subdivide(nodeIndex, first, last, poolPtr);
-
-	//for (int i = 0; i < primitiveCount * 2; i++) {
-	//	if (pool[i].IsLeaf()) {
-	//		cout << i << ": LEAF[" << pool[i].GetFirst() << ": " << pool[i].GetCount() << "], ";
-	//	}
-	//	else {
-	//		cout << i << ": BRANCH[" << pool[i].GetLeft() << ", " << pool[i].GetRight() << "], ";
-	//	}
-	//}
-	//cout << endl;
 }
 
 void BVH::RefitBounds(const int nodeIndex) {
 	BVHNode&node = pool[nodeIndex];
 
 	if (node.IsLeaf()) {
-		CalculateBounds(node.GetLeft(), node.GetLeft() + node.GetCount() + 1, node.bounds);
+		CalculateBounds(node.GetLeft(), node.GetLeft() + node.GetCount() - 1, node.bounds);
 	}
 	else {
 		int left = node.GetLeft();
@@ -59,12 +54,22 @@ void BVH::RefitBounds(const int nodeIndex) {
 	}
 }
 
-void BVH::Subdivide(const int nodeIndex, const int first, const int last, int &poolPtr) {
+void BVH::Subdivide(const SubdivideHeuristic subdivideHeuristc, const int nodeIndex, const int first, const int last, int &poolPtr) {
 	BVHNode &node = pool[nodeIndex];
 	CalculateBounds(first, last, node.bounds);
-	//int splitIndex = Median(node, first, last);
-	int splitIndex = BinningSurfaceAreaHeuristic(node, first, last);
-	//int splitIndex = SurfaceAreaHeuristic(node, first, last);
+	int splitIndex;
+	switch (subdivideHeuristc) {
+	case Binning:
+		splitIndex = Median(node, first, last);
+		break;
+	case MedianSplit:
+		splitIndex = BinningSurfaceAreaHeuristic(node, first, last);
+		break;
+	case AllSplits:
+		splitIndex = SurfaceAreaHeuristic(node, first, last);
+		break;
+	}
+	
 
 	if (splitIndex == -1) {
 		node.count = last - first + 1;
@@ -75,8 +80,8 @@ void BVH::Subdivide(const int nodeIndex, const int first, const int last, int &p
 		poolPtr += 2;
 		node.count = 0;
 
-		Subdivide(node.GetLeft(), first, splitIndex, poolPtr);
-		Subdivide(node.GetRight(), splitIndex + 1, last, poolPtr);
+		Subdivide(subdivideHeuristc, node.GetLeft(), first, splitIndex, poolPtr);
+		Subdivide(subdivideHeuristc, node.GetRight(), splitIndex + 1, last, poolPtr);
 	}
 }
 
