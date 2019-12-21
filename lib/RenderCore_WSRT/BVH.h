@@ -35,38 +35,39 @@ namespace lh2core
 		int* indices;
 
 		float4* vertices = 0;		// vertex data received via SetGeometry
+		float4* centroids = 0;
 		int vcount = 0;				// vertex count
 		CoreTri* triangles = 0;		// 'fat' triangle data
 
 		void ConstructBVH();
 		void RefitBounds(const int nodeIndex);
-		void Subdivide(const int nodeIndex, const int first, const int last, int &poolPtr);
-		void CalculateBounds(const int first, const int last, aabb &aabb);
+		void Subdivide(const int nodeIndex, const int first, const int last, int&poolPtr);
+		void CalculateBounds(const int first, const int last, aabb&aabb);
 		void QuickSortPrimitives(const int axis, const int first, const int last);
-		int Median(BVHNode &node, const int first, const int last);
-		int BinningSurfaceAreaHeuristic(BVHNode &node, const int first, const int last);
-		int SurfaceAreaHeuristic(BVHNode &node, const int first, const int last);
+		int Median(BVHNode&node, const int first, const int last);
+		int BinningSurfaceAreaHeuristic(BVHNode&node, const int first, const int last);
+		int SurfaceAreaHeuristic(BVHNode&node, const int first, const int last);
 	};
 
 	class BVHTopNode {
 	public:
-		aabb bounds;
+		aabb bounds; // 24
 		
 		// leaf
-		BVH* bvh;
-		mat4 transform;
+		BVH* bvh; // 64
+		mat4 transform; //64
 
 		// tree
-		BVHTopNode* left;
-		BVHTopNode* right;
+		BVHTopNode*left; //64
+		BVHTopNode*right; //64
 
-		__inline bool IsLeaf() const { return bvh == nullptr; }
+		__inline bool IsLeaf() const { return bvh != nullptr; }
 	};
-
+	
 	class BVHTop {
 	public:
 		BVHTopNode*root;
-		BVHTopNode* pool;
+		BVHTopNode*pool;
 		int bvhCount = 0;
 		void UpdateTopLevel(vector<BVHTopNode*> instances);
 	};

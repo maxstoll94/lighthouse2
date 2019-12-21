@@ -18,7 +18,12 @@ void BVH::ConstructBVH() {
 		indices[i] = i;
 	}
 
-	pool = new BVHNode[primitiveCount * 2];
+	centroids = new float4[primitiveCount];
+	for (int i = 0; i < primitiveCount; i++) {
+		centroids[i] = (vertices[i * 3] + vertices[i * 3 + 1] + vertices[i * 3 + 2]) / 3;
+	}
+
+	pool = (BVHNode*)_aligned_malloc(primitiveCount * 2 * sizeof(BVHNode), 64);
 
 	int nodeIndex = 0;
 	int first = 0;
@@ -94,7 +99,7 @@ void BVH::QuickSortPrimitives(const int axis, const int first, const int last) {
 		int i = first - 1;
 
 		for (int j = first; j <= last - 1; j ++) {
-			if (get_axis(axis, vertices[indices[j] * 3]) <= pivot) {
+			if (get_axis(axis, centroids[indices[j]]) <= pivot) {
 				i++;
 				Swap(&indices[i], &indices[j]);
 			}
@@ -162,7 +167,7 @@ int BVH::BinningSurfaceAreaHeuristic(BVHNode &node, int first, int last) {
 		float splitPlane = minAxis + (maxAxis - minAxis) / numberOfBins * (i + 1);
 		int splitIndex = i == 0 ? first - 1 : splitIndices[i - 1];
 		for (int j = splitIndex + 1; j <= last; j++) {
-			if (get_axis(longestAxis, vertices[indices[j] * 3]) < splitPlane) {
+			if (get_axis(longestAxis, centroids[indices[j]]) < splitPlane) {
 				splitIndex++;
 				Swap(&indices[splitIndex], &indices[j]);
 			}
@@ -261,8 +266,8 @@ void BVHTop::UpdateTopLevel(vector<BVHTopNode*> instances) {
 	vector<BVHTopNode*> topNodes(instances);
 	int topLevelBVHsPtr = 0;
 
-	BVHTopNode* a = topNodes.front();
-	BVHTopNode* b = FindBestMatch(a, topNodes);
+	BVHTopNode*a = topNodes.front();
+	BVHTopNode*b = FindBestMatch(a, topNodes);
 
 	while (topNodes.size() > 1) {
 		BVHTopNode* c = FindBestMatch(b, topNodes);
