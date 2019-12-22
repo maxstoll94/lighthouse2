@@ -21,7 +21,7 @@
 static RenderAPI* renderer = 0;
 static GLTexture* renderTarget = 0;
 static Shader* shader = 0;
-static uint scrwidth = 0, scrheight = 0, scrspp = 1;
+static uint scrwidth = 0, scrheight = 0, scrspp = 1, bunny = 0;
 static bool camMoved = false, spaceDown = false, hasFocus = true, running = true, animPaused = false;
 static std::bitset<1024> keystates;
 static std::bitset<8> mbstates;
@@ -140,9 +140,10 @@ int main()
 	// initialize renderer: pick one
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_Optix7filter" );		// OPTIX7 core, with filtering (static scenes only for now)
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_Optix7" );			// OPTIX7 core, best for RTX devices
-	renderer = RenderAPI::CreateRenderAPI( "RenderCore_OptixPrime_B" );			// OPTIX PRIME, best for pre-RTX CUDA devices
+	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_OptixPrime_B" );			// OPTIX PRIME, best for pre-RTX CUDA devices
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_PrimeRef" );			// REFERENCE, for image validation
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_SoftRasterizer" );	// RASTERIZER, your only option if not on NVidia
+	renderer = RenderAPI::CreateRenderAPI( "RenderCore_WSRT" );
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_Minimal" );			// MINIMAL example, to get you started on your own core
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_Vulkan_RT" );			// Meir's Vulkan / RTX core
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_OptixPrime_BDPT" );	// Peter's OptixPrime / BDPT core
@@ -162,6 +163,12 @@ int main()
 		camMoved = renderer->GetCamera()->Changed();
 		deltaTime = timer.elapsed();
 		if (HandleInput( deltaTime )) camMoved = true;
+
+		static float r = 0;
+		renderer->SetNodeTransform(bunny, mat4::RotateY(r * 2.0f) * mat4::RotateZ(0.2f * sinf(r * 8.0f)));
+		r += deltaTime * 0.3f; if (r > 2 * PI) r -= 2 * PI;
+		camMoved = true;
+
 		// handle material changes
 		if (HandleMaterialChange()) camMoved = true;
 		// poll events, may affect probepos so needs to happen between HandleInput and Render
