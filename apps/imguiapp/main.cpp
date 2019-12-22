@@ -153,7 +153,7 @@ int main()
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_OptixPrime_B" );			// OPTIX PRIME, best for pre-RTX CUDA devices
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_PrimeRef" );			// REFERENCE, for image validation
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_SoftRasterizer" );	// RASTERIZER, your only option if not on NVidia
-	renderer = RenderAPI::CreateRenderAPI("RenderCore_WSRT");
+	renderer = RenderAPI::CreateRenderAPI( "RenderCore_WSRT" );
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_Minimal" );			// MINIMAL example, to get you started on your own core
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_Vulkan_RT" );			// Meir's Vulkan / RTX core
 	// renderer = RenderAPI::CreateRenderAPI( "RenderCore_OptixPrime_BDPT" );	// Peter's OptixPrime / BDPT core
@@ -172,7 +172,7 @@ int main()
 		// detect camera changes
 		camMoved = renderer->GetCamera()->Changed();
 		deltaTime = timer.elapsed();
-		if (HandleInput(deltaTime)) camMoved = true;
+		if (HandleInput( deltaTime )) camMoved = true;
 
 		static float r = 0;
 		renderer->SetNodeTransform(bunny, mat4::RotateY(r * 2.0f) * mat4::RotateZ(0.2f * sinf(r * 8.0f)));
