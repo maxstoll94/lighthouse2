@@ -123,7 +123,7 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 		float2 uv1 = make_float2(intersection.tri->u1, intersection.tri->v1);
 		float2 uv2 = make_float2(intersection.tri->u2, intersection.tri->v2);
 		float2 uv = (1 - intersection.u - intersection.v) * uv0 + intersection.u * uv1 + intersection.v * uv2;
-		GetColor(uv, *(material->texture));
+		diffuse = GetColor(uv, *(material->texture));
 	}
 
 	// return diffuse;

@@ -173,6 +173,7 @@ void RenderCore::SetTextures(const CoreTexDesc* tex, const int textures) {
 			rayTracer.texList.push_back(t = new Texture());
 		}
 		t->pixels = (float3*)MALLOC64(tex[i].pixelCount * sizeof(float3));
+		t->width = tex[i].width, t->height = tex[i].height;
 
 		uint* hexPixels = (uint*)MALLOC64(tex[i].pixelCount * sizeof(uint));
 		memcpy(hexPixels, tex[i].idata, tex[i].pixelCount * sizeof(uint));
