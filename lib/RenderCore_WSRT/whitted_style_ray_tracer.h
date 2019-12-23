@@ -23,10 +23,10 @@ namespace lh2core
 		vector<Texture*> texList;						// 2D representation of the texture
 		Texture*skyDome;								// sky dome of the scene
 
-		void Render(const ViewPyramid& view, Bitmap* screen);
+		void Render(const ViewPyramid& view, Bitmap* screen, CoreStats&coreStats);
 	private:
 		float3 Directllumination(const Intersection &intersection);
-		float3 Trace(Ray ray);
+		float3 Trace(Ray ray, CoreStats*coreStats);
 		bool NearestIntersection(const Ray&ray, Intersection&intersection, int&numberIntersections); // Returns the nearest intersection point, the normal and the material type.
 		bool NearestIntersection(const BVHTopNode&bvh, const Ray&ray, Intersection&intersection, int&numberIntersections);
 		bool NearestIntersection(const BVH&bvh, const uint nodeIndex, const Ray&ray, Intersection&intersection, int&numberIntersections);

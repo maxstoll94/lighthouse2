@@ -238,16 +238,16 @@ void RenderCore::SetSkyData(const float3* pixels, const uint width, const uint h
 //  +-----------------------------------------------------------------------------+
 void RenderCore::Render(const ViewPyramid& view, const Convergence converge)
 {
-	Timer t, frameTime{};
+	Timer frameTime{};
 	screen->Clear();
-	t.reset();
 	frameTime.reset();
 
-	rayTracer.Render(view, screen);
-
-	coreStats.traceTime0 = t.elapsed();
+	coreStats.traceTime0 = 0;
 	coreStats.primaryRayCount = screen->width * screen->height * 1;
 
+	rayTracer.Render(view, screen, coreStats);
+
+	
 	// copy pixel buffer to OpenGL render target texture
 	glBindTexture(GL_TEXTURE_2D, targetTextureID);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screen->width, screen->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, screen->pixels);

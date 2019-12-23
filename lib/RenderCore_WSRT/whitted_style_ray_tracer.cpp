@@ -58,7 +58,7 @@ bool BoundingBoxIntersection(const Ray &ray, const aabb &bounds, float &tmin, fl
 	return tmin < tmax;
 }
 
-void WhittedStyleRayTracer::Render(const ViewPyramid& view, Bitmap* screen) {
+void WhittedStyleRayTracer::Render(const ViewPyramid& view, Bitmap* screen, CoreStats&coreStats) {
 	float3 xDirection = (view.p2 - view.p1) / screen->width;
 	float3 yDirection = (view.p3 - view.p1) / screen->height;
 
@@ -72,21 +72,25 @@ void WhittedStyleRayTracer::Render(const ViewPyramid& view, Bitmap* screen) {
 			ray.origin = view.pos;
 			ray.bounces = defaultRayBounces;
 
-			float3 color = Trace(ray);
+			float3 color = Trace(ray, &coreStats);
 			int colorHex = (int(0xff * min(color.x, 1.0f)) + (int(0xff * min(color.y, 1.0f)) << 8) + (int(0xff * min(color.z, 1.0f)) << 16));
 			screen->Plot(u, v, colorHex);
 		}
 	}
 }
 
-float3 WhittedStyleRayTracer::Trace(Ray ray) {
+float3 WhittedStyleRayTracer::Trace(Ray ray, CoreStats*coreStats) {
 	if (ray.bounces < 0) return make_float3(0); //SkyDomeColor(ray, skyDome);
 
 	int numberIntersections = 0;
 
 	Intersection intersection;
 	intersection.t = 1e34f;
+
+	Timer t {};
+	t.reset();
 	bool foundIntersection = NearestIntersection(ray, intersection, numberIntersections);
+	if (coreStats != nullptr) coreStats->traceTime0 += t.elapsed();
 
 	// heatmap
 	//return HSVtoRGB(numberIntersections, 1, 1);
@@ -485,7 +489,7 @@ float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const Intersection &in
 	float k = 1 - n1n2 * n1n2 * (1 - cosO1 * cosO1);
 
 	// total internal reflection
-	if (k < kEpsilon) return Trace(Reflect(ray, intersection));
+	if (k < kEpsilon) return Trace(Reflect(ray, intersection), nullptr);
 
 	Ray refractRay;
 	refractRay.direction = n1n2 * ray.direction + N * (n1n2 * cosO1 - sqrt(k));
@@ -497,10 +501,10 @@ float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const Intersection &in
 
 	float3 diffuse = make_float3(0);
 	if (fr > kEpsilon) {
-		diffuse += fr * Trace(Reflect(ray, intersection));
+		diffuse += fr * Trace(Reflect(ray, intersection), nullptr);
 	}
 	if (ft > kEpsilon) {
-		diffuse += ft * Beer(ray, intersection, Trace(refractRay));
+		diffuse += ft * Beer(ray, intersection, Trace(refractRay, nullptr));
 	}
 
 	return diffuse;
