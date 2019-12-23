@@ -101,10 +101,10 @@ void BVH::Subdivide(const SubdivideHeuristic subdivideHeuristc, const int nodeIn
 	int splitIndex;
 	switch (subdivideHeuristc) {
 	case Binning:
-		splitIndex = Median(node, first, last);
+		splitIndex = BinningSurfaceAreaHeuristic(node, first, last);
 		break;
 	case MedianSplit:
-		splitIndex = BinningSurfaceAreaHeuristic(node, first, last);
+		splitIndex = Median(node, first, last);
 		break;
 	case AllSplits:
 		splitIndex = SurfaceAreaHeuristic(node, first, last);
