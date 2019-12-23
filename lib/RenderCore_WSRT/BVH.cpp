@@ -255,6 +255,8 @@ int BVH::BinningSurfaceAreaHeuristic(BVHNode &node, int first, int last) {
 }
 
 int BVH::SurfaceAreaHeuristic(BVHNode &node, int first, int last) {
+	if (last - first <= 3) return -1;
+
 	int longestAxis = node.bounds.LongestAxis();
 	QuickSortPrimitives(longestAxis, first, last);
 
