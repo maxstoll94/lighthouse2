@@ -243,9 +243,14 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge)
 	frameTime.reset();
 
 	coreStats.traceTime0 = 0;
-	coreStats.primaryRayCount = screen->width * screen->height * 1;
+	coreStats.traceTime1 = 0;
+	coreStats.shadowTraceTime = 0;
+	coreStats.primaryRayCount = 0;
+	coreStats.bounce1RayCount = 0;
+	coreStats.totalShadowRays = 0;
+	rayTracer.coreStats = &coreStats;
 
-	rayTracer.Render(view, screen, coreStats);
+	rayTracer.Render(view, screen);
 
 	
 	// copy pixel buffer to OpenGL render target texture

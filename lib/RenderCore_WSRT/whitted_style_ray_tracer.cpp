@@ -5,7 +5,7 @@
 using namespace lh2core;
 
 constexpr float kEpsilon = 1e-8;
-constexpr float defaultRayBounces = 2;
+constexpr int defaultRayBounces = 2;
 constexpr float bias = 0.0001;
 constexpr float refractiveIndexGlass = 1.5168;
 constexpr float refractiveIndexAir = 1.0;
@@ -45,7 +45,7 @@ bool IntersectsWithTriangle(const Ray &ray, const float3 &v0, const float3 &v1, 
 }
 
 // https://medium.com/@bromanz/another-view-on-the-classic-ray-aabb-intersection-algorithm-for-bvh-traversal-41125138b525
-bool BoundingBoxIntersection(const Ray &ray, const aabb &bounds, float &tmin, float &tmax) {
+bool BoundingBoxIntersection(const Ray &ray, const aabb &bounds, float&tmin, float&tmax) {
 	float3 invD = 1 / ray.direction;
 	float3 t0s = (bounds.bmin3 - ray.origin) * invD;
 	float3 t1s = (bounds.bmax3 - ray.origin) * invD;
@@ -59,7 +59,7 @@ bool BoundingBoxIntersection(const Ray &ray, const aabb &bounds, float &tmin, fl
 	return tmin < tmax;
 }
 
-void WhittedStyleRayTracer::Render(const ViewPyramid& view, Bitmap* screen, CoreStats&coreStats) {
+void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen) {
 	float3 xDirection = (view.p2 - view.p1) / screen->width;
 	float3 yDirection = (view.p3 - view.p1) / screen->height;
 
@@ -73,14 +73,14 @@ void WhittedStyleRayTracer::Render(const ViewPyramid& view, Bitmap* screen, Core
 			ray.origin = view.pos;
 			ray.bounces = defaultRayBounces;
 
-			float3 color = Trace(ray, &coreStats);
+			float3 color = Trace(ray);
 			int colorHex = (int(0xff * min(color.x, 1.0f)) + (int(0xff * min(color.y, 1.0f)) << 8) + (int(0xff * min(color.z, 1.0f)) << 16));
 			screen->Plot(u, v, colorHex);
 		}
 	}
 }
 
-float3 WhittedStyleRayTracer::Trace(Ray ray, CoreStats*coreStats) {
+float3 WhittedStyleRayTracer::Trace(Ray ray) {
 	if (ray.bounces < 0) return make_float3(0); //SkyDomeColor(ray, skyDome);
 
 	int numberIntersections = 0;
@@ -88,10 +88,18 @@ float3 WhittedStyleRayTracer::Trace(Ray ray, CoreStats*coreStats) {
 	Intersection intersection;
 	intersection.t = 1e34f;
 
-	Timer t {};
-	t.reset();
+	Timer t {}; t.reset();
 	bool foundIntersection = NearestIntersection(ray, intersection, numberIntersections);
-	if (coreStats != nullptr) coreStats->traceTime0 += t.elapsed();
+	switch (ray.bounces) {
+	case defaultRayBounces:
+		coreStats->primaryRayCount++;
+		coreStats->traceTime0 += t.elapsed();
+		break;
+	default:
+		coreStats->bounce1RayCount++;
+		coreStats->traceTime1 += t.elapsed();
+		break;
+	}
 
 	// heatmap
 	//return HSVtoRGB(numberIntersections, 1, 1);
@@ -146,7 +154,11 @@ float3 WhittedStyleRayTracer::Trace(Ray ray, CoreStats*coreStats) {
 }
 
 bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const bool bounded, const float distance) {
-	return bvhTop->bvhCount > 0 && HasIntersection(*bvhTop->root, ray, bounded, distance);
+	coreStats->totalShadowRays++;
+	Timer t{}; t.reset();
+	bool foundIntersection = bvhTop->bvhCount > 0 && HasIntersection(*bvhTop->root, ray, bounded, distance);
+	coreStats->shadowTraceTime += t.elapsed();
+	return foundIntersection;
 }
 
 bool WhittedStyleRayTracer::HasIntersection(const BVHTopNode &node, const Ray &ray, const bool bounded, const float distance) {
@@ -524,7 +536,7 @@ float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const Intersection &in
 	float k = 1 - n1n2 * n1n2 * (1 - cosO1 * cosO1);
 
 	// total internal reflection
-	if (k < kEpsilon) return Trace(Reflect(ray, intersection), nullptr);
+	if (k < kEpsilon) return Trace(Reflect(ray, intersection));
 
 	Ray refractRay;
 	refractRay.direction = n1n2 * ray.direction + N * (n1n2 * cosO1 - sqrt(k));
@@ -536,16 +548,16 @@ float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const Intersection &in
 
 	float3 diffuse = make_float3(0);
 	if (fr > kEpsilon) {
-		diffuse += fr * Trace(Reflect(ray, intersection), nullptr);
+		diffuse += fr * Trace(Reflect(ray, intersection));
 	}
 	if (ft > kEpsilon) {
-		diffuse += ft * Beer(ray, intersection, Trace(refractRay, nullptr));
+		diffuse += ft * Beer(intersection, Trace(refractRay));
 	}
 
 	return diffuse;
 }
 
-float3 WhittedStyleRayTracer::Beer(const Ray ray, const Intersection &intersection, float3 diffuse) {
+float3 WhittedStyleRayTracer::Beer(const Intersection &intersection, float3 diffuse) {
 	switch (intersection.side) {
 	case Front:
 		return diffuse;

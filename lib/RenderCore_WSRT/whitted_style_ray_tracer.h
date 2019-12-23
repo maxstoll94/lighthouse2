@@ -12,6 +12,7 @@ namespace lh2core
 	class WhittedStyleRayTracer
 	{
 	public: 
+		CoreStats*coreStats;
 		BVHTop* bvhTop;
 		vector<BVHTopNode*> instances;
 		vector<BVH*> bvhs;								// storing all bvh's
@@ -23,10 +24,10 @@ namespace lh2core
 		vector<Texture*> texList;						// 2D representation of the texture
 		Texture*skyDome;								// sky dome of the scene
 
-		void Render(const ViewPyramid& view, Bitmap* screen, CoreStats&coreStats);
+		void Render(const ViewPyramid& view, Bitmap* screen);
 	private:
 		float3 Directllumination(const Intersection &intersection);
-		float3 Trace(Ray ray, CoreStats*coreStats);
+		float3 Trace(Ray ray);
 		bool NearestIntersection(const Ray&ray, Intersection&intersection, int&numberIntersections); // Returns the nearest intersection point, the normal and the material type.
 		bool NearestIntersection(const BVHTopNode&bvh, const Ray&ray, Intersection&intersection, int&numberIntersections);
 		bool NearestIntersection(const BVH&bvh, const Ray&ray, Intersection&intersection, int&numberIntersections);
@@ -39,6 +40,6 @@ namespace lh2core
 		float3 GetColor(const float2 &uv, const Texture &texture);
 		float3 Dielectrics(const Ray &ray, const Intersection &intersection);
 		float Fresnel(const Ray &ray, const Intersection &intersection, const float n1, const float n2, const float cosOi);
-		float3 Beer(Ray ray, const Intersection &intersection, float3 diffuse);
+		float3 Beer(const Intersection &intersection, float3 diffuse);
 	};
 }
