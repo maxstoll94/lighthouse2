@@ -97,7 +97,7 @@ float3 WhittedStyleRayTracer::Trace(Ray ray, CoreStats*coreStats) {
 	//return HSVtoRGB(numberIntersections, 1, 1);
 
 	// normal view
-	return foundIntersection ? (intersection.normal + 1.0f) * 0.5f : make_float3(0);
+	// return foundIntersection ? (intersection.normal + 1.0f) * 0.5f : make_float3(0);
 
 	// depth view
 	//return HSVtoRGB((int)(intersection.t * 400) % 360, 1, 1);
@@ -159,7 +159,7 @@ bool WhittedStyleRayTracer::HasIntersection(const BVHTopNode &node, const Ray &r
 		mat4 transform = node.transform.Inverted();
 		transfomedRay.origin = make_float3(make_float4(ray.origin, 1.0f) * transform);
 		transfomedRay.direction = make_float3(make_float4(ray.direction, 0.0f) * transform);
-		if (HasIntersection(*(node.bvh), 0, transfomedRay, bounded, distance)) return true;
+		if (HasIntersection(*node.bvh, transfomedRay, bounded, distance)) return true;
 	}
 	else {
 		if (HasIntersection(*node.left, ray, bounded, distance)) return true;
@@ -169,45 +169,58 @@ bool WhittedStyleRayTracer::HasIntersection(const BVHTopNode &node, const Ray &r
 	return false;
 }
 
-bool WhittedStyleRayTracer::HasIntersection(const BVH &bvh, const uint nodeIndex, const Ray &ray, const bool bounded, const float distance) {
-	BVHNode *node = &(bvh.pool[nodeIndex]);
-
+bool WhittedStyleRayTracer::HasIntersection(const BVH &bvh, const Ray &ray, const bool bounded, const float distance) {
+	BVHNode node;
+	vector<int> stack;
+	int nodeId;
 	float tmin, tmax;
-	if (!BoundingBoxIntersection(ray, node->bounds, tmin, tmax)) return false;
-	if (tmax < kEpsilon || (bounded && tmin > distance)) return false;
+	float tminLeft, tmaxLeft;
+	float tminRight, tmaxRight;
+	int left, right;
+	float t, u, v;
+	Side side;
+	float3 a, b, c;
+	int index, i;
+	uint first, last;
+	bool intersectLeft, intersectRight;
 
-	if (node->count == 0) {
-		int splitAxis = node->bounds.LongestAxis();
-		bool signedRayDirection = get_axis(splitAxis, ray.direction) > 0;
+	//stack.reserve(30);
+	stack.reserve(log2(bvh.vcount / 3) * 1.5);
 
-		int left;
-		int right;
-		if (signedRayDirection) {
-			left = node->leftFirst;
+	if (BoundingBoxIntersection(ray, bvh.pool[0].bounds, tmin, tmax) && tmax > kEpsilon) stack.push_back(0);
+
+	while (!stack.empty()) {
+		node = bvh.pool[stack.back()];
+		stack.pop_back();
+
+		if (node.count == 0) {
+			left = node.leftFirst;
 			right = left + 1;
+
+			intersectLeft = BoundingBoxIntersection(ray, bvh.pool[left].bounds, tminLeft, tmaxLeft);
+			intersectRight = BoundingBoxIntersection(ray, bvh.pool[right].bounds, tminRight, tmaxRight);
+
+			if (tminLeft < tminRight) {
+				if (intersectRight && tmaxRight > kEpsilon) stack.push_back(right);
+				if (intersectLeft && tmaxLeft > kEpsilon) stack.push_back(left);
+			}
+			else {
+				if (intersectLeft && tmaxLeft > kEpsilon) stack.push_back(left);
+				if (intersectRight && tmaxRight > kEpsilon) stack.push_back(right);
+			}
 		}
 		else {
-			right = node->leftFirst;
-			left = right + 1;
-		}
+			first = node.leftFirst;
+			last = first + node.count;
 
-		if (HasIntersection(bvh, left, ray, bounded, distance)) return true;
-		if (HasIntersection(bvh, right, ray, bounded, distance)) return true;
-	}
-	else {
-		uint first = node->leftFirst;
-		uint last = first + node->count;
+			for (i = first; i < last; i++) {
+				index = bvh.indices[i] * 3;
+				a = make_float3(bvh.vertices[index]);
+				b = make_float3(bvh.vertices[index + 1]);
+				c = make_float3(bvh.vertices[index + 2]);
 
-		float t, u, v;
-		Side side;
-
-		for (int i = first; i < last; i++) {
-			int index = bvh.indices[i] * 3;
-			float3 a = make_float3(bvh.vertices[index]);
-			float3 b = make_float3(bvh.vertices[index + 1]);
-			float3 c = make_float3(bvh.vertices[index + 2]);
-
-			if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v) && t > kEpsilon && (!bounded || t < distance)) return true;
+				if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v) && t > kEpsilon) return true;
+			}
 		}
 	}
 
@@ -264,7 +277,7 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVH&bvh, const Ray &ray, I
 	float tmin, tmax;
 	float tminLeft, tmaxLeft;
 	float tminRight, tmaxRight;
-	int splitAxis, left, right;
+	int left, right;
 	float t, u, v;
 	Side side;
 	float3 a, b, c;

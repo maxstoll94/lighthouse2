@@ -32,7 +32,7 @@ namespace lh2core
 		bool NearestIntersection(const BVH&bvh, const Ray&ray, Intersection&intersection, int&numberIntersections);
 		bool HasIntersection(const Ray &ray, const bool isBounded, const float distance);
 		bool HasIntersection(const BVHTopNode & node, const Ray & ray, const bool bounded, const float distance);
-		bool HasIntersection(const BVH & bvh, const uint nodeIndex, const Ray & ray, const bool bounded, const float distance);
+		bool HasIntersection(const BVH & bvh, const Ray & ray, const bool bounded, const float distance);
 		// bool HasIntersection(const Ray &ray, const aabb &aabb, const bool isBounded, const float distance);
 		Ray Reflect(const Ray &ray, const Intersection &intersection);
 		float3 SkyDomeColor(const Ray &ray, const Texture &texture);
