@@ -3,7 +3,7 @@
 
 using namespace lh2core;
 
-constexpr int numberOfBins = 8;
+constexpr int numberOfBins = 32;
 
 void Swap(int* a, int* b) {
 	int t = *a;
