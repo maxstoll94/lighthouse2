@@ -11,27 +11,48 @@ void Swap(int* a, int* b) {
 	*b = t;
 }
 
-void BVH::Update() {
+void BVH::Update(AnimationType animationType) {
+	int nodeIndex = 0;
+	int first = 0;
+	int last = vcount / 3 - 1;
+	int poolPtr = 2;
 
-	//clock_t begin = clock();
-	//ConstructBVH();
-	//clock_t end = clock();
+	switch (animationType) {
+	case StaticAnimation: 
+		// model has no animation
+		if (updateId == 0) {
+			clock_t begin = clock();
+			Subdivide(Binning, nodeIndex, first, last, poolPtr);
+			clock_t end = clock();
+			double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+			cout << "constructed bvh of " << vcount << " triangles in " << elapsed_secs << "s" << endl;
+		}
 
-	//double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-	//cout << "constructed bvh of " << vcount << " triangles in " << elapsed_secs << "s" << endl;
+		break;
 
-	// only reconstruct BVH every 10 frames
-	// refit bvh every other time
-	if (updateId % 10 == 0) {
-		int nodeIndex = 0;
-		int first = 0;
-		int last = vcount / 3 - 1;
-		int poolPtr = 2;
-		Subdivide(Binning, nodeIndex, first, last, poolPtr);
+	case ModestAnimation:
+		if (updateId == 0) {
+			Subdivide(Binning, nodeIndex, first, last, poolPtr);
+		}
+		else {
+			GrowBounds();
+		}
+
+		break;
+
+	case DynamicAnimation:
+		// only reconstruct BVH every 10 frames
+		if (updateId % 10 == 0) {
+			Subdivide(MedianSplit, nodeIndex, first, last, poolPtr);
+		}
+		// refit bvh every other time
+		else {
+			RefitBounds();
+		}
+
+		break;
 	}
-	else {
-		RefitBounds(0);
-	}
+
 
 	updateId += 1;
 
@@ -53,6 +74,26 @@ void BVH::RefitBounds(const int nodeIndex) {
 		node.bounds = pool[left].bounds.Union(pool[right].bounds);
 	}
 }
+
+void BVH::GrowBounds(const int nodeIndex) {
+	BVHNode&node = pool[nodeIndex];
+
+	if (node.IsLeaf()) {
+		aabb bounds;
+		CalculateBounds(node.GetLeft(), node.GetLeft() + node.GetCount() - 1, bounds);
+		node.bounds.Grow(bounds);
+	}
+	else {
+		int left = node.GetLeft();
+		int right = node.GetRight();
+
+		RefitBounds(left);
+		RefitBounds(right);
+
+		node.bounds = pool[left].bounds.Union(pool[right].bounds);
+	}
+}
+
 
 void BVH::Subdivide(const SubdivideHeuristic subdivideHeuristc, const int nodeIndex, const int first, const int last, int &poolPtr) {
 	BVHNode &node = pool[nodeIndex];
@@ -85,7 +126,7 @@ void BVH::Subdivide(const SubdivideHeuristic subdivideHeuristc, const int nodeIn
 	}
 }
 
-void BVH::CalculateBounds(const int first, const int last, aabb &bounds) {
+void BVH::CalculateBounds(const int first, const int last, aabb&bounds) {
 	bounds.Reset();
 
 	for (int i = first; i <= last; i ++) {

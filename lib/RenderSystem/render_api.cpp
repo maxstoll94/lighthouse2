@@ -71,9 +71,9 @@ void RenderAPI::AddTriToMesh( const int meshId, const float3& v0, const float3& 
 	return renderer->scene->AddTriToMesh( meshId, v0, v1, v2, matId );
 }
 
-int RenderAPI::AddScene( const char* file, const char* dir, const mat4& transform )
+int RenderAPI::AddScene( const char* file, const char* dir, const AnimationType animationType, const mat4& transform )
 {
-	return renderer->scene->AddScene( file, dir, transform );
+	return renderer->scene->AddScene( file, dir, animationType, transform);
 }
 
 int RenderAPI::AddQuad( const float3 N, const float3 pos, const float width, const float height, const int material, const int meshID )

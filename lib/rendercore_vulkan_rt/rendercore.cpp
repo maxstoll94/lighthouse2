@@ -535,7 +535,7 @@ void RenderCore::SetTarget( GLTexture *target, const uint spp )
 //  |  RenderCore::SetGeometry                                                    |
 //  |  Set the geometry data for a model.                                   LH2'19|
 //  +-----------------------------------------------------------------------------+
-void RenderCore::SetGeometry( const int meshIdx, const float4 *vertexData, const int vertexCount, const int triangleCount, const CoreTri *triangles, const uint *alphaFlags )
+void RenderCore::SetGeometry( const int meshIdx, const float4 *vertexData, const int vertexCount, const int triangleCount, const CoreTri *triangles, const AnimationType animationType, const uint *alphaFlags )
 {
 	if (meshIdx >= m_Meshes.size())
 	{

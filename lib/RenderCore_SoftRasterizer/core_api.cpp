@@ -105,9 +105,9 @@ void CoreAPI::SetSkyData( const float3* pixels, const uint width, const uint hei
 	core->SetSkyData( pixels, width, height );
 }
 
-void CoreAPI::SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangles, const uint* alphaFlags )
+void CoreAPI::SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangles, const AnimationType animationType, const uint* alphaFlags )
 {
-	core->SetGeometry( meshIdx, vertexData, vertexCount, triangleCount, triangles, alphaFlags );
+	core->SetGeometry( meshIdx, vertexData, vertexCount, triangleCount, triangles, animationType, alphaFlags );
 }
 
 void CoreAPI::SetInstance( const int instanceIdx, const int modelIdx, const mat4& transform )

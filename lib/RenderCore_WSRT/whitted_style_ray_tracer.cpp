@@ -88,13 +88,13 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 	intersection.t = 1e34f;
 	bool foundIntersection = NearestIntersection(ray, intersection, numberIntersections);
 
-	//return HSVtoRGB(numberIntersections, 1, 1);
+	return HSVtoRGB(numberIntersections, 1, 1);
 
 	// normal view
 	// if (!foundIntersection) return SkyDomeColor(ray, *skyDome);
-	if (!foundIntersection) return make_float3(0); else return (intersection.normal + 1.0f) * 0.5f;
+	// if (!foundIntersection) return make_float3(0); else return (intersection.normal + 1.0f) * 0.5f;
 
-	//return HSVtoRGB((int)(intersection.t * 400) % 360, 1, 1);
+	// return HSVtoRGB((int)(intersection.t * 400) % 360, 1, 1);
 
 
 	Material*material = materials[intersection.tri->material];
@@ -189,7 +189,7 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 	float tmin, tmax;
 	numberIntersections++;
 	if (!BoundingBoxIntersection(ray, node->bounds, tmin, tmax)) return false;
-	if (tmin < 0 || tmin > intersection.t) return false;
+	if (tmax < 0 || tmin > intersection.t) return false;
 
 	float foundIntersection = false;
 
@@ -215,11 +215,6 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 		uint first = node->leftFirst;
 		uint last = first + node->count;
 
-		float bestT = intersection.t;
-		float bestU, bestV;
-		Side bestSide;
-		int bestTri;
-
 		float t, u, v;
 		Side side;
 
@@ -229,22 +224,14 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 			float3 b = make_float3(bvh.vertices[index + 1]);
 			float3 c = make_float3(bvh.vertices[index + 2]);
 
-			if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v) && t > kEpsilon && t < bestT) {
-				bestT = t;
-				bestU = u;
-				bestV = v;
-				bestSide = side;
-				bestTri = i;
+			if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v) && t > 0 && t < intersection.t) {
+				intersection.t = t;
+				intersection.u = u;
+				intersection.v = v;
+				intersection.side = side;
+				intersection.tri = &bvh.triangles[bvh.indices[i]];
 				foundIntersection = true;
 			}
-		}
-
-		if (foundIntersection) {
-			intersection.t = bestT;
-			intersection.u = bestU;
-			intersection.v = bestV;
-			intersection.tri = &(bvh.triangles[bvh.indices[bestTri]]);
-			intersection.side = bestSide;
 		}
 	}
 

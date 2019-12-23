@@ -84,9 +84,9 @@ void CoreAPI::SetMaterials( CoreMaterial* mat, const int materialCount )
 	core->SetMaterials( mat, materialCount );
 }
 
-void CoreAPI::SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangles, const uint* alphaFlags )
+void CoreAPI::SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangles, const AnimationType animationType, const uint* alphaFlags )
 {
-	core->SetGeometry( meshIdx, vertexData, vertexCount, triangleCount, triangles, alphaFlags );
+	core->SetGeometry( meshIdx, vertexData, vertexCount, triangleCount, triangles, animationType, alphaFlags );
 }
 
 void CoreAPI::SetLights(const CoreLightTri* areaLights, const int areaLightCount,

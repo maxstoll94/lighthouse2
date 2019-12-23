@@ -42,14 +42,15 @@ namespace lh2core
 		CoreTri* triangles = 0;		// 'fat' triangle data
 		int updateId = 0;
 
-		void RefitBounds(const int nodeIndex);
+		void RefitBounds(const int nodeIndex = 0);
+		void GrowBounds(const int nodeIndex = 0);
 		void Subdivide(const SubdivideHeuristic subdivideHeuristc, const int nodeIndex, const int first, const int last, int&poolPtr);
 		void CalculateBounds(const int first, const int last, aabb&aabb);
 		void QuickSortPrimitives(const int axis, const int first, const int last);
 		int Median(BVHNode&node, const int first, const int last);
 		int BinningSurfaceAreaHeuristic(BVHNode&node, const int first, const int last);
 		int SurfaceAreaHeuristic(BVHNode&node, const int first, const int last);
-		void Update();
+		void Update(AnimationType animationType);
 	};
 
 	class BVHTopNode {

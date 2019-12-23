@@ -48,7 +48,7 @@ void RenderCore::SetTarget(GLTexture* target)
 //  |  RenderCore::SetGeometry                                                    |
 //  |  Set the geometry data for a model.                                   LH2'19|
 //  +-----------------------------------------------------------------------------+
-void RenderCore::SetGeometry(const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangleData, const uint* alphaFlags)
+void RenderCore::SetGeometry(const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangleData, const AnimationType animationType, const uint* alphaFlags)
 {
 	BVH *bvh;
 	if (meshIdx >= rayTracer.bvhs.size()) {
@@ -83,7 +83,7 @@ void RenderCore::SetGeometry(const int meshIdx, const float4* vertexData, const 
 	bvh->triangles = new CoreTri[vertexCount / 3];
 	memcpy(bvh->triangles, triangleData, (vertexCount / 3) * sizeof(CoreTri));
 
-	bvh->Update();
+	bvh->Update(animationType);
 }
 
 void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const mat4& transform) {
