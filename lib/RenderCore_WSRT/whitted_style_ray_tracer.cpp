@@ -5,7 +5,7 @@ using namespace lh2core;
 
 constexpr float kEpsilon = 1e-8;
 constexpr float defaultRayBounces = 2;
-constexpr float bias = 0.00001;
+constexpr float bias = 0.0001;
 constexpr float refractiveIndexGlass = 1.5168;
 constexpr float refractiveIndexAir = 1.0;
 constexpr uint softLightRays = 10;
@@ -88,14 +88,16 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 	intersection.t = 1e34f;
 	bool foundIntersection = NearestIntersection(ray, intersection, numberIntersections);
 
-	return HSVtoRGB(numberIntersections, 1, 1);
+	// heatmap
+	//return HSVtoRGB(numberIntersections, 1, 1);
 
 	// normal view
-	// if (!foundIntersection) return SkyDomeColor(ray, *skyDome);
-	// if (!foundIntersection) return make_float3(0); else return (intersection.normal + 1.0f) * 0.5f;
+	//return foundIntersection ? (intersection.normal + 1.0f) * 0.5f : make_float3(0);
 
-	// return HSVtoRGB((int)(intersection.t * 400) % 360, 1, 1);
+	// depth view
+	//return HSVtoRGB((int)(intersection.t * 400) % 360, 1, 1);
 
+	if (!foundIntersection) return SkyDomeColor(ray, *skyDome);
 
 	Material*material = materials[intersection.tri->material];
 
@@ -112,12 +114,9 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 	}
 
 	// return diffuse;
-
-	//return diffuse * Directllumination(intersection);
-
+	return diffuse * Directllumination(intersection);
 	//return Trace(Reflect(ray, intersection));
-
-	return Dielectrics(ray, intersection);
+	//return Dielectrics(ray, intersection);
 
 	//// just render the color of the light
 	//if (diffuse.x > 1.0 || diffuse.y > 1.0 || diffuse.z > 1.0) return diffuse;
@@ -142,8 +141,75 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 }
 
 bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const bool bounded, const float distance) {
+	return bvhTop->bvhCount > 0 && HasIntersection(*bvhTop->root, ray, bounded, distance);
+}
+
+bool WhittedStyleRayTracer::HasIntersection(const BVHTopNode &node, const Ray &ray, const bool bounded, const float distance) {
+	float tmin, tmax;
+	if (!BoundingBoxIntersection(ray, node.bounds, tmin, tmax)) return false;
+	if (tmax < kEpsilon || (bounded && tmin > distance)) return false;
+
+	if (node.bvh != nullptr) {
+		Ray transfomedRay;
+		mat4 transform = node.transform.Inverted();
+		transfomedRay.origin = make_float3(make_float4(ray.origin, 1.0f) * transform);
+		transfomedRay.direction = make_float3(make_float4(ray.direction, 0.0f) * transform);
+		if (HasIntersection(*(node.bvh), 0, transfomedRay, bounded, distance)) return true;
+	}
+	else {
+		if (HasIntersection(*node.left, ray, bounded, distance)) return true;
+		if (HasIntersection(*node.right, ray, bounded, distance)) return true;
+	}
+
 	return false;
 }
+
+bool WhittedStyleRayTracer::HasIntersection(const BVH &bvh, const uint nodeIndex, const Ray &ray, const bool bounded, const float distance) {
+	BVHNode *node = &(bvh.pool[nodeIndex]);
+
+	float tmin, tmax;
+	if (!BoundingBoxIntersection(ray, node->bounds, tmin, tmax)) return false;
+	if (tmax < kEpsilon || (bounded && tmin > distance)) return false;
+
+	if (node->count == 0) {
+		int splitAxis = node->bounds.LongestAxis();
+		bool signedRayDirection = get_axis(splitAxis, ray.direction) > 0;
+
+		int left;
+		int right;
+		if (signedRayDirection) {
+			left = node->leftFirst;
+			right = left + 1;
+		}
+		else {
+			right = node->leftFirst;
+			left = right + 1;
+		}
+
+		if (HasIntersection(bvh, left, ray, bounded, distance)) return true;
+		if (HasIntersection(bvh, right, ray, bounded, distance)) return true;
+	}
+	else {
+		uint first = node->leftFirst;
+		uint last = first + node->count;
+
+		float t, u, v;
+		Side side;
+
+		for (int i = first; i < last; i++) {
+			int index = bvh.indices[i] * 3;
+			float3 a = make_float3(bvh.vertices[index]);
+			float3 b = make_float3(bvh.vertices[index + 1]);
+			float3 c = make_float3(bvh.vertices[index + 2]);
+
+			if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v) && t > kEpsilon && (!bounded || t < distance)) return true;
+		}
+	}
+
+	return false;
+}
+
+
 
 bool WhittedStyleRayTracer::NearestIntersection(const Ray &ray, Intersection &intersection, int &numberIntersections) {
 	bool foundIntersection = false;
@@ -164,7 +230,7 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVHTopNode &node, const Ra
 	float tmin, tmax;
 	numberIntersections++;
 	if (!BoundingBoxIntersection(ray, node.bounds, tmin, tmax)) return false;
-	if (tmin < 0 || tmin > intersection.t) return false;
+	if (tmax < kEpsilon || tmin > intersection.t) return false;
 
 	if (node.bvh != nullptr) {
 		Ray transfomedRay;
@@ -189,7 +255,7 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 	float tmin, tmax;
 	numberIntersections++;
 	if (!BoundingBoxIntersection(ray, node->bounds, tmin, tmax)) return false;
-	if (tmax < 0 || tmin > intersection.t) return false;
+	if (tmax < kEpsilon || tmin > intersection.t) return false;
 
 	float foundIntersection = false;
 
@@ -224,7 +290,7 @@ bool WhittedStyleRayTracer::NearestIntersection(const BVH &bvh, const uint nodeI
 			float3 b = make_float3(bvh.vertices[index + 1]);
 			float3 c = make_float3(bvh.vertices[index + 2]);
 
-			if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v) && t > 0 && t < intersection.t) {
+			if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v) && t > kEpsilon && t < intersection.t) {
 				intersection.t = t;
 				intersection.u = u;
 				intersection.v = v;
@@ -419,7 +485,7 @@ float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const Intersection &in
 	float k = 1 - n1n2 * n1n2 * (1 - cosO1 * cosO1);
 
 	// total internal reflection
-	if (k < 0) return Trace(Reflect(ray, intersection));
+	if (k < kEpsilon) return Trace(Reflect(ray, intersection));
 
 	Ray refractRay;
 	refractRay.direction = n1n2 * ray.direction + N * (n1n2 * cosO1 - sqrt(k));

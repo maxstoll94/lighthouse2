@@ -77,7 +77,7 @@ public:
 	vector<uint4> joints;						// skinning: joints
 	vector<float4> weights;						// skinning: joint weights
 	vector<Pose> poses;							// morph target data
-	AnimationType animationType;
+	AnimationType animationType = StaticAnimation;
 	bool isAnimated;							// true when this mesh has animation data
 	bool excludeFromNavmesh = false;			// prevents mesh from influencing navmesh generation (e.g. curtains)
 	TRACKCHANGES;								// add Changed(), MarkAsDirty() methods, see system.h
