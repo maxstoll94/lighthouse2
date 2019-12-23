@@ -29,7 +29,7 @@ namespace lh2core
 		float3 Trace(Ray ray, CoreStats*coreStats);
 		bool NearestIntersection(const Ray&ray, Intersection&intersection, int&numberIntersections); // Returns the nearest intersection point, the normal and the material type.
 		bool NearestIntersection(const BVHTopNode&bvh, const Ray&ray, Intersection&intersection, int&numberIntersections);
-		bool NearestIntersection(const BVH&bvh, const uint nodeIndex, const Ray&ray, Intersection&intersection, int&numberIntersections);
+		bool NearestIntersection(const BVH&bvh, const Ray&ray, Intersection&intersection, int&numberIntersections);
 		bool HasIntersection(const Ray &ray, const bool isBounded, const float distance);
 		bool HasIntersection(const BVHTopNode & node, const Ray & ray, const bool bounded, const float distance);
 		bool HasIntersection(const BVH & bvh, const uint nodeIndex, const Ray & ray, const bool bounded, const float distance);
