@@ -52,34 +52,25 @@ void PrepareScene()
 	// renderer->AddPointLight(make_float3(20, 30, 10), make_float3(1000, 1000, 1000), 1.0, true);
 
 	// directional light
-	//renderer->AddDirectionalLight(make_float3(0.2, -1, 0), make_float3(1, 1, 1), true);
-
-	// textured dice
-	// int diceId = renderer->AddMesh("dice.obj", "data/dice/", 1.0f);
-	// renderer->AddInstance(diceId);
-
-	// multiMaterial
-	//int multimaterialId = renderer->AddMesh("multimaterial.obj", "data/multimaterial/", 1.0f);
-	//renderer->AddInstance(multimaterialId);
+	renderer->AddDirectionalLight(make_float3(-0.2, -1, -0.1), make_float3(1, 1, 1), true);
 
 	// bunny
 	int bunnyId = renderer->AddMesh("bunny.obj", "data/bunny/", 1.0f);
-	bunny = renderer->AddInstance(bunnyId, mat4::Translate(0.0, 0.0, 5.0f));
+	bunny = renderer->AddInstance(bunnyId);
 
-	//for (int i = 0; i < 10; i++) {
-	//	renderer->AddInstance(bunnyId, mat4::Translate(0.0, 0.0, i * 5.0f));
-	//}
+	renderer->AddScene("CesiumMan.glb", "data/", DynamicAnimation, mat4::Translate(0.0, 0.0, 5.0f));
+	
+	//renderer->AddScene("plant.gltf", "data/plant/", DynamicAnimation, mat4::Translate(0.0, 0.0, -5.0f));
 
 	// teapot
 	//int teapotId = renderer->AddMesh("teapot.obj", "data/teapot/", 1.0f);
-	//renderer->AddInstance(teapotId, mat4::Translate(0.0, 0.0, 0.0));
+	//for (int i = 0; i < 10; i++) {
+	//	renderer->AddInstance(teapotId, mat4::Translate(0.0, 0.0, i * 5.0f));
+	//}
 
-	//renderer->AddScene("CesiumMan.glb", "data/");
-	//int rootNode = renderer->FindNode("RootNode (gltf orientation matrix)");
-
-	// bunny
-	//int bunnyId = renderer->AddMesh("dragon.obj", "data/dragon/", 1.0f);
-	//bunny = renderer->AddInstance(bunnyId, mat4::Translate(0.0, 0.0, 5.0f));
+	// dragon
+	//int dragon = renderer->AddMesh("dragon.obj", "data/dragon/", 1.0f);
+	//renderer->AddInstance(dragon, mat4::Translate(0.0, 0.0, 5.0f));
 }
 
 //  +-----------------------------------------------------------------------------+
