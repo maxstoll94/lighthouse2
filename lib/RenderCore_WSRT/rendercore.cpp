@@ -18,6 +18,7 @@
 #include <math.h>
 #include "rendercore.h"
 #include "rendersystem.h"
+#include <ctime>
 
 using namespace lh2core;
 
@@ -27,40 +28,97 @@ using namespace lh2core;
 //  +-----------------------------------------------------------------------------+
 void RenderCore::Init()
 {
+	rayTracer.bvhTop = new BVHTop();
 }
 
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::SetTarget                                                      |
 //  |  Set the OpenGL texture that serves as the render target.             LH2'19|
 //  +-----------------------------------------------------------------------------+
-void RenderCore::SetTarget( GLTexture* target )
+void RenderCore::SetTarget(GLTexture* target)
 {
 	// synchronize OpenGL viewport
 	targetTextureID = target->ID;
 	if (screen != 0 && target->width == screen->width && target->height == screen->height) return; // nothing changed
 	delete screen;
-	screen = new Bitmap( target->width, target->height );
+	screen = new Bitmap(target->width, target->height);
 }
 
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::SetGeometry                                                    |
 //  |  Set the geometry data for a model.                                   LH2'19|
 //  +-----------------------------------------------------------------------------+
-void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangleData, const uint* alphaFlags )
+void RenderCore::SetGeometry(const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangleData, const AnimationType animationType, const uint* alphaFlags)
 {
-	if (meshIdx >= rayTracer.meshes.size())
-	{
-		Mesh newMesh;
+	BVH *bvh;
+	if (meshIdx >= rayTracer.bvhs.size()) {
 		// copy the supplied vertices; we cannot assume that the render system does not modify
 		// the original data after we leave this function.
-		newMesh.vertices = new float4[vertexCount];
-		newMesh.vcount = vertexCount;
-		memcpy(newMesh.vertices, vertexData, vertexCount * sizeof(float4));
-		// copy the supplied 'fat triangles'
-		newMesh.triangles = new CoreTri[vertexCount / 3];
-		memcpy(newMesh.triangles, triangleData, (vertexCount / 3) * sizeof(CoreTri));
-		rayTracer.meshes.push_back(newMesh);
+
+		bvh = new BVH;
+		bvh->vertices = new float4[vertexCount];
+		rayTracer.bvhs.push_back(bvh);
+
+		bvh->indices = new int[triangleCount];
+		for (int i = 0; i < triangleCount; i++) {
+			bvh->indices[i] = i;
+		}
+
+		bvh->centroids = new float4[triangleCount];
+		for (int i = 0; i < triangleCount; i++) {
+			bvh->centroids[i] = (vertexData[i * 3] + vertexData[i * 3 + 1] + vertexData[i * 3 + 2]) / 3;
+		}
+
+		bvh->pool = (BVHNode*)_aligned_malloc(triangleCount * 2 * sizeof(BVHNode), 64);
+
+		bvh->vcount = triangleCount;
 	}
+	else {
+		bvh = rayTracer.bvhs[meshIdx];
+	}
+
+	bvh->vcount = vertexCount;
+	memcpy(bvh->vertices, vertexData, vertexCount * sizeof(float4));
+	// copy the supplied 'fat triangles'
+	bvh->triangles = new CoreTri[vertexCount / 3];
+	memcpy(bvh->triangles, triangleData, (vertexCount / 3) * sizeof(CoreTri));
+
+	bvh->Update(animationType);
+}
+
+void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const mat4& transform) {
+	if (modelIdx == -1) {
+		if (rayTracer.instances.size() > instanceIdx) rayTracer.instances.resize(instanceIdx);
+		if (rayTracer.bvhTop->bvhCount != instanceIdx) {
+			rayTracer.bvhTop->pool = new BVHTopNode[instanceIdx - 1]; // (BVHTopNode*)MALLOC64(instanceIdx * sizeof(BVHTopNode));
+			rayTracer.bvhTop->bvhCount = instanceIdx;
+		}
+		return;
+	}
+
+	BVHTopNode *bvhTopNode = nullptr;
+
+	if (instanceIdx >= rayTracer.instances.size()) {
+		bvhTopNode = new BVHTopNode;
+		rayTracer.instances.push_back(bvhTopNode);
+	}
+	else {
+		bvhTopNode = rayTracer.instances[instanceIdx];
+	}
+
+	bvhTopNode->bvh = rayTracer.bvhs[modelIdx];
+	bvhTopNode->transform = transform;
+	float3 bmin = bvhTopNode->bvh->pool[0].bounds.bmin3;
+	float3 bmax = bvhTopNode->bvh->pool[0].bounds.bmax3;
+	bvhTopNode->bounds.Reset();
+	bvhTopNode->bounds.Grow(make_float3(make_float4(bmin.x, bmin.y, bmin.z, 1.0f) * transform));
+	bvhTopNode->bounds.Grow(make_float3(make_float4(bmin.x, bmax.y, bmin.z, 1.0f) * transform));
+	bvhTopNode->bounds.Grow(make_float3(make_float4(bmin.x, bmax.y, bmax.z, 1.0f) * transform));
+	bvhTopNode->bounds.Grow(make_float3(make_float4(bmin.x, bmin.y, bmax.z, 1.0f) * transform));
+	bvhTopNode->bounds.Grow(make_float3(make_float4(bmax.x, bmin.y, bmin.z, 1.0f) * transform));
+	bvhTopNode->bounds.Grow(make_float3(make_float4(bmax.x, bmax.y, bmin.z, 1.0f) * transform));
+	bvhTopNode->bounds.Grow(make_float3(make_float4(bmax.x, bmax.y, bmax.z, 1.0f) * transform));
+	bvhTopNode->bounds.Grow(make_float3(make_float4(bmax.x, bmin.y, bmax.z, 1.0f) * transform));
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -72,22 +130,30 @@ void RenderCore::SetLights(const CoreLightTri* areaLights, const int areaLightCo
 {
 	rayTracer.areaLights.clear();
 	for (int i = 0; i < areaLightCount; i++) {
-		rayTracer.areaLights.push_back(areaLights[i]);
+		CoreLightTri*light = new CoreLightTri;
+		memcpy(light, &(areaLights[i]), sizeof(CoreLightTri));
+		rayTracer.areaLights.push_back(light);
 	}
 
 	rayTracer.pointLights.clear();
 	for (int i = 0; i < pointLightCount; i++) {
-		rayTracer.pointLights.push_back(corePointLights[i]);
+		CorePointLight*light = new CorePointLight;
+		memcpy(light, &(corePointLights[i]), sizeof(CorePointLight));
+		rayTracer.pointLights.push_back(light);
 	}
 
 	rayTracer.directionLights.clear();
 	for (int i = 0; i < directionalLightCount; i++) {
-		rayTracer.directionLights.push_back(coreDirectionalLights[i]);
+		CoreDirectionalLight*light = new CoreDirectionalLight;
+		memcpy(light, &(coreDirectionalLights[i]), sizeof(CoreDirectionalLight));
+		rayTracer.directionLights.push_back(light);
 	}
 
 	rayTracer.spotLights.clear();
 	for (int i = 0; i < spotLightCount; i++) {
-		rayTracer.spotLights.push_back(coreSpotLights[i]);
+		CoreSpotLight*light = new CoreSpotLight;
+		memcpy(light, &(coreSpotLights[i]), sizeof(CoreSpotLight));
+		rayTracer.spotLights.push_back(light);
 	}
 }
 
@@ -107,6 +173,7 @@ void RenderCore::SetTextures(const CoreTexDesc* tex, const int textures) {
 			rayTracer.texList.push_back(t = new Texture());
 		}
 		t->pixels = (float3*)MALLOC64(tex[i].pixelCount * sizeof(float3));
+		t->width = tex[i].width, t->height = tex[i].height;
 
 		uint* hexPixels = (uint*)MALLOC64(tex[i].pixelCount * sizeof(uint));
 		memcpy(hexPixels, tex[i].idata, tex[i].pixelCount * sizeof(uint));
@@ -115,8 +182,8 @@ void RenderCore::SetTextures(const CoreTexDesc* tex, const int textures) {
 			int hexValue = hexPixels[j];
 
 			t->pixels[j].x = ((hexValue >> 16) & 0xff) / 255.0;  // extract the rr byte
-			t->pixels[j].y = ((hexValue >> 8)  & 0xff) / 255.0;  // extract the gg byte
-			t->pixels[j].z = ((hexValue)       & 0xff) / 255.0;  // extract the bb byte
+			t->pixels[j].y = ((hexValue >> 8) & 0xff) / 255.0;  // extract the gg byte
+			t->pixels[j].z = ((hexValue) & 0xff) / 255.0;  // extract the bb byte
 		}
 	}
 }
@@ -130,20 +197,20 @@ void RenderCore::SetMaterials(CoreMaterial* mat, const int materialCount) {
 	for (int i = 0; i < materialCount; i++) {
 		CoreMaterial coreMaterial = mat[i];
 
-		Material newMaterial;
+		Material*newMaterial = new Material;
 
 		int texId = coreMaterial.color.textureID;
 		if (texId == -1) {
-			newMaterial.texture = 0;
+			newMaterial->texture = 0;
 		}
 		else {
-			newMaterial.texture = rayTracer.texList[texId];
+			newMaterial->texture = rayTracer.texList[texId];
 		}
 
-		newMaterial.diffuse = coreMaterial.color.value;
-		newMaterial.transmittance = coreMaterial.absorption.value;
-		newMaterial.specularity = coreMaterial.specular.value;
-		newMaterial.transmission = coreMaterial.transmission.value;
+		newMaterial->diffuse = coreMaterial.color.value;
+		newMaterial->transmittance = coreMaterial.absorption.value;
+		newMaterial->specularity = coreMaterial.specular.value;
+		newMaterial->transmission = coreMaterial.transmission.value;
 
 		rayTracer.materials.push_back(newMaterial);
 	}
@@ -154,12 +221,16 @@ void RenderCore::SetMaterials(CoreMaterial* mat, const int materialCount) {
 //  |  Specify the data required for sky dome rendering..                   LH2'19|
 //  +-----------------------------------------------------------------------------+
 void RenderCore::SetSkyData(const float3* pixels, const uint width, const uint height, const mat4& worldToLight) {
-	rayTracer.skyDome.height = height;
-	rayTracer.skyDome.width = width;
-	rayTracer.skyDome.pixels = (float3*)MALLOC64(width * height * sizeof(float3));
+	Texture*texture = new Texture;
+
+	texture->height = height;
+	texture->width = width;
+	texture->pixels = (float3*)MALLOC64(width * height * sizeof(float3));
 	for (int i = 0; i < (width * height); i++) {
-		rayTracer.skyDome.pixels[i] = make_float3(pixels[i].x, pixels[i].y, pixels[i].z);
+		texture->pixels[i] = make_float3(pixels[i].x, pixels[i].y, pixels[i].z);
 	}
+
+	rayTracer.skyDome = texture;
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -168,14 +239,30 @@ void RenderCore::SetSkyData(const float3* pixels, const uint width, const uint h
 //  +-----------------------------------------------------------------------------+
 void RenderCore::Render(const ViewPyramid& view, const Convergence converge)
 {
-	// render
+	Timer frameTime{};
 	screen->Clear();
-			
+	frameTime.reset();
+
+	coreStats.traceTime0 = 0;
+	coreStats.traceTime1 = 0;
+	coreStats.shadowTraceTime = 0;
+	coreStats.primaryRayCount = 0;
+	coreStats.bounce1RayCount = 0;
+	coreStats.totalShadowRays = 0;
+	rayTracer.coreStats = &coreStats;
+
 	rayTracer.Render(view, screen);
 
+	
 	// copy pixel buffer to OpenGL render target texture
 	glBindTexture(GL_TEXTURE_2D, targetTextureID);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screen->width, screen->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, screen->pixels);
+
+	coreStats.renderTime = frameTime.elapsed();
+}
+
+void lh2core::RenderCore::UpdateTopLevel() {
+	rayTracer.bvhTop->UpdateTopLevel(rayTracer.instances);
 }
 
 //  +-----------------------------------------------------------------------------+

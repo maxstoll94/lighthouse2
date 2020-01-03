@@ -51,11 +51,11 @@ public:
 	// SetSkyData: specify the data required for sky dome rendering.
 	void SetSkyData(const float3* pixels, const uint width, const uint height, const mat4& worldToLight = mat4());
 	// SetGeometry: update the geometry for a single mesh.
-	void SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangles, const uint* alphaFlags = 0 );
+	void SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangles, const AnimationType animationType, const uint* alphaFlags = 0 );
 	// SetInstance: update the data on a single instance.
 	void SetInstance( const int instanceIdx, const int modelIdx, const mat4& transform );
 	// UpdateTopLevel: trigger a top-level BVH update.
-	void UpdateToplevel() { /* not implemented for the minimal core. */ }
+	void UpdateToplevel();
 };
 
 } // namespace lh2core

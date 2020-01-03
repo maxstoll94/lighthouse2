@@ -227,7 +227,7 @@ void HostScene::AddTriToMesh( const int meshId, const float3& v0, const float3& 
 //  |  Loads a collection of meshes from a gltf file. An instance and a scene     |
 //  |  graph node is created for each mesh.                                 LH2'19|
 //  +-----------------------------------------------------------------------------+
-int HostScene::AddScene( const char* sceneFile, const char* dir, const mat4& transform )
+int HostScene::AddScene( const char* sceneFile, const char* dir, const AnimationType animationType, const mat4& transform )
 {
 	// offsets: if we loaded an object before this one, indices should not start at 0.
 	// based on https://github.com/SaschaWillems/Vulkan-glTF-PBR/blob/master/base/VulkanglTFModel.hpp
@@ -290,6 +290,7 @@ int HostScene::AddScene( const char* sceneFile, const char* dir, const mat4& tra
 		tinygltf::Mesh& gltfMesh = gltfModel.meshes[i];
 		HostMesh* newMesh = new HostMesh( gltfMesh, gltfModel, materialBase, gltfModel.materials.size() == 0 ? 0 : -1 );
 		newMesh->ID = (int)i + meshBase;
+		newMesh->animationType = animationType;
 		meshPool.push_back( newMesh );
 	}
 	// convert nodes

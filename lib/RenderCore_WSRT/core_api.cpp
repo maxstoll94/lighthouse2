@@ -84,9 +84,9 @@ void CoreAPI::SetMaterials( CoreMaterial* mat, const int materialCount )
 	core->SetMaterials( mat, materialCount );
 }
 
-void CoreAPI::SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangles, const uint* alphaFlags )
+void CoreAPI::SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangles, const AnimationType animationType, const uint* alphaFlags )
 {
-	core->SetGeometry( meshIdx, vertexData, vertexCount, triangleCount, triangles, alphaFlags );
+	core->SetGeometry( meshIdx, vertexData, vertexCount, triangleCount, triangles, animationType, alphaFlags );
 }
 
 void CoreAPI::SetLights(const CoreLightTri* areaLights, const int areaLightCount,
@@ -100,7 +100,12 @@ void CoreAPI::SetLights(const CoreLightTri* areaLights, const int areaLightCount
 
 void CoreAPI::SetInstance( const int instanceIdx, const int modelIdx, const mat4& transform )
 {
-	// core->SetInstance( instanceIdx, modelIdx, transform ); // TODO; we will just render the meshes for now.
+	core->SetInstance( instanceIdx, modelIdx, transform );
+}
+
+void CoreAPI::UpdateToplevel() 
+{
+	core->UpdateTopLevel();
 }
 
 // EOF

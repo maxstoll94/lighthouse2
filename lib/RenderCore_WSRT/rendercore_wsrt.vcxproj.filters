@@ -8,6 +8,9 @@
     <ClCompile Include="whitted_style_ray_tracer.cpp">
       <Filter>Whitted_Style_Ray_Tracer</Filter>
     </ClCompile>
+    <ClCompile Include="BVH.cpp">
+      <Filter>Bounded_Volume_Hierarchy</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="rendercore.h" />
@@ -18,9 +21,10 @@
     <ClInclude Include="whitted_style_ray_tracer.h">
       <Filter>Whitted_Style_Ray_Tracer</Filter>
     </ClInclude>
-    <ClInclude Include="classes.h">
-      <Filter>Whitted_Style_Ray_Tracer</Filter>
+    <ClInclude Include="BVH.h">
+      <Filter>Bounded_Volume_Hierarchy</Filter>
     </ClInclude>
+    <ClInclude Include="classes.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="API">
@@ -28,6 +32,9 @@
     </Filter>
     <Filter Include="Whitted_Style_Ray_Tracer">
       <UniqueIdentifier>{d7688884-9117-4ef0-a003-e975745e5379}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Bounded_Volume_Hierarchy">
+      <UniqueIdentifier>{6bdc56b3-9b5d-4f68-95c1-b9fa7426045e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

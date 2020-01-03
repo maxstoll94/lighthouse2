@@ -370,6 +370,14 @@ inline int2 abs( int2 v ) { return make_int2( abs( v.x ), abs( v.y ) ); }
 inline int3 abs( int3 v ) { return make_int3( abs( v.x ), abs( v.y ), abs( v.z ) ); }
 inline int4 abs( int4 v ) { return make_int4( abs( v.x ), abs( v.y ), abs( v.z ), abs( v.w ) ); }
 
+inline float get_axis(int axis, const float2 v) { switch (axis) { case 0: return v.x; case 1: return v.y; }; };
+inline float get_axis(int axis, const float3 v) { switch (axis) { case 0: return v.x; case 1: return v.y; case 2: return v.z; }; };
+inline float get_axis(int axis, const float4 v) { switch (axis) { case 0: return v.x; case 1: return v.y; case 2: return v.z; case 3: return v.w; }; };
+inline int get_axis(int axis, const int2 v) { switch (axis) { case 0: return v.x; case 1: return v.y; }; };
+inline int get_axis(int axis, const int3 v) { switch (axis) { case 0: return v.x; case 1: return v.y; case 2: return v.z; }; };
+inline int get_axis(int axis, const int4 v) { switch (axis) { case 0: return v.x; case 1: return v.y; case 2: return v.z; case 3: return v.w; }; };
+
+
 inline float3 reflect( float3 i, float3 n ) { return i - 2.0f * n * dot( n, i ); }
 
 inline float3 cross( float3 a, float3 b ) { return make_float3( a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x ); }
@@ -765,5 +773,7 @@ public:
 	quat scale( float s ) const { return quat( w * s, x * s, y * s, z * s ); }
 	float w = 1, x = 0, y = 0, z = 0;
 };
+
+enum AnimationType { StaticAnimation, ModestAnimation, DynamicAnimation };
 
 // EOF

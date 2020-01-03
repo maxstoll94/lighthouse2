@@ -16,6 +16,7 @@
 #pragma once
 #include "rendersystem.h"
 #include "whitted_style_ray_tracer.h"
+#include "BVH.h"
 
 namespace lh2core
 {
@@ -28,9 +29,10 @@ class RenderCore
 public:
 	void Init();
 	void SetTarget( GLTexture* target );
-	void SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, 
+	void SetInstance(const int instanceIdx, const int modelIdx, const mat4& transform);
+	void SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount,
 		const int triangleCount, const CoreTri* triangles, 
-		const uint* alphaFlags = 0 );
+		const AnimationType animationType, const uint* alphaFlags = 0 );
 	void SetLights(const CoreLightTri* areaLights, const int areaLightCount, 
 		const CorePointLight* pointLights, const int pointLightCount, 
 		const CoreSpotLight* spotLights, const int spotLightCount, 
@@ -39,6 +41,7 @@ public:
 	void SetMaterials(CoreMaterial* mat, const int materialCount);
 	void SetTextures(const CoreTexDesc* tex, const int textureCount);
 	void Render( const ViewPyramid& view, const Convergence converge );
+	void UpdateTopLevel();
 	void Shutdown();
 public:
 	WhittedStyleRayTracer rayTracer;

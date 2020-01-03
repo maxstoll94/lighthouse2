@@ -43,7 +43,7 @@ void RenderCore::SetTarget( GLTexture* target )
 //  |  RenderCore::SetGeometry                                                    |
 //  |  Set the geometry data for a model.                                   LH2'19|
 //  +-----------------------------------------------------------------------------+
-void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangleData, const uint* alphaFlags )
+void RenderCore::SetGeometry( const int meshIdx, const float4* vertexData, const int vertexCount, const int triangleCount, const CoreTri* triangleData, const AnimationType animationType, const uint* alphaFlags )
 {
 	Mesh newMesh;
 	// copy the supplied vertices; we cannot assume that the render system does not modify
