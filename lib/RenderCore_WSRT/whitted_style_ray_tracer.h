@@ -23,8 +23,11 @@ namespace lh2core
 		vector<Material*> materials;					// materials of the scene
 		vector<Texture*> texList;						// 2D representation of the texture
 		Texture*skyDome;								// sky dome of the scene
+		float3*accumulator;
+		int accumulatorIndex;
 
-		void Render(const ViewPyramid& view, Bitmap* screen);
+		void Render(const ViewPyramid& view, Bitmap* screen, const Convergence converge);
+		void ResizeScreen(const int width, const int height);
 	private:
 		float3 Directllumination(const Intersection &intersection);
 		float3 Trace(Ray ray);

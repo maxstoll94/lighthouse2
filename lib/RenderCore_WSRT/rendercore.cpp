@@ -42,6 +42,8 @@ void RenderCore::SetTarget(GLTexture* target)
 	if (screen != 0 && target->width == screen->width && target->height == screen->height) return; // nothing changed
 	delete screen;
 	screen = new Bitmap(target->width, target->height);
+
+	rayTracer.ResizeScreen(target->width, target->height);
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -251,9 +253,8 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge)
 	coreStats.totalShadowRays = 0;
 	rayTracer.coreStats = &coreStats;
 
-	rayTracer.Render(view, screen);
+	rayTracer.Render(view, screen, converge);
 
-	
 	// copy pixel buffer to OpenGL render target texture
 	glBindTexture(GL_TEXTURE_2D, targetTextureID);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screen->width, screen->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, screen->pixels);

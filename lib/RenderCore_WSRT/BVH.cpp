@@ -94,7 +94,6 @@ void BVH::GrowBounds(const int nodeIndex) {
 	}
 }
 
-
 void BVH::Subdivide(const SubdivideHeuristic subdivideHeuristc, const int nodeIndex, const int first, const int last, int &poolPtr) {
 	BVHNode &node = pool[nodeIndex];
 	CalculateBounds(first, last, node.bounds);
@@ -111,7 +110,6 @@ void BVH::Subdivide(const SubdivideHeuristic subdivideHeuristc, const int nodeIn
 		break;
 	}
 	
-
 	if (splitIndex == -1) {
 		node.count = last - first + 1;
 		node.leftFirst = first;

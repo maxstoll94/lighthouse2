@@ -58,7 +58,7 @@ void PrepareScene()
 	int bunnyId = renderer->AddMesh("bunny.obj", "data/bunny/", 1.0f);
 	bunny = renderer->AddInstance(bunnyId);
 
-	renderer->AddScene("CesiumMan.glb", "data/", DynamicAnimation, mat4::Translate(0.0, 0.0, 5.0f));
+	//renderer->AddScene("CesiumMan.glb", "data/", DynamicAnimation, mat4::Translate(0.0, 0.0, 5.0f));
 	
 	//renderer->AddScene("plant.gltf", "data/plant/", DynamicAnimation, mat4::Translate(0.0, 0.0, -5.0f));
 
@@ -165,10 +165,10 @@ int main()
 		deltaTime = timer.elapsed();
 		if (HandleInput( deltaTime )) camMoved = true;
 
-		static float r = 0;
-		renderer->SetNodeTransform(bunny, mat4::RotateY(r * 2.0f) * mat4::RotateZ(0.2f * sinf(r * 8.0f)));
-		r += deltaTime * 0.3f; if (r > 2 * PI) r -= 2 * PI;
-		camMoved = true;
+		//static float r = 0;
+		//renderer->SetNodeTransform(bunny, mat4::RotateY(r * 2.0f) * mat4::RotateZ(0.2f * sinf(r * 8.0f)));
+		//r += deltaTime * 0.3f; if (r > 2 * PI) r -= 2 * PI;
+		//camMoved = true;
 
 		// handle material changes
 		if (HandleMaterialChange()) camMoved = true;
@@ -220,7 +220,8 @@ int main()
 		ImGui::Text("position: %5.2f, %5.2f, %5.2f", camPos.x, camPos.y, camPos.z);
 		ImGui::Text("viewdir:  %5.2f, %5.2f, %5.2f", camDir.x, camDir.y, camDir.z);
 		ImGui::SliderFloat("FOV", &renderer->GetCamera()->FOV, 10, 90);
-		ImGui::SliderFloat("aperture", &renderer->GetCamera()->aperture, 0, 0.025f);
+		ImGui::SliderFloat("aperture", &renderer->GetCamera()->aperture, 0, 0.25f);
+		ImGui::SliderFloat("focal distance", &renderer->GetCamera()->focalDistance, 0, 20.0f);
 		ImGui::SliderFloat("distortion", &renderer->GetCamera()->distortion, 0, 0.5f);
 		ImGui::Combo("tonemap", &renderer->GetCamera()->tonemapper, "clamp\0reinhard\0reinhard ext\0reinhard lum\0reinhard jodie\0uncharted2\0\0");
 		ImGui::SliderFloat("brightness", &renderer->GetCamera()->brightness, 0, 0.5f);
