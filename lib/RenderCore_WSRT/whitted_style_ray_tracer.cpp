@@ -85,8 +85,10 @@ void WhittedStyleRayTracer::ResizeScreen(const int width, const int height) {
 }
 
 void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const Convergence converge) {
-	float3 xDirection = (view.p2 - view.p1) / screen->width;
-	float3 yDirection = (view.p3 - view.p1) / screen->height;
+	float3 xStep = (view.p2 - view.p1) / screen->width;
+	float3 yStep = (view.p3 - view.p1) / screen->height;
+	float3 xDirection = normalize(xStep);
+	float3 yDirection = normalize(yStep);
 
 	if (converge == Restart) {
 		accumulatorIndex = 0;
@@ -100,16 +102,16 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 	Ray ray;
 	for (uint u = 0; u < screen->width; u++) {
 		for (uint v = 0; v < screen->height; v++) {
-			float3 rayTarget = view.p1 + (u + ((double)rand() / RAND_MAX)) * xDirection + (v + ((double)rand() / RAND_MAX)) * yDirection;
+			float3 rayTarget = view.p1 + (u + ((double)rand() / RAND_MAX)) * xStep + (v + ((double)rand() / RAND_MAX)) * yStep;
 
-			//float2 apertureOffset = make_float2(((double)rand() / RAND_MAX) * 2 - 1, ((double)rand() / RAND_MAX) * 2 - 1);
-			//while (dot(apertureOffset, apertureOffset) > 1) {
-			//	apertureOffset.x = ((double)rand() / RAND_MAX) * 2 - 1;
-			//	apertureOffset.y = ((double)rand() / RAND_MAX) * 2 - 1;
-			//}
-			//apertureOffset = normalize(apertureOffset) * view.aperture;
+			float2 apertureOffset = make_float2(((double)rand() / RAND_MAX) * 2 - 1, ((double)rand() / RAND_MAX) * 2 - 1);
+			while (dot(apertureOffset, apertureOffset) > 1) {
+				apertureOffset.x = ((double)rand() / RAND_MAX) * 2 - 1;
+				apertureOffset.y = ((double)rand() / RAND_MAX) * 2 - 1;
+			}
+			apertureOffset *= view.aperture;
 
-			ray.origin = view.pos + RandomDirection() * view.aperture;
+			ray.origin = view.pos + apertureOffset.x * xDirection + apertureOffset.y * yDirection;
 			ray.direction = normalize(rayTarget - ray.origin);
 			ray.bounces = defaultRayBounces;
 
