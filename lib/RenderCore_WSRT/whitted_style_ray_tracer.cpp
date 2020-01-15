@@ -157,16 +157,19 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 		albedo = SkyDomeColor(ray, *skyDome);
 	}
 	else {
-		BVHTopNode*bvh = instances[intersectionTraverse->tri >> 24];
+		BVHTopNode topBvhNode = bvhTop->pool[intersectionTraverse->tri >> 24];
+		mat4 transform = bvhTop->transforms[intersectionTraverse->tri >> 24];
+
+		BVH*bvh = bvhs[topBvhNode.MeshIndex()];
 
 		IntersectionShading intersection;
-		intersection.tri = &bvh->bvh->triangles[bvh->bvh->indices[intersectionTraverse->tri & ((2 << 23) - 1)]];
+		intersection.tri = &bvh->triangles[bvh->indices[intersectionTraverse->tri & ((2 << 23) - 1)]];
 		intersection.t = intersectionTraverse->t;
 		intersection.position = ray.origin + intersectionTraverse->t * ray.direction;
 		intersection.normal = normalize((1 - intersectionTraverse->u - intersectionTraverse->v) * intersection.tri->vN0 + intersectionTraverse->u * intersection.tri->vN1 + intersectionTraverse->v * intersection.tri->vN2);
 		intersection.side = dot(ray.direction, intersection.normal) > 0 ? Front : Back;
 		if (intersection.side == Back) intersection.normal = -intersection.normal;
-		intersection.normal = make_float3(make_float4(intersection.normal, 0.0f) * bvh->transform);
+		intersection.normal = make_float3(make_float4(intersection.normal, 0.0f) * transform);
 
 		Material*material = materials[intersection.tri->material];
 
@@ -205,28 +208,8 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const bool bounded, const float distance) {
 	coreStats->totalShadowRays++;
 	Timer t{}; t.reset();
-	bool foundIntersection = bvhTop->bvhCount > 0 && HasIntersection(*bvhTop->root, ray, bounded, distance);
+	// bool foundIntersection = bvhTop->bvhCount > 0 && HasIntersection(*bvhTop->root, ray, bounded, distance);
 	coreStats->shadowTraceTime += t.elapsed();
-	return foundIntersection;
-}
-
-bool WhittedStyleRayTracer::HasIntersection(const BVHTopNode&node, const Ray &ray, const bool bounded, const float distance) {
-	float tmin, tmax;
-	if (!BoundingBoxIntersection(ray, node.bounds, tmin, tmax)) return false;
-	if (tmax < kEpsilon || (bounded && tmin > distance)) return false;
-
-	if (node.IsLeaf()) {
-		Ray transfomedRay;
-		mat4 transform = node.transform.Inverted();
-		transfomedRay.origin = make_float3(make_float4(ray.origin, 1.0f) * transform);
-		transfomedRay.direction = make_float3(make_float4(ray.direction, 0.0f) * transform);
-		if (HasIntersection(*node.bvh, transfomedRay, bounded, distance)) return true;
-	}
-	else {
-		if (HasIntersection(*node.left, ray, bounded, distance)) return true;
-		if (HasIntersection(*node.right, ray, bounded, distance)) return true;
-	}
-
 	return false;
 }
 
@@ -289,29 +272,35 @@ bool WhittedStyleRayTracer::HasIntersection(const BVH &bvh, const Ray &ray, cons
 }
 
 void WhittedStyleRayTracer::NearestIntersection(const Ray&ray, IntersectionTraverse&intersection, int &numberIntersections) {
-	if (bvhTop->bvhCount > 0) {
-		NearestIntersection(*bvhTop->root, ray, intersection, numberIntersections);
-	}
-}
+	BVHTopNode node;
+	Ray transfomedRay;
+	mat4 transform;
+	int nodeIndex;
 
-void WhittedStyleRayTracer::NearestIntersection(const BVHTopNode &node, const Ray&ray, IntersectionTraverse&intersection, int &numberIntersections) {
-	float tmin, tmax;
+	vector<int> stack;
+	stack.reserve(bvhTop->bvhCount * 2 - 1);
 
-	numberIntersections++;
-	if (!BoundingBoxIntersection(ray, node.bounds, tmin, tmax)) return;
-	if (tmax < kEpsilon || tmin > intersection.t) return;
+	if (bvhTop->bvhCount > 0) stack.push_back(bvhTop->bvhCount * 2 - 2);
 
-	if (node.IsLeaf()) {
-		Ray transfomedRay;
-		mat4 transform = node.transform.Inverted();
-		transfomedRay.origin = make_float3(make_float4(ray.origin, 1.0f) * transform);
-		transfomedRay.direction = make_float3(make_float4(ray.direction, 0.0f) * transform);
+	while (!stack.empty()) {
+		nodeIndex = stack.back();
+		stack.pop_back();
 
-		NearestIntersection(*node.bvh, transfomedRay, intersection, node.instanceIdx, numberIntersections);
-	}
-	else {
-		NearestIntersection(*node.left, ray, intersection, numberIntersections);
-		NearestIntersection(*node.right, ray, intersection, numberIntersections);
+		node = bvhTop->pool[nodeIndex];
+
+		if (nodeIndex < bvhTop->bvhCount) {
+			// leaf
+			transform = bvhTop->transforms[nodeIndex];
+
+			transfomedRay.origin = make_float3(make_float4(ray.origin, 1.0f) * transform);
+			transfomedRay.direction = make_float3(make_float4(ray.direction, 0.0f) * transform);
+
+			NearestIntersection(*bvhs[node.MeshIndex()], transfomedRay, intersection, nodeIndex, numberIntersections);
+		}
+		else {
+			stack.push_back(node.LeftIndex());
+			stack.push_back(node.RightIndex());
+		}
 	}
 }
 

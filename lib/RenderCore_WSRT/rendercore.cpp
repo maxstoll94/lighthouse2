@@ -89,31 +89,43 @@ void RenderCore::SetGeometry(const int meshIdx, const float4* vertexData, const 
 }
 
 void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const mat4& transform) {
+	BVHTopNode*bvhTopNode;
+	mat4*instanceTransform;
+
 	if (modelIdx == -1) {
 		if (rayTracer.instances.size() > instanceIdx) rayTracer.instances.resize(instanceIdx);
 		if (rayTracer.bvhTop->bvhCount != instanceIdx) {
-			_aligned_free(rayTracer.bvhTop->pool);
-			rayTracer.bvhTop->pool = (BVHTopNode*)_aligned_malloc((instanceIdx - 1) * sizeof(BVHTopNode), 64);
 			rayTracer.bvhTop->bvhCount = instanceIdx;
+
+			_aligned_free(rayTracer.bvhTop->pool);
+			_aligned_free(rayTracer.bvhTop->transforms);
+			rayTracer.bvhTop->pool = (BVHTopNode*)_aligned_malloc(((2 * instanceIdx) - 1) * sizeof(BVHTopNode), 64);
+			rayTracer.bvhTop->transforms = (mat4*)_aligned_malloc(instanceIdx * sizeof(mat4), 64);
+			for (int i = 0; i < instanceIdx; i++) {
+				tie(bvhTopNode, instanceTransform) = rayTracer.instances[i];
+
+				rayTracer.bvhTop->pool[i] = *bvhTopNode;
+				rayTracer.bvhTop->transforms[i] = *instanceTransform;
+			}
 		}
 		return;
 	}
 
-	BVHTopNode *bvhTopNode = nullptr;
-
 	if (instanceIdx >= rayTracer.instances.size()) {
 		bvhTopNode = (BVHTopNode*)_aligned_malloc(sizeof(BVHTopNode), 64);
-		rayTracer.instances.push_back(bvhTopNode);
+		instanceTransform = (mat4*)_aligned_malloc(sizeof(mat4), 64);
+
+		rayTracer.instances.push_back(make_tuple(bvhTopNode, instanceTransform));
 	}
 	else {
-		bvhTopNode = rayTracer.instances[instanceIdx];
+		tie(bvhTopNode, instanceTransform) = rayTracer.instances[instanceIdx];
 	}
 
-	bvhTopNode->instanceIdx = instanceIdx;
-	bvhTopNode->bvh = rayTracer.bvhs[modelIdx];
-	bvhTopNode->transform = transform;
-	float3 bmin = bvhTopNode->bvh->pool[0].bounds.bmin3;
-	float3 bmax = bvhTopNode->bvh->pool[0].bounds.bmax3;
+	bvhTopNode->SetMeshIndex(modelIdx);
+	memcpy(instanceTransform, &transform, sizeof(mat4));
+
+	float3 bmin = rayTracer.bvhs[modelIdx]->pool[0].bounds.bmin3;
+	float3 bmax = rayTracer.bvhs[modelIdx]->pool[0].bounds.bmax3;
 	bvhTopNode->bounds.Reset();
 	bvhTopNode->bounds.Grow(make_float3(make_float4(bmin.x, bmin.y, bmin.z, 1.0f) * transform));
 	bvhTopNode->bounds.Grow(make_float3(make_float4(bmin.x, bmax.y, bmin.z, 1.0f) * transform));
@@ -265,7 +277,7 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge)
 }
 
 void lh2core::RenderCore::UpdateTopLevel() {
-	rayTracer.bvhTop->UpdateTopLevel(rayTracer.instances);
+	rayTracer.bvhTop->UpdateTopLevel();
 }
 
 //  +-----------------------------------------------------------------------------+
