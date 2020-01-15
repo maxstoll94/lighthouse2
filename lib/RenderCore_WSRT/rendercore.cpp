@@ -58,15 +58,15 @@ void RenderCore::SetGeometry(const int meshIdx, const float4* vertexData, const 
 		// the original data after we leave this function.
 
 		bvh = new BVH;
-		bvh->vertices = new float4[vertexCount];
+		bvh->vertices = (float4*)_aligned_malloc(vertexCount * sizeof(float4), 64); // new float4[vertexCount];
 		rayTracer.bvhs.push_back(bvh);
 
-		bvh->indices = new int[triangleCount];
+		bvh->indices = (int*)_aligned_malloc(triangleCount * sizeof(int), 64); // new int[triangleCount];
 		for (int i = 0; i < triangleCount; i++) {
 			bvh->indices[i] = i;
 		}
 
-		bvh->centroids = new float4[triangleCount];
+		bvh->centroids = (float4*)_aligned_malloc(triangleCount * sizeof(float4), 64); // new float4[triangleCount];
 		for (int i = 0; i < triangleCount; i++) {
 			bvh->centroids[i] = (vertexData[i * 3] + vertexData[i * 3 + 1] + vertexData[i * 3 + 2]) / 3;
 		}
@@ -82,7 +82,7 @@ void RenderCore::SetGeometry(const int meshIdx, const float4* vertexData, const 
 	bvh->vcount = vertexCount;
 	memcpy(bvh->vertices, vertexData, vertexCount * sizeof(float4));
 	// copy the supplied 'fat triangles'
-	bvh->triangles = new CoreTri[vertexCount / 3];
+	bvh->triangles = (CoreTri*)_aligned_malloc((vertexCount / 3) * sizeof(CoreTri), 64); // new CoreTri[vertexCount / 3];
 	memcpy(bvh->triangles, triangleData, (vertexCount / 3) * sizeof(CoreTri));
 
 	bvh->Update(animationType);
@@ -92,7 +92,8 @@ void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const ma
 	if (modelIdx == -1) {
 		if (rayTracer.instances.size() > instanceIdx) rayTracer.instances.resize(instanceIdx);
 		if (rayTracer.bvhTop->bvhCount != instanceIdx) {
-			rayTracer.bvhTop->pool = new BVHTopNode[instanceIdx - 1]; // (BVHTopNode*)MALLOC64(instanceIdx * sizeof(BVHTopNode));
+			_aligned_free(rayTracer.bvhTop->pool);
+			rayTracer.bvhTop->pool = (BVHTopNode*)_aligned_malloc((instanceIdx - 1) * sizeof(BVHTopNode), 64);
 			rayTracer.bvhTop->bvhCount = instanceIdx;
 		}
 		return;
@@ -101,13 +102,14 @@ void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const ma
 	BVHTopNode *bvhTopNode = nullptr;
 
 	if (instanceIdx >= rayTracer.instances.size()) {
-		bvhTopNode = new BVHTopNode;
+		bvhTopNode = (BVHTopNode*)_aligned_malloc(sizeof(BVHTopNode), 64);
 		rayTracer.instances.push_back(bvhTopNode);
 	}
 	else {
 		bvhTopNode = rayTracer.instances[instanceIdx];
 	}
 
+	bvhTopNode->instanceIdx = instanceIdx;
 	bvhTopNode->bvh = rayTracer.bvhs[modelIdx];
 	bvhTopNode->transform = transform;
 	float3 bmin = bvhTopNode->bvh->pool[0].bounds.bmin3;

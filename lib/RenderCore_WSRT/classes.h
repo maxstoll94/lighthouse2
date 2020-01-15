@@ -80,15 +80,21 @@ public:
 
 enum Side { Front, Back };
 
-class Intersection {
+// make power of 2 so we can use cach line opt
+class IntersectionTraverse {
 public:
-	Side side;
-	float t;
-	float u, v;
-	CoreTri *tri;
-	mat4 transform;
+	float t;           // 4
+	float u, v;        // 8
+	int tri;           // 4 - first byte for bvhId last 3 bytes for triId 
+					   // total: 16
+};
 
-	float3 position;
-	float3 normal;
+class IntersectionShading {
+public:
+	float3 position;   // 12
+	float3 normal;     // 12
+	Side side;         // 4?
+	CoreTri *tri;      // 64
+	float t;           // 4
 };
 }

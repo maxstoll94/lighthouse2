@@ -65,6 +65,8 @@ namespace lh2core
 		BVHTopNode*left; //64
 		BVHTopNode*right; //64
 
+		int instanceIdx;
+
 		__inline bool IsLeaf() const { return bvh != nullptr; }
 	};
 	
