@@ -83,6 +83,40 @@ void WhittedStyleRayTracer::ResizeScreen(const int width, const int height) {
 	accumulator = new float3[width * height];
 }
 
+void lh2core::WhittedStyleRayTracer::ShootLightRays(const uint numberOfRays)
+{
+	Ray ray;
+	IntersectionTraverse* intersectionTraverse = (IntersectionTraverse*)_aligned_malloc(sizeof(IntersectionTraverse), 64);
+	int numberOfIntersections;
+	photons = (Photon*)_aligned_malloc(numberOfRays * areaLights.size() * sizeof(Photon), 64);
+	int photonPtr = 0;
+	Photon photon;
+	for (CoreLightTri* areaLight : areaLights) {
+		for (int i = 0; i < numberOfRays; i++) {
+			float r1 = ((double)rand() / RAND_MAX);
+			float r2 = ((double)rand() / RAND_MAX);
+			float sqrtR1 = sqrt(r1);
+
+			float3 position = (1 - sqrtR1) * areaLight->vertex0 + (sqrtR1 * (1 - r2)) * areaLight->vertex1 + (sqrtR1 * r2) * areaLight->vertex2;
+			float3 direction = RandomDirectionHemisphere(areaLight->N);
+
+			ray.origin = position + bias * direction;
+			ray.direction = direction;
+			intersectionTraverse->t = 1e34f;
+			NearestIntersection(ray, *intersectionTraverse, numberOfIntersections);
+
+			if (intersectionTraverse->t != 1e34f) {
+
+				photon.power = areaLight->radiance;
+				photon.position = ray.origin + ray.direction * intersectionTraverse->t;
+				photon.L = -ray.direction;
+
+				photons[photonPtr++] = photon;
+			}
+		}
+	}
+}
+
 void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const Convergence converge) {
 	float3 xStep = (view.p2 - view.p1) / screen->width;
 	float3 yStep = (view.p3 - view.p1) / screen->height;

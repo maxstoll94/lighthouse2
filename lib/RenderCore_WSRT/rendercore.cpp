@@ -96,6 +96,8 @@ void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const ma
 			rayTracer.bvhTop->pool = (BVHTopNode*)_aligned_malloc((instanceIdx - 1) * sizeof(BVHTopNode), 64);
 			rayTracer.bvhTop->bvhCount = instanceIdx;
 		}
+
+		rayTracer.ShootLightRays(100);
 		return;
 	}
 
