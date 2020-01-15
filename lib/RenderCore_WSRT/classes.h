@@ -51,7 +51,7 @@ class Ray {
 public:
 	float3 origin;		// origin point of the ray
 	float3 direction;	// direction the ray is travelling in
-	int bounces;		// maximum number of bounces of a ray before it is discarded.
+	bool isPrimary;		// maximum number of bounces of a ray before it is discarded.
 };
 
 //  +-----------------------------------------------------------------------------+

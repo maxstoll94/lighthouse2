@@ -6,7 +6,6 @@
 using namespace lh2core;
 
 constexpr float kEpsilon = 1e-8;
-constexpr int defaultRayBounces = 2;
 constexpr float bias = 0.0001;
 constexpr float refractiveIndexGlass = 1.5168;
 constexpr float refractiveIndexAir = 1.0;
@@ -113,7 +112,7 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 
 			ray.origin = view.pos + apertureOffset.x * xDirection + apertureOffset.y * yDirection;
 			ray.direction = normalize(rayTarget - ray.origin);
-			ray.bounces = defaultRayBounces;
+			ray.isPrimary = true;
 
 			float3 color = lerp(Trace(ray), accumulator[v * screen->width + u], t);
 			accumulator[v * screen->width + u] = color;
@@ -126,8 +125,6 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 }
 
 float3 WhittedStyleRayTracer::Trace(Ray ray) {
-	if (ray.bounces < 0) return make_float3(0); //SkyDomeColor(ray, skyDome);
-
 	int numberIntersections = 0;
 
 	IntersectionTraverse*intersectionTraverse = (IntersectionTraverse*)_aligned_malloc(sizeof(IntersectionTraverse), 64);
@@ -135,8 +132,8 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 
 	Timer t{}; t.reset();
 	NearestIntersection(ray, *intersectionTraverse, numberIntersections);
-	switch (ray.bounces) {
-	case defaultRayBounces:
+	switch (ray.isPrimary) {
+	case true:
 		coreStats->primaryRayCount++;
 		coreStats->traceTime0 += t.elapsed();
 		break;
@@ -185,12 +182,19 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 			diffuse = GetColor(uv, *(material->texture));
 		}
 
-		ray.direction = RandomDirectionHemisphere(intersection.normal);
-		ray.origin = intersection.position + bias * ray.direction;
-		ray.bounces = ray.bounces - 1;
-		float3 lightColor = Trace(ray);
+		float pSurvive = clamp(max(max(diffuse.x, diffuse.y), diffuse.z), 0.1f, 0.9f);
 
-		albedo = dot(ray.direction, intersection.normal) * (diffuse * INVPI) * lightColor * (2.0f * PI);
+		if (((double)rand() / RAND_MAX) > pSurvive) {
+			albedo = make_float3(0.0);
+		}
+		else {
+			ray.direction = RandomDirectionHemisphere(intersection.normal);
+			ray.origin = intersection.position + bias * ray.direction;
+			ray.isPrimary = false;
+			float3 lightColor = Trace(ray);
+
+			albedo = dot(ray.direction, intersection.normal) * (diffuse * INVPI) * lightColor * (2.0f * PI) / pSurvive;
+		}
 	}
 
 	_aligned_free(intersectionTraverse);
@@ -392,7 +396,7 @@ Ray WhittedStyleRayTracer::Reflect(const Ray &ray, const IntersectionShading&int
 	// taken from lecture slides "whitted-style" slide 13
 	reflectRay.direction = ray.direction - 2 * dot(N, ray.direction) * N;
 	reflectRay.origin = P + bias * reflectRay.direction;
-	reflectRay.bounces = ray.bounces - 1;
+	reflectRay.isPrimary = false;
 
 	return reflectRay;
 }
@@ -565,7 +569,7 @@ float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const IntersectionShad
 	Ray refractRay;
 	refractRay.direction = n1n2 * ray.direction + N * (n1n2 * cosO1 - sqrt(k));
 	refractRay.origin = P + bias * -1 * refractRay.direction;
-	refractRay.bounces = ray.bounces - 1;
+	refractRay.isPrimary = false;
 
 	float fr = Fresnel(ray, intersection, n1, n2, cosO1);
 	float ft = 1 - fr;
