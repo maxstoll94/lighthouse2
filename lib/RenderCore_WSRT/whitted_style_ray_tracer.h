@@ -34,7 +34,8 @@ namespace lh2core
 		void ResizeScreen(const int width, const int height);
 		void ShootLightRays(const uint numberOfRays);
 	private:
-		float3 Trace(Ray ray, bool lastSpecular);
+		//void Trace(Ray ray, float3 & albedo, bool lastSpecular);
+		float3 Trace(Ray ray);
 		void NearestIntersection(const Ray&ray, IntersectionTraverse&intersection, int&numberIntersections); // Returns the nearest intersection point, the normal and the material type.
 		void NearestIntersection(const BVH&bvh, const Ray&ray, IntersectionTraverse&intersection, const int meshIdx, int&numberIntersections);
 		bool HasIntersection(const Ray &ray, const bool isBounded, const float distance);

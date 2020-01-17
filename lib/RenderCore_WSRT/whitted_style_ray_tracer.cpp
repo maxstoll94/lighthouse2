@@ -195,13 +195,13 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 			while (dot(apertureOffset, apertureOffset) > 1) {
 				apertureOffset.x = ((float)rand() / RAND_MAX) * 2 - 1;
 				apertureOffset.y = ((float)rand() / RAND_MAX) * 2 - 1;
-			}  
+			}
 			apertureOffset *= view.aperture;
 
 			ray.origin = view.pos + apertureOffset.x * xDirection + apertureOffset.y * yDirection;
 			ray.direction = normalize(rayTarget - ray.origin);
 
-			albedo = lerp(Trace(ray, true), accumulator[v * screen->width + u], t);
+			albedo = lerp(Trace(ray), accumulator[v * screen->width + u], t);
 			accumulator[v * screen->width + u] = albedo;
 			int colorHex = (int(0xff * min(albedo.x, 1.0f)) + (int(0xff * min(albedo.y, 1.0f)) << 8) + (int(0xff * min(albedo.z, 1.0f)) << 16));
 			screen->Plot(u, v, colorHex);
@@ -211,62 +211,134 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 	accumulatorIndex = accumulatorIndex + 1;
 }
 
-float3 WhittedStyleRayTracer::Trace(Ray ray, bool lastSpecular) {
+float3 WhittedStyleRayTracer::Trace(Ray ray) {
 	IntersectionTraverse intersectionTraverse;
 	int numberIntersections = 0;
-
 	intersectionTraverse.Reset();
 	NearestIntersection(ray, intersectionTraverse, numberIntersections);
 	IntersectionShading intersection = intersectionTraverseToIntersectionShading(intersectionTraverse, ray);
 
-	// heatmap
-	//return HSVtoRGB(numberIntersections, 1, 1);
+	float3 albedo = make_float3(1.0f);
+	float3 albedoLight = make_float3(0.0f);
 
-	// normal view
-	// return foundIntersection ? (intersection.normal + 1.0f) * 0.5f : make_float3(0);
-
-	// depth view
-	//return HSVtoRGB((int)(intersection.t * 400) % 360, 1, 1);
-
-	if (!intersection.hasIntersection) {
-		//return SkyDomeColor(ray, *skyDome);
-		return make_float3(0.0f);
+	if (intersection.hasIntersection && (intersection.diffuse.x > 1.0f || intersection.diffuse.y > 1.0f || intersection.diffuse.z > 1.0f)) {
+		return intersection.diffuse;
 	}
-	else {
-		if (intersection.diffuse.x > 1.0f || intersection.diffuse.y > 1.0f || intersection.diffuse.x > 1.0f) {
-			//return intersection.diffuse;
-			return lastSpecular ? intersection.diffuse : make_float3(0.0f);
-		} else {
-			float3 BRDF = intersection.diffuse * INVPI;
 
-			RandomDirectionHemisphere(intersection.normal, ray.direction);
-			ray.origin = intersection.position + bias * ray.direction;
+	while (intersection.hasIntersection) {
+		if (intersection.diffuse.x > 1.0f || intersection.diffuse.y > 1.0f || intersection.diffuse.z > 1.0f) {
+			//albedo *= intersection.diffuse;
+			albedo = make_float3(0.0f);
+			break;
+		}
 
-			float3 albedo = PI * 2.0f * BRDF * Trace(ray, false) * dot(ray.direction, intersection.normal);
+		float3 BRDF = intersection.diffuse * INVPI;
 
-			// NEE
-			CoreLightTri* areaLight = GetRandomLight();
-			if (areaLight != nullptr) {
-				float3 position = GetRandomPointOnAreaLight(areaLight);
+		// NEE
+		CoreLightTri* areaLight = GetRandomLight();
+		if (areaLight != nullptr) {
+			float3 position = GetRandomPointOnAreaLight(areaLight);
 
-				float3 intersectionLight = position - intersection.position;
-				float3 lightDirection = normalize(intersectionLight);
-				float lightDistance = length(intersectionLight);
+			float3 intersectionLight = position - intersection.position;
+			float3 lightDirection = normalize(intersectionLight);
+			float lightDistance = length(intersectionLight);
 
-				float contribution = areaLight->area * dot(intersection.normal, lightDirection) * dot(areaLight->N, -lightDirection) / (lightDistance * lightDistance);
-				if (contribution > 0) { // don't calculate illumination for intersections facing away from the light
-					ray.origin = intersection.position + bias * lightDirection;
-					ray.direction = lightDirection;
+			float contribution = areaLight->area * dot(intersection.normal, lightDirection) * dot(areaLight->N, -lightDirection) / (lightDistance * lightDistance);
+			if (contribution > 0) { // don't calculate illumination for intersections facing away from the light
+				ray.origin = intersection.position + bias * lightDirection;
+				ray.direction = lightDirection;
 
-					if (!HasIntersection(ray, true, lightDistance - 2 * bias)) {
-						albedo += BRDF * areaLight->radiance * contribution;
-					}
+				if (!HasIntersection(ray, true, lightDistance - 2 * bias)) {
+					albedoLight += albedo * BRDF * areaLight->radiance * contribution;
 				}
 			}
-			return albedo;
 		}
+
+		float pSurvive = clamp(max(max(albedo.x, albedo.y), albedo.z), 0.1, 0.9);
+
+		//cout << pSurvive << endl;
+
+		if ((float)rand() / RAND_MAX > pSurvive) {
+			albedo = make_float3(0.0f);
+			break;
+		}
+
+		RandomDirectionHemisphere(intersection.normal, ray.direction);
+		ray.origin = intersection.position + bias * ray.direction;
+
+		albedo *= PI * 2.0f * BRDF * dot(ray.direction, intersection.normal) * (1/pSurvive);
+
+		intersectionTraverse.Reset();
+		NearestIntersection(ray, intersectionTraverse, numberIntersections);
+		intersection = intersectionTraverseToIntersectionShading(intersectionTraverse, ray);
 	}
+
+	if (!intersection.hasIntersection) {
+		albedo *= make_float3(0.0f);
+		// albedo *= SkyDomeColor(ray, *skyDome);
+	}
+
+	return albedoLight + albedo;
 }
+
+//void WhittedStyleRayTracer::Trace(Ray ray, float3&albedo, bool lastSpecular) {
+//	IntersectionTraverse intersectionTraverse;
+//	int numberIntersections = 0;
+//
+//	intersectionTraverse.Reset();
+//	NearestIntersection(ray, intersectionTraverse, numberIntersections);
+//	IntersectionShading intersection = intersectionTraverseToIntersectionShading(intersectionTraverse, ray);
+//
+//	// heatmap
+//	//return HSVtoRGB(numberIntersections, 1, 1);
+//
+//	// normal view
+//	// return foundIntersection ? (intersection.normal + 1.0f) * 0.5f : make_float3(0);
+//
+//	// depth view
+//	//return HSVtoRGB((int)(intersection.t * 400) % 360, 1, 1);
+//
+//	if (!intersection.hasIntersection) {
+//		//return SkyDomeColor(ray, *skyDome);
+//		albedo *= make_float3(0.0f);
+//	}
+//	else {
+//		if (intersection.diffuse.x > 1.0f || intersection.diffuse.y > 1.0f || intersection.diffuse.x > 1.0f) {
+//			//albedo = intersection.diffuse;
+//			albedo *= lastSpecular ? intersection.diffuse : make_float3(0.0f);
+//		} else {
+//			float3 BRDF = intersection.diffuse * INVPI;
+//
+//			RandomDirectionHemisphere(intersection.normal, ray.direction);
+//			ray.origin = intersection.position + bias * ray.direction;
+//
+//			albedo *= PI * 2.0f * BRDF * dot(ray.direction, intersection.normal);
+//			Trace(ray, albedo, false);
+//
+//			// NEE
+//			CoreLightTri* areaLight = GetRandomLight();
+//			if (areaLight != nullptr) {
+//				float3 position = GetRandomPointOnAreaLight(areaLight);
+//
+//				float3 intersectionLight = position - intersection.position;
+//				float3 lightDirection = normalize(intersectionLight);
+//				float lightDistance = length(intersectionLight);
+//
+//				float contribution = areaLight->area * dot(intersection.normal, lightDirection) * dot(areaLight->N, -lightDirection) / (lightDistance * lightDistance);
+//				if (contribution > 0) { // don't calculate illumination for intersections facing away from the light
+//					ray.origin = intersection.position + bias * lightDirection;
+//					ray.direction = lightDirection;
+//
+//					if (!HasIntersection(ray, true, lightDistance - 2 * bias)) {
+//						albedo += BRDF * areaLight->radiance * contribution;
+//					}
+//				}
+//			}
+//
+//			//float3 albedo = PI * 2.0f * BRDF * Trace(ray, false) * dot(ray.direction, intersection.normal);
+//		}
+//	}
+//}
 
 bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const bool bounded, const float distance) {
 	BVHTopNode node;
@@ -435,7 +507,7 @@ void WhittedStyleRayTracer::NearestIntersection(const BVH&bvh, const Ray &ray, I
 			left = node.leftFirst;
 			right = left + 1;
 
-			numberIntersections+=2;
+			numberIntersections += 2;
 			intersectLeft = BoundingBoxIntersection(ray, bvh.pool[left].bounds, tminLeft, tmaxLeft);
 			intersectRight = BoundingBoxIntersection(ray, bvh.pool[right].bounds, tminRight, tmaxRight);
 
@@ -529,73 +601,73 @@ float3 WhittedStyleRayTracer::SkyDomeColor(const Ray &ray, const Texture &textur
 	return GetColor(uv, texture);
 }
 
-float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const IntersectionShading &intersection) {
-	float3 N = intersection.normal;
-	float3 P = intersection.position;
+//float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const IntersectionShading &intersection) {
+//	float3 N = intersection.normal;
+//	float3 P = intersection.position;
+//
+//	float n1, n2;
+//	switch (intersection.side) {
+//	case Front:
+//		n1 = refractiveIndexAir;
+//		n2 = refractiveIndexGlass;
+//		break;
+//	case Back:
+//		n1 = refractiveIndexGlass;
+//		n2 = refractiveIndexAir;
+//		break;
+//	}
+//
+//	float n1n2 = n1 / n2;
+//	float cosO1 = dot(N, -1 * ray.direction);
+//
+//	float k = 1 - n1n2 * n1n2 * (1 - cosO1 * cosO1);
+//
+//	// total internal reflection
+//	if (k < kEpsilon) return Trace(Reflect(ray, make_float3(0.0f), intersection), true);
+//
+//	Ray refractRay;
+//	refractRay.direction = n1n2 * ray.direction + N * (n1n2 * cosO1 - sqrt(k));
+//	refractRay.origin = P + bias * -1 * refractRay.direction;
+//
+//	float fr = Fresnel(ray, intersection, n1, n2, cosO1);
+//	float ft = 1 - fr;
+//
+//	float3 diffuse = make_float3(0);
+//	if (fr > kEpsilon) {
+//		diffuse += fr * Trace(Reflect(ray, intersection), true);
+//	}
+//	if (ft > kEpsilon) {
+//		diffuse += ft * Beer(intersection, Trace(refractRay, true));
+//	}
+//
+//	return diffuse;
+//}
 
-	float n1, n2;
-	switch (intersection.side) {
-	case Front:
-		n1 = refractiveIndexAir;
-		n2 = refractiveIndexGlass;
-		break;
-	case Back:
-		n1 = refractiveIndexGlass;
-		n2 = refractiveIndexAir;
-		break;
-	}
-
-	float n1n2 = n1 / n2;
-	float cosO1 = dot(N, -1 * ray.direction);
-
-	float k = 1 - n1n2 * n1n2 * (1 - cosO1 * cosO1);
-
-	// total internal reflection
-	if (k < kEpsilon) return Trace(Reflect(ray, intersection), true);
-
-	Ray refractRay;
-	refractRay.direction = n1n2 * ray.direction + N * (n1n2 * cosO1 - sqrt(k));
-	refractRay.origin = P + bias * -1 * refractRay.direction;
-
-	float fr = Fresnel(ray, intersection, n1, n2, cosO1);
-	float ft = 1 - fr;
-
-	float3 diffuse = make_float3(0);
-	if (fr > kEpsilon) {
-		diffuse += fr * Trace(Reflect(ray, intersection), true);
-	}
-	if (ft > kEpsilon) {
-		diffuse += ft * Beer(intersection, Trace(refractRay, true));
-	}
-
-	return diffuse;
-}
-
-float3 WhittedStyleRayTracer::Beer(const IntersectionShading&intersection, float3 diffuse) {
-	switch (intersection.side) {
-	case Front:
-		return diffuse;
-	case Back:
-		Material*material = materials[intersection.tri->material];
-
-		float3 absorption;
-		absorption.x = exp(-material->transmittance.x * intersection.t);
-		absorption.y = exp(-material->transmittance.y * intersection.t);
-		absorption.z = exp(-material->transmittance.z * intersection.t);
-
-		return diffuse * absorption;
-	}
-}
-
-float WhittedStyleRayTracer::Fresnel(const Ray &ray, const IntersectionShading&intersection, const float n1, const float n2, const float cosOi) {
-	float n1n2 = n1 / n2;
-
-	float n1n2SinCos01 = n1n2 * sin(acos(cosOi));
-	float cosOt = sqrt(1 - n1n2SinCos01 * n1n2SinCos01);
-
-	float sPolarizedLight = (n1 * cosOi - n2 * cosOt) / (n1 * cosOi + n2 * cosOt);
-	float pPolarizedLight = (n1 * cosOt - n2 * cosOi) / (n1 * cosOt + n2 * cosOi);
-	float fr = (sPolarizedLight * sPolarizedLight + pPolarizedLight * pPolarizedLight) / 2;
-
-	return fr;
-}
+//float3 WhittedStyleRayTracer::Beer(const IntersectionShading&intersection, float3 diffuse) {
+//	switch (intersection.side) {
+//	case Front:
+//		return diffuse;
+//	case Back:
+//		Material*material = materials[intersection.tri->material];
+//
+//		float3 absorption;
+//		absorption.x = exp(-material->transmittance.x * intersection.t);
+//		absorption.y = exp(-material->transmittance.y * intersection.t);
+//		absorption.z = exp(-material->transmittance.z * intersection.t);
+//
+//		return diffuse * absorption;
+//	}
+//}
+//
+//float WhittedStyleRayTracer::Fresnel(const Ray &ray, const IntersectionShading&intersection, const float n1, const float n2, const float cosOi) {
+//	float n1n2 = n1 / n2;
+//
+//	float n1n2SinCos01 = n1n2 * sin(acos(cosOi));
+//	float cosOt = sqrt(1 - n1n2SinCos01 * n1n2SinCos01);
+//
+//	float sPolarizedLight = (n1 * cosOi - n2 * cosOt) / (n1 * cosOi + n2 * cosOt);
+//	float pPolarizedLight = (n1 * cosOt - n2 * cosOi) / (n1 * cosOt + n2 * cosOi);
+//	float fr = (sPolarizedLight * sPolarizedLight + pPolarizedLight * pPolarizedLight) / 2;
+//
+//	return fr;
+//}
