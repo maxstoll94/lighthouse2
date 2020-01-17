@@ -203,13 +203,12 @@ float3 WhittedStyleRayTracer::Trace(Ray ray, bool lastSpecular) {
 	// depth view
 	//return HSVtoRGB((int)(intersection.t * 400) % 360, 1, 1);
 
-	float3 albedo;
+	float3 albedo = make_float3(0.0f);
 	if (intersectionTraverse->t == 1e34f) {
-		albedo = SkyDomeColor(ray, *skyDome);
-		// albedo = make_float3(0.0f); // SkyDomeColor(ray, *skyDome);
+		//albedo = SkyDomeColor(ray, *skyDome);
+		albedo = make_float3(0.0f);
 	}
 	else {
-		cout << " intersetion found " << endl;
 		BVHTopNode*bvh = instances[intersectionTraverse->tri >> 24];
 
 		IntersectionShading intersection;
@@ -217,15 +216,15 @@ float3 WhittedStyleRayTracer::Trace(Ray ray, bool lastSpecular) {
 		intersection.t = intersectionTraverse->t;
 		intersection.position = ray.origin + intersectionTraverse->t * ray.direction;
 		intersection.normal = normalize((1 - intersectionTraverse->u - intersectionTraverse->v) * intersection.tri->vN0 + intersectionTraverse->u * intersection.tri->vN1 + intersectionTraverse->v * intersection.tri->vN2);
-		intersection.side = dot(ray.direction, intersection.normal) > 0 ? Front : Back;
+		intersection.side = dot(ray.direction, intersection.normal) < 0 ? Front : Back;
 		if (intersection.side == Back) intersection.normal = -intersection.normal;
 		intersection.normal = make_float3(make_float4(intersection.normal, 0.0f) * bvh->transform);
 
 		Material*material = materials[intersection.tri->material];
 
 		if (material->diffuse.x > 1.0f || material->diffuse.y > 1.0f || material->diffuse.x > 1.0f) {
-			albedo = material->diffuse;
-			//albedo = lastSpecular ? material->diffuse : make_float3(0.0f);
+			//albedo = material->diffuse;
+			albedo = lastSpecular ? material->diffuse : make_float3(0.0f);
 		} else {
 			float3 diffuse;
 			if (material->texture == NULL) {
@@ -239,41 +238,34 @@ float3 WhittedStyleRayTracer::Trace(Ray ray, bool lastSpecular) {
 				diffuse = GetColor(uv, *(material->texture));
 			}
 
-			float pSurvive = clamp(max(max(diffuse.x, diffuse.y), diffuse.z), 0.1f, 0.9f);
+			float3 BRDF = diffuse * INVPI;
 
-			if (((double)rand() / RAND_MAX) > pSurvive) {
-				albedo = make_float3(0.0);
-			}
-			else {
-				ray.direction = RandomDirectionHemisphere(intersection.normal);
-				ray.origin = intersection.position + bias * ray.direction;
-				ray.isPrimary = false;
-				float3 lightColor = Trace(ray, false);
+			// NEE
+			CoreLightTri* areaLight = GetRandomLight();
 
-				albedo = dot(ray.direction, intersection.normal) * (diffuse * INVPI) * lightColor * (2.0f * PI) / pSurvive;
+			if (areaLight != NULL){
+				float3 position = GetRandomPointOnAreaLight(areaLight);
 
-				// NEE
-				CoreLightTri* areaLight = GetRandomLight();
+				float3 intersectionLight = position - intersection.position;
+				float3 lightDirection = normalize(intersectionLight);
+				float lightDistance = length(intersectionLight);
 
-				if (areaLight != NULL){
-					float3 position = GetRandomPointOnAreaLight(areaLight);
+				float contribution = areaLight->area * dot(intersection.normal, lightDirection) * dot(areaLight->N, -lightDirection) / (lightDistance * lightDistance);
+				if (contribution > 0) { // don't calculate illumination for intersections facing away from the light
+					ray.origin = intersection.position + bias * lightDirection;
+					ray.direction = lightDirection;
 
-					float3 intersectionLight = position - intersection.position;
-					float3 lightDirection = normalize(intersectionLight);
-					float lightDistance = length(intersectionLight);
-
-
-					float contribution = areaLight->area * dot(intersection.normal, lightDirection) * dot(areaLight->N, -lightDirection) / (lightDistance * lightDistance);
-					if (contribution > 0) { // don't calculate illumination for intersections facing away from the light
-						ray.origin = intersection.position + bias * lightDirection;
-						ray.direction = lightDirection;
-
-						if (!HasIntersection(ray, true, lightDistance - 2 * bias)) {
-							albedo += areaLight->radiance * contribution / softLightRays;
-						}
+					if (!HasIntersection(ray, true, lightDistance - 2 * bias)) {
+						albedo += BRDF * areaLight->radiance * contribution;
 					}
 				}
 			}
+
+			ray.direction = RandomDirectionHemisphere(intersection.normal);
+			ray.origin = intersection.position + bias * ray.direction;
+			ray.isPrimary = false;
+
+			albedo += PI * 2.0f * BRDF * Trace(ray, false) * dot(ray.direction, intersection.normal);
 		}
 	}
 
