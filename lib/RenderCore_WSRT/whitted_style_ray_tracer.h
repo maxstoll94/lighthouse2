@@ -25,13 +25,17 @@ namespace lh2core
 		vector<Texture*> texList;						// 2D representation of the texture
 		Texture*skyDome;								// sky dome of the scene
 		float3*accumulator;
+		Photon*photons;
 		int accumulatorIndex;
 
 		void Render(const ViewPyramid& view, Bitmap* screen, const Convergence converge);
+		tuple<CoreLightTri*, float3> GetRandomPointOnLight();
+		CoreLightTri * GetRandomLight();
 		void ResizeScreen(const int width, const int height);
+		void ShootLightRays(const uint numberOfRays);
 	private:
 		float3 Directllumination(const IntersectionShading&intersection);
-		float3 Trace(Ray ray);
+		float3 Trace(Ray ray, bool lastSpecular);
 		void NearestIntersection(const Ray&ray, IntersectionTraverse&intersection, int&numberIntersections); // Returns the nearest intersection point, the normal and the material type.
 		void NearestIntersection(const BVH&bvh, const Ray&ray, IntersectionTraverse&intersection, const int meshIdx, int&numberIntersections);
 		bool HasIntersection(const Ray &ray, const bool isBounded, const float distance);

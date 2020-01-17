@@ -97,4 +97,10 @@ public:
 	CoreTri *tri;      // 64
 	float t;           // 4
 };
+
+struct Photon {
+	float3 position; // world space position of the photon hit
+	float3 power; // current power level for the photon
+	float3 L; // incident direction
+};
 }

@@ -108,6 +108,8 @@ void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const ma
 				rayTracer.bvhTop->transforms[i] = *instanceTransform;
 			}
 		}
+
+		rayTracer.ShootLightRays(100);
 		return;
 	}
 
