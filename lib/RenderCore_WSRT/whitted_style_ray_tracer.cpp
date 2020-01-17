@@ -9,17 +9,16 @@ constexpr float kEpsilon = 1e-8;
 constexpr float bias = 0.0001;
 constexpr float refractiveIndexGlass = 1.5168;
 constexpr float refractiveIndexAir = 1.0;
-constexpr uint softLightRays = 10;
 
 float3 RandomDirection() {
-	float x = ((double)rand() / RAND_MAX) * 2 - 1;
-	float y = ((double)rand() / RAND_MAX) * 2 - 1;
-	float z = ((double)rand() / RAND_MAX) * 2 - 1;
+	float x = ((float)rand() / RAND_MAX) * 2 - 1;
+	float y = ((float)rand() / RAND_MAX) * 2 - 1;
+	float z = ((float)rand() / RAND_MAX) * 2 - 1;
 
 	while (x * x + y * y + z * z > 1) {
-		x = ((double)rand() / RAND_MAX) * 2 - 1;
-		y = ((double)rand() / RAND_MAX) * 2 - 1;
-		z = ((double)rand() / RAND_MAX) * 2 - 1;
+		x = ((float)rand() / RAND_MAX) * 2 - 1;
+		y = ((float)rand() / RAND_MAX) * 2 - 1;
+		z = ((float)rand() / RAND_MAX) * 2 - 1;
 	}
 
 	return normalize(make_float3(x, y, z));
@@ -31,8 +30,8 @@ float3 RandomDirectionHemisphere(const float3&N) {
 }
 
 float3 GetRandomPointOnAreaLight(CoreLightTri* areaLight) {
-	float r1 = ((double)rand() / RAND_MAX);
-	float r2 = ((double)rand() / RAND_MAX);
+	float r1 = ((float)rand() / RAND_MAX);
+	float r2 = ((float)rand() / RAND_MAX);
 	float sqrtR1 = sqrt(r1);
 	return (1 - sqrtR1) * areaLight->vertex0 + (sqrtR1 * (1 - r2)) * areaLight->vertex1 + (sqrtR1 * r2) * areaLight->vertex2;
 }
@@ -110,8 +109,8 @@ void lh2core::WhittedStyleRayTracer::ShootLightRays(const uint numberOfRays)
 	Photon photon;
 	for (CoreLightTri* areaLight : areaLights) {
 		for (int i = 0; i < numberOfRays; i++) {
-			float r1 = ((double)rand() / RAND_MAX);
-			float r2 = ((double)rand() / RAND_MAX);
+			float r1 = ((float)rand() / RAND_MAX);
+			float r2 = ((float)rand() / RAND_MAX);
 			float sqrtR1 = sqrt(r1);
 
 			float3 position = (1 - sqrtR1) * areaLight->vertex0 + (sqrtR1 * (1 - r2)) * areaLight->vertex1 + (sqrtR1 * r2) * areaLight->vertex2;
@@ -155,12 +154,12 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 	float3 albedo;
 	for (uint u = 0; u < screen->width; u++) {
 		for (uint v = 0; v < screen->height; v++) {
-			rayTarget = view.p1 + (u + ((double)rand() / RAND_MAX)) * xStep + (v + ((double)rand() / RAND_MAX)) * yStep;
+			rayTarget = view.p1 + (u + ((float)rand() / RAND_MAX)) * xStep + (v + ((float)rand() / RAND_MAX)) * yStep;
 
-			apertureOffset = make_float2(((double)rand() / RAND_MAX) * 2 - 1, ((double)rand() / RAND_MAX) * 2 - 1);
+			apertureOffset = make_float2(((float)rand() / RAND_MAX) * 2 - 1, ((float)rand() / RAND_MAX) * 2 - 1);
 			while (dot(apertureOffset, apertureOffset) > 1) {
-				apertureOffset.x = ((double)rand() / RAND_MAX) * 2 - 1;
-				apertureOffset.y = ((double)rand() / RAND_MAX) * 2 - 1;
+				apertureOffset.x = ((float)rand() / RAND_MAX) * 2 - 1;
+				apertureOffset.y = ((float)rand() / RAND_MAX) * 2 - 1;
 			}  
 			apertureOffset *= view.aperture;
 
