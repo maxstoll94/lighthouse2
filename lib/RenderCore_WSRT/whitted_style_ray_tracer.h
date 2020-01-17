@@ -29,7 +29,7 @@ namespace lh2core
 		int accumulatorIndex;
 
 		void Render(const ViewPyramid& view, Bitmap* screen, const Convergence converge);
-		tuple<CoreLightTri*, float3> GetRandomPointOnLight();
+		IntersectionShading intersectionTraverseToIntersectionShading(const IntersectionTraverse&intersectionTraverse, const Ray&ray);
 		CoreLightTri * GetRandomLight();
 		void ResizeScreen(const int width, const int height);
 		void ShootLightRays(const uint numberOfRays);

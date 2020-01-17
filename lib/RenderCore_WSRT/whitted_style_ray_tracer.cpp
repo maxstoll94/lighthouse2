@@ -10,23 +10,21 @@ constexpr float bias = 0.0001;
 constexpr float refractiveIndexGlass = 1.5168;
 constexpr float refractiveIndexAir = 1.0;
 
-float3 RandomDirection() {
-	float x = ((float)rand() / RAND_MAX) * 2 - 1;
-	float y = ((float)rand() / RAND_MAX) * 2 - 1;
-	float z = ((float)rand() / RAND_MAX) * 2 - 1;
+void RandomDirection(float3&N) {
+	N.x = ((float)rand() / RAND_MAX) * 2 - 1;
+	N.y = ((float)rand() / RAND_MAX) * 2 - 1;
+	N.z = ((float)rand() / RAND_MAX) * 2 - 1;
 
-	while (x * x + y * y + z * z > 1) {
-		x = ((float)rand() / RAND_MAX) * 2 - 1;
-		y = ((float)rand() / RAND_MAX) * 2 - 1;
-		z = ((float)rand() / RAND_MAX) * 2 - 1;
+	while (N.x * N.x + N.y * N.y + N.z * N.z > 1) {
+		N.x = ((float)rand() / RAND_MAX) * 2 - 1;
+		N.y = ((float)rand() / RAND_MAX) * 2 - 1;
+		N.z = ((float)rand() / RAND_MAX) * 2 - 1;
 	}
-
-	return normalize(make_float3(x, y, z));
 }
 
-float3 RandomDirectionHemisphere(const float3&N) {
-	float3 dir = RandomDirection();
-	return dot(N, dir) > 0 ? dir : -dir;
+void RandomDirectionHemisphere(const float3&N, float3&dir) {
+	RandomDirection(dir);
+	dir = dot(N, dir) > 0 ? dir : -dir;
 }
 
 float3 GetRandomPointOnAreaLight(CoreLightTri* areaLight) {
@@ -37,13 +35,11 @@ float3 GetRandomPointOnAreaLight(CoreLightTri* areaLight) {
 }
 
 CoreLightTri* WhittedStyleRayTracer::GetRandomLight() {
-	if (areaLights.size() > 0) {
-		int lightIndex = rand() % areaLights.size();
-		CoreLightTri* areaLight = areaLights[lightIndex];
-		return areaLight;
-	}
+	if (areaLights.size() == 0) return nullptr;
 
-	return NULL;
+	int lightIndex = rand() % areaLights.size();
+	CoreLightTri* areaLight = areaLights[lightIndex];
+	return areaLight;
 }
 
 // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection
@@ -99,6 +95,43 @@ void WhittedStyleRayTracer::ResizeScreen(const int width, const int height) {
 	accumulator = new float3[width * height];
 }
 
+IntersectionShading WhittedStyleRayTracer::intersectionTraverseToIntersectionShading(const IntersectionTraverse&intersectionTraverse, const Ray&ray) {
+	IntersectionShading intersection;
+
+	if (intersectionTraverse.t == 1e34f) {
+		intersection.hasIntersection = false;
+		return intersection;
+	}
+
+	BVHTopNode topBvhNode = bvhTop->pool[intersectionTraverse.tri >> 24];
+	mat4 transform = bvhTop->transforms[intersectionTraverse.tri >> 24];
+
+	BVH*bvh = bvhs[topBvhNode.MeshIndex()];
+	intersection.hasIntersection = true;
+	intersection.tri = &bvh->triangles[bvh->indices[intersectionTraverse.tri & ((2 << 23) - 1)]];
+	intersection.t = intersectionTraverse.t;
+	intersection.position = ray.origin + intersectionTraverse.t * ray.direction;
+	intersection.normal = normalize((1 - intersectionTraverse.u - intersectionTraverse.v) * intersection.tri->vN0 + intersectionTraverse.u * intersection.tri->vN1 + intersectionTraverse.v * intersection.tri->vN2);
+	intersection.side = dot(ray.direction, intersection.normal) < 0 ? Front : Back;
+	if (intersection.side == Back) intersection.normal = -intersection.normal;
+	intersection.normal = make_float3(make_float4(intersection.normal, 0.0f) * transform);
+
+	Material*material = materials[intersection.tri->material];
+
+	if (material->texture == NULL) {
+		intersection.diffuse = material->diffuse;
+	}
+	else {
+		float2 uv0 = make_float2(intersection.tri->u0, intersection.tri->v0);
+		float2 uv1 = make_float2(intersection.tri->u1, intersection.tri->v1);
+		float2 uv2 = make_float2(intersection.tri->u2, intersection.tri->v2);
+		float2 uv = (1 - intersectionTraverse.u - intersectionTraverse.v) * uv0 + intersectionTraverse.u * uv1 + intersectionTraverse.v * uv2;
+		intersection.diffuse = GetColor(uv, *(material->texture));
+	}
+
+	return intersection;
+}
+
 void lh2core::WhittedStyleRayTracer::ShootLightRays(const uint numberOfRays)
 {
 	Ray ray;
@@ -114,7 +147,8 @@ void lh2core::WhittedStyleRayTracer::ShootLightRays(const uint numberOfRays)
 			float sqrtR1 = sqrt(r1);
 
 			float3 position = (1 - sqrtR1) * areaLight->vertex0 + (sqrtR1 * (1 - r2)) * areaLight->vertex1 + (sqrtR1 * r2) * areaLight->vertex2;
-			float3 direction = RandomDirectionHemisphere(areaLight->N);
+			float3 direction;
+			RandomDirectionHemisphere(areaLight->N, direction);
 
 			ray.origin = position + bias * direction;
 			ray.direction = direction;
@@ -122,7 +156,6 @@ void lh2core::WhittedStyleRayTracer::ShootLightRays(const uint numberOfRays)
 			NearestIntersection(ray, *intersectionTraverse, numberOfIntersections);
 
 			if (intersectionTraverse->t != 1e34f) {
-
 				photon.power = areaLight->radiance;
 				photon.position = ray.origin + ray.direction * intersectionTraverse->t;
 				photon.L = -ray.direction;
@@ -165,7 +198,6 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 
 			ray.origin = view.pos + apertureOffset.x * xDirection + apertureOffset.y * yDirection;
 			ray.direction = normalize(rayTarget - ray.origin);
-			ray.isPrimary = true;
 
 			albedo = lerp(Trace(ray, true), accumulator[v * screen->width + u], t);
 			accumulator[v * screen->width + u] = albedo;
@@ -178,23 +210,12 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 }
 
 float3 WhittedStyleRayTracer::Trace(Ray ray, bool lastSpecular) {
+	IntersectionTraverse intersectionTraverse;
 	int numberIntersections = 0;
 
-	IntersectionTraverse*intersectionTraverse = (IntersectionTraverse*)_aligned_malloc(sizeof(IntersectionTraverse), 64);
-	intersectionTraverse->t = 1e34f;
-
-	Timer t{}; t.reset();
-	NearestIntersection(ray, *intersectionTraverse, numberIntersections);
-	switch (ray.isPrimary) {
-	case true:
-		coreStats->primaryRayCount++;
-		coreStats->traceTime0 += t.elapsed();
-		break;
-	default:
-		coreStats->bounce1RayCount++;
-		coreStats->traceTime1 += t.elapsed();
-		break;
-	}
+	intersectionTraverse.Reset();
+	NearestIntersection(ray, intersectionTraverse, numberIntersections);
+	IntersectionShading intersection = intersectionTraverseToIntersectionShading(intersectionTraverse, ray);
 
 	// heatmap
 	//return HSVtoRGB(numberIntersections, 1, 1);
@@ -205,50 +226,25 @@ float3 WhittedStyleRayTracer::Trace(Ray ray, bool lastSpecular) {
 	// depth view
 	//return HSVtoRGB((int)(intersection.t * 400) % 360, 1, 1);
 
-	float3 albedo = make_float3(0.0f);
-	if (intersectionTraverse->t == 1e34f) {
-		//albedo = SkyDomeColor(ray, *skyDome);
-		albedo = make_float3(0.0f);
+	if (!intersection.hasIntersection) {
+		//return SkyDomeColor(ray, *skyDome);
+		return make_float3(0.0f);
 	}
 	else {
-		BVHTopNode topBvhNode = bvhTop->pool[intersectionTraverse->tri >> 24];
-		mat4 transform = bvhTop->transforms[intersectionTraverse->tri >> 24];
-
-		BVH*bvh = bvhs[topBvhNode.MeshIndex()];
-
-		IntersectionShading intersection;
-		intersection.tri = &bvh->triangles[bvh->indices[intersectionTraverse->tri & ((2 << 23) - 1)]];
-		intersection.t = intersectionTraverse->t;
-		intersection.position = ray.origin + intersectionTraverse->t * ray.direction;
-		intersection.normal = normalize((1 - intersectionTraverse->u - intersectionTraverse->v) * intersection.tri->vN0 + intersectionTraverse->u * intersection.tri->vN1 + intersectionTraverse->v * intersection.tri->vN2);
-		intersection.side = dot(ray.direction, intersection.normal) < 0 ? Front : Back;
-		if (intersection.side == Back) intersection.normal = -intersection.normal;
-		intersection.normal = make_float3(make_float4(intersection.normal, 0.0f) * transform);
-
-		Material*material = materials[intersection.tri->material];
-
-		if (material->diffuse.x > 1.0f || material->diffuse.y > 1.0f || material->diffuse.x > 1.0f) {
-			//albedo = material->diffuse;
-			albedo = lastSpecular ? material->diffuse : make_float3(0.0f);
+		if (intersection.diffuse.x > 1.0f || intersection.diffuse.y > 1.0f || intersection.diffuse.x > 1.0f) {
+			//return intersection.diffuse;
+			return lastSpecular ? intersection.diffuse : make_float3(0.0f);
 		} else {
-			float3 diffuse;
-			if (material->texture == NULL) {
-				diffuse = material->diffuse;
-			}
-			else {
-				float2 uv0 = make_float2(intersection.tri->u0, intersection.tri->v0);
-				float2 uv1 = make_float2(intersection.tri->u1, intersection.tri->v1);
-				float2 uv2 = make_float2(intersection.tri->u2, intersection.tri->v2);
-				float2 uv = (1 - intersectionTraverse->u - intersectionTraverse->v) * uv0 + intersectionTraverse->u * uv1 + intersectionTraverse->v * uv2;
-				diffuse = GetColor(uv, *(material->texture));
-			}
+			float3 BRDF = intersection.diffuse * INVPI;
 
-			float3 BRDF = diffuse * INVPI;
+			RandomDirectionHemisphere(intersection.normal, ray.direction);
+			ray.origin = intersection.position + bias * ray.direction;
+
+			float3 albedo = PI * 2.0f * BRDF * Trace(ray, false) * dot(ray.direction, intersection.normal);
 
 			// NEE
 			CoreLightTri* areaLight = GetRandomLight();
-
-			if (areaLight != NULL){
+			if (areaLight != nullptr) {
 				float3 position = GetRandomPointOnAreaLight(areaLight);
 
 				float3 intersectionLight = position - intersection.position;
@@ -265,18 +261,9 @@ float3 WhittedStyleRayTracer::Trace(Ray ray, bool lastSpecular) {
 					}
 				}
 			}
-
-			ray.direction = RandomDirectionHemisphere(intersection.normal);
-			ray.origin = intersection.position + bias * ray.direction;
-			ray.isPrimary = false;
-
-			albedo += PI * 2.0f * BRDF * Trace(ray, false) * dot(ray.direction, intersection.normal);
+			return albedo;
 		}
 	}
-
-	_aligned_free(intersectionTraverse);
-
-	return albedo;
 }
 
 bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const bool bounded, const float distance) {
@@ -494,7 +481,6 @@ Ray WhittedStyleRayTracer::Reflect(const Ray &ray, const IntersectionShading&int
 	// taken from lecture slides "whitted-style" slide 13
 	reflectRay.direction = ray.direction - 2 * dot(N, ray.direction) * N;
 	reflectRay.origin = P + bias * reflectRay.direction;
-	reflectRay.isPrimary = false;
 
 	return reflectRay;
 }
@@ -568,7 +554,6 @@ float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const IntersectionShad
 	Ray refractRay;
 	refractRay.direction = n1n2 * ray.direction + N * (n1n2 * cosO1 - sqrt(k));
 	refractRay.origin = P + bias * -1 * refractRay.direction;
-	refractRay.isPrimary = false;
 
 	float fr = Fresnel(ray, intersection, n1, n2, cosO1);
 	float ft = 1 - fr;

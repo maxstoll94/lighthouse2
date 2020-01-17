@@ -49,9 +49,8 @@ inline float3 HSVtoRGB(int H, float S, float V) {
 //  +-----------------------------------------------------------------------------+
 class Ray {
 public:
-	float3 origin;		// origin point of the ray
-	float3 direction;	// direction the ray is travelling in
-	bool isPrimary;		// maximum number of bounces of a ray before it is discarded.
+	float3 origin;		// 12 - origin point of the ray
+	float3 direction;	// 12 - direction the ray is travelling in
 };
 
 //  +-----------------------------------------------------------------------------+
@@ -87,20 +86,25 @@ public:
 	float u, v;        // 8
 	int tri;           // 4 - first byte for bvhId last 3 bytes for triId 
 					   // total: 16
+
+	__inline void Reset() { t = 1e34f; }
 };
 
 class IntersectionShading {
 public:
-	float3 position;   // 12
-	float3 normal;     // 12
-	Side side;         // 4?
-	CoreTri *tri;      // 64
-	float t;           // 4
+	bool hasIntersection; // 4
+	float3 position;      // 12
+	float3 normal;        // 12
+	float3 diffuse;       // 12
+	Side side;            // 4?
+	CoreTri *tri;         // 64
+	float t;              // 4
 };
 
 struct Photon {
-	float3 position; // world space position of the photon hit
-	float3 power; // current power level for the photon
-	float3 L; // incident direction
+	float3 position; // 12 - world space position of the photon hit
+	float3 power;    // 12 - current power level for the photon
+	float3 L;        // 12 - incident direction
+	                 // 36 total
 };
 }
