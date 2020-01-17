@@ -368,12 +368,10 @@ void WhittedStyleRayTracer::NearestIntersection(const Ray&ray, IntersectionTrave
 
 void WhittedStyleRayTracer::NearestIntersection(const BVHTopNode &node, const Ray&ray, IntersectionTraverse&intersection, int &numberIntersections) {
 	float tmin, tmax;
-	//cout << "test2" << endl;
 	numberIntersections++;
 	if (!BoundingBoxIntersection(ray, node.bounds, tmin, tmax)) return;
 	if (tmax < kEpsilon || tmin > intersection.t) return;
 
-	cout << "test" << endl;
 	if (node.IsLeaf()) {
 		Ray transfomedRay;
 		mat4 transform = node.transform.Inverted();
@@ -402,8 +400,6 @@ void WhittedStyleRayTracer::NearestIntersection(const BVH&bvh, const Ray &ray, I
 	int index, i;
 	uint first, last;
 	bool intersectLeft, intersectRight;
-
-	cout << bvh.vcount << endl;
 
 	//stack.reserve(30);
 	stack.reserve(log2(bvh.vcount / 3) * 1.5);
