@@ -360,7 +360,7 @@ bool WhittedStyleRayTracer::HasIntersection(const BVH &bvh, const Ray &ray, cons
 				b = make_float3(bvh.vertices[index + 1]);
 				c = make_float3(bvh.vertices[index + 2]);
 
-				if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v) && t > kEpsilon) return true;
+				if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v) && t > kEpsilon && (!bounded || t < distance)) return true;
 			}
 		}
 	}
