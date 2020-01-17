@@ -150,24 +150,27 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 	float t = (float)accumulatorIndex / (float)(accumulatorIndex + 1);
 
 	Ray ray;
+	float3 rayTarget;
+	float2 apertureOffset;
+	float3 albedo;
 	for (uint u = 0; u < screen->width; u++) {
 		for (uint v = 0; v < screen->height; v++) {
-			float3 rayTarget = view.p1 + (u + ((double)rand() / RAND_MAX)) * xStep + (v + ((double)rand() / RAND_MAX)) * yStep;
+			rayTarget = view.p1 + (u + ((double)rand() / RAND_MAX)) * xStep + (v + ((double)rand() / RAND_MAX)) * yStep;
 
-			float2 apertureOffset = make_float2(((double)rand() / RAND_MAX) * 2 - 1, ((double)rand() / RAND_MAX) * 2 - 1);
+			apertureOffset = make_float2(((double)rand() / RAND_MAX) * 2 - 1, ((double)rand() / RAND_MAX) * 2 - 1);
 			while (dot(apertureOffset, apertureOffset) > 1) {
 				apertureOffset.x = ((double)rand() / RAND_MAX) * 2 - 1;
 				apertureOffset.y = ((double)rand() / RAND_MAX) * 2 - 1;
-			}
+			}  
 			apertureOffset *= view.aperture;
 
 			ray.origin = view.pos + apertureOffset.x * xDirection + apertureOffset.y * yDirection;
 			ray.direction = normalize(rayTarget - ray.origin);
 			ray.isPrimary = true;
 
-			float3 color = lerp(Trace(ray, true), accumulator[v * screen->width + u], t);
-			accumulator[v * screen->width + u] = color;
-			int colorHex = (int(0xff * min(color.x, 1.0f)) + (int(0xff * min(color.y, 1.0f)) << 8) + (int(0xff * min(color.z, 1.0f)) << 16));
+			albedo = lerp(Trace(ray, true), accumulator[v * screen->width + u], t);
+			accumulator[v * screen->width + u] = albedo;
+			int colorHex = (int(0xff * min(albedo.x, 1.0f)) + (int(0xff * min(albedo.y, 1.0f)) << 8) + (int(0xff * min(albedo.z, 1.0f)) << 16));
 			screen->Plot(u, v, colorHex);
 		}
 	}
