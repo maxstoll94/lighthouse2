@@ -20,6 +20,8 @@ void RandomDirection(float3&N) {
 		N.y = ((float)rand() / RAND_MAX) * 2 - 1;
 		N.z = ((float)rand() / RAND_MAX) * 2 - 1;
 	}
+
+	N = normalize(N);
 }
 
 void RandomDirectionHemisphere(const float3&N, float3&dir) {
