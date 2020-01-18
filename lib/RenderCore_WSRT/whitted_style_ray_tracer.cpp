@@ -212,11 +212,17 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 }
 
 float3 WhittedStyleRayTracer::Trace(Ray ray) {
+	Timer t{};
+	IntersectionShading intersection;
 	IntersectionTraverse intersectionTraverse;
 	int numberIntersections = 0;
-	intersectionTraverse.Reset();
+
+	t.reset(); intersectionTraverse.Reset();
+
 	NearestIntersection(ray, intersectionTraverse, numberIntersections);
-	IntersectionShading intersection = intersectionTraverseToIntersectionShading(intersectionTraverse, ray);
+	intersection = intersectionTraverseToIntersectionShading(intersectionTraverse, ray);
+
+	coreStats->primaryRayCount++; coreStats->traceTime0 += t.elapsed();
 
 	float3 albedo = make_float3(1.0f);
 	float3 albedoLight = make_float3(0.0f);
@@ -264,9 +270,12 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 
 		albedo *= PI * 2.0f * BRDF * dot(ray.direction, intersection.normal);
 
-		intersectionTraverse.Reset();
+		intersectionTraverse.Reset(); t.reset();
+
 		NearestIntersection(ray, intersectionTraverse, numberIntersections);
 		intersection = intersectionTraverseToIntersectionShading(intersectionTraverse, ray);
+
+		coreStats->bounce1RayCount++; coreStats->traceTime1 += t.elapsed();
 	}
 
 	//return albedoLight + SkyDomeColor(ray, *skyDome) * albedo;
