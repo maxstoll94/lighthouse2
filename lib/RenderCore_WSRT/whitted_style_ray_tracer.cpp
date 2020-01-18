@@ -227,9 +227,7 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 
 	while (intersection.hasIntersection) {
 		if (intersection.diffuse.x > 1.0f || intersection.diffuse.y > 1.0f || intersection.diffuse.z > 1.0f) {
-			//albedo *= intersection.diffuse;
-			albedo = make_float3(0.0f);
-			break;
+			return albedoLight;
 		}
 
 		float3 BRDF = intersection.diffuse * INVPI;
@@ -254,31 +252,25 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 			}
 		}
 
+		// russian roulette
 		float pSurvive = clamp(max(max(albedo.x, albedo.y), albedo.z), 0.1, 0.9);
-
-		//cout << pSurvive << endl;
-
 		if ((float)rand() / RAND_MAX > pSurvive) {
-			albedo = make_float3(0.0f);
-			break;
+			return albedoLight;
 		}
+		albedo /= pSurvive;
 
 		RandomDirectionHemisphere(intersection.normal, ray.direction);
 		ray.origin = intersection.position + bias * ray.direction;
 
-		albedo *= PI * 2.0f * BRDF * dot(ray.direction, intersection.normal) * (1/pSurvive);
+		albedo *= PI * 2.0f * BRDF * dot(ray.direction, intersection.normal);
 
 		intersectionTraverse.Reset();
 		NearestIntersection(ray, intersectionTraverse, numberIntersections);
 		intersection = intersectionTraverseToIntersectionShading(intersectionTraverse, ray);
 	}
 
-	if (!intersection.hasIntersection) {
-		albedo *= make_float3(0.0f);
-		// albedo *= SkyDomeColor(ray, *skyDome);
-	}
-
-	return albedoLight + albedo;
+	//return albedoLight + SkyDomeColor(ray, *skyDome) * albedo;
+	return albedoLight;
 }
 
 //void WhittedStyleRayTracer::Trace(Ray ray, float3&albedo, bool lastSpecular) {
