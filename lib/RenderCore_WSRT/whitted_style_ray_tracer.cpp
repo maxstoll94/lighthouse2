@@ -187,6 +187,9 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 	float3 rayTarget;
 	float2 apertureOffset;
 	float3 albedo;
+
+	float totalEnergy = 0;
+
 	for (uint u = 0; u < screen->width; u++) {
 		for (uint v = 0; v < screen->height; v++) {
 			rayTarget = view.p1 + (u + ((float)rand() / RAND_MAX)) * xStep + (v + ((float)rand() / RAND_MAX)) * yStep;
@@ -203,13 +206,38 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 
 			albedo = lerp(Trace(ray), accumulator[v * screen->width + u], t);
 			accumulator[v * screen->width + u] = albedo;
-			int colorHex = (int(0xff * min(albedo.x, 1.0f)) + (int(0xff * min(albedo.y, 1.0f)) << 8) + (int(0xff * min(albedo.z, 1.0f)) << 16));
+			int colorHex = int(0xff * min(albedo.x, 1.0f)) + (int(0xff * min(albedo.y, 1.0f)) << 8) + (int(0xff * min(albedo.z, 1.0f)) << 16);
 			screen->Plot(u, v, colorHex);
+
+			totalEnergy += albedo.x + albedo.y + albedo.z;
 		}
 	}
 
+	//cout << totalEnergy << endl;
+
 	accumulatorIndex = accumulatorIndex + 1;
 }
+
+//float3 WhittedStyleRayTracer::Trace(Ray ray) {
+//	IntersectionShading intersection;
+//	IntersectionTraverse intersectionTraverse;
+//	int numberIntersections = 0;
+//
+//	intersectionTraverse.Reset();
+//	NearestIntersection(ray, intersectionTraverse, numberIntersections);
+//	intersection = intersectionTraverseToIntersectionShading(intersectionTraverse, ray);
+//
+//	//if (!intersection.hasIntersection) return SkyDomeColor(ray, *skyDome);
+//	if (!intersection.hasIntersection) return make_float3(0.0f);
+//	if (intersection.diffuse.x > 1.0f || intersection.diffuse.y > 1.0f || intersection.diffuse.z > 1.0f) return intersection.diffuse;
+//
+//	float3 BRDF = intersection.diffuse * INVPI;
+//
+//	RandomDirectionHemisphere(intersection.normal, ray.direction);
+//	ray.origin = intersection.position + bias * ray.direction;
+//
+//	return PI * 2.0f * BRDF * dot(ray.direction, intersection.normal) * Trace(ray);
+//}
 
 float3 WhittedStyleRayTracer::Trace(Ray ray) {
 	Timer t{};
