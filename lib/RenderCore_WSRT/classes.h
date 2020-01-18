@@ -97,8 +97,8 @@ public:
 	float3 normal;        // 12
 	float3 diffuse;       // 12
 	Side side;            // 4?
-	CoreTri *tri;         // 64
 	float t;              // 4
+						  // total = 48
 };
 
 struct Photon {

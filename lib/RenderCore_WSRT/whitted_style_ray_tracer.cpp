@@ -107,26 +107,26 @@ IntersectionShading WhittedStyleRayTracer::intersectionTraverseToIntersectionSha
 
 	BVHTopNode topBvhNode = bvhTop->pool[intersectionTraverse.tri >> 24];
 	mat4 transform = bvhTop->transforms[intersectionTraverse.tri >> 24];
-
 	BVH*bvh = bvhs[topBvhNode.MeshIndex()];
+	CoreTri*tri = &bvh->triangles[bvh->indices[intersectionTraverse.tri & ((2 << 23) - 1)]];
+
 	intersection.hasIntersection = true;
-	intersection.tri = &bvh->triangles[bvh->indices[intersectionTraverse.tri & ((2 << 23) - 1)]];
 	intersection.t = intersectionTraverse.t;
 	intersection.position = ray.origin + intersectionTraverse.t * ray.direction;
-	intersection.normal = normalize((1 - intersectionTraverse.u - intersectionTraverse.v) * intersection.tri->vN0 + intersectionTraverse.u * intersection.tri->vN1 + intersectionTraverse.v * intersection.tri->vN2);
+	intersection.normal = normalize((1 - intersectionTraverse.u - intersectionTraverse.v) * tri->vN0 + intersectionTraverse.u * tri->vN1 + intersectionTraverse.v * tri->vN2);
 	intersection.side = dot(ray.direction, intersection.normal) < 0 ? Front : Back;
 	if (intersection.side == Back) intersection.normal = -intersection.normal;
 	intersection.normal = make_float3(make_float4(intersection.normal, 0.0f) * transform);
 
-	Material*material = materials[intersection.tri->material];
+	Material*material = materials[tri->material];
 
 	if (material->texture == NULL) {
 		intersection.diffuse = material->diffuse;
 	}
 	else {
-		float2 uv0 = make_float2(intersection.tri->u0, intersection.tri->v0);
-		float2 uv1 = make_float2(intersection.tri->u1, intersection.tri->v1);
-		float2 uv2 = make_float2(intersection.tri->u2, intersection.tri->v2);
+		float2 uv0 = make_float2(tri->u0, tri->v0);
+		float2 uv1 = make_float2(tri->u1, tri->v1);
+		float2 uv2 = make_float2(tri->u2, tri->v2);
 		float2 uv = (1 - intersectionTraverse.u - intersectionTraverse.v) * uv0 + intersectionTraverse.u * uv1 + intersectionTraverse.v * uv2;
 		intersection.diffuse = GetColor(uv, *(material->texture));
 	}
@@ -149,7 +149,7 @@ void lh2core::WhittedStyleRayTracer::ShootLightRays(const uint numberOfRays)
 			float sqrtR1 = sqrt(r1);
 
 			float3 position = (1 - sqrtR1) * areaLight->vertex0 + (sqrtR1 * (1 - r2)) * areaLight->vertex1 + (sqrtR1 * r2) * areaLight->vertex2;
-			float3 direction;
+			float3 direction;	
 			RandomDirectionHemisphere(areaLight->N, direction);
 
 			ray.origin = position + bias * direction;
