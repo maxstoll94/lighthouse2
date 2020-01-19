@@ -34,18 +34,10 @@ namespace lh2core
 		void ResizeScreen(const int width, const int height);
 		void ShootLightRays(const uint numberOfRays);
 	private:
-		//void Trace(Ray ray, float3 & albedo, bool lastSpecular);
 		float3 Trace(Ray ray);
 		void NearestIntersection(const Ray&ray, IntersectionTraverse&intersection, int&numberIntersections); // Returns the nearest intersection point, the normal and the material type.
 		void NearestIntersection(const BVH&bvh, const Ray&ray, IntersectionTraverse&intersection, const int meshIdx, int&numberIntersections);
 		bool HasIntersection(const Ray &ray, const bool isBounded, const float distance);
 		bool HasIntersection(const BVH & bvh, const Ray & ray, const bool bounded, const float distance);
-		// bool HasIntersection(const Ray &ray, const aabb &aabb, const bool isBounded, const float distance);
-		Ray Reflect(const Ray &ray, const IntersectionShading&intersection);
-		float3 SkyDomeColor(const Ray &ray, const Texture &texture);
-		float3 GetColor(const float2 &uv, const Texture &texture);
-		float3 Dielectrics(const Ray &ray, const IntersectionShading&intersection);
-		float Fresnel(const Ray &ray, const IntersectionShading&intersection, const float n1, const float n2, const float cosOi);
-		float3 Beer(const IntersectionShading&intersection, float3 diffuse);
 	};
 }
