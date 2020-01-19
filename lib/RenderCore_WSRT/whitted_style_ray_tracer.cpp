@@ -1,5 +1,4 @@
-﻿
-#include "whitted_style_ray_tracer.h"
+﻿#include "whitted_style_ray_tracer.h"
 #include <vector>
 #include <iostream>
 
@@ -27,6 +26,40 @@ void RandomDirection(float3&N) {
 void RandomDirectionHemisphere(const float3&N, float3&dir) {
 	RandomDirection(dir);
 	dir = dot(N, dir) > 0 ? dir : -dir;
+}
+
+float3 GetColor(const float2 &uv, const Texture &texture) {
+	int width = texture.width;
+	int height = texture.height;
+	float3* pixels = texture.pixels;
+
+	float u = uv.x * (width - 1);
+	float v = uv.y * (height - 1);
+
+	uint u1 = floor(u);
+	uint u2 = ceil(u);
+	uint v1 = floor(v);
+	uint v2 = ceil(v);
+
+	float3 a = pixels[u1 + v1 * width];
+	float3 b = pixels[u2 + v1 * width];
+	float3 c = pixels[u2 + v2 * width];
+	float3 d = pixels[u2 + v1 * width];
+
+	float x = u - u1;
+	float y = v - v1;
+
+	// bi-linear interpolation
+	return lerp(lerp(a, b, x), lerp(c, d, x), y);
+}
+
+float3 SkyDomeColor(const Ray &ray, const Texture &texture) {
+	float2 uv;
+	uv.x = atan2(ray.direction.x, ray.direction.z) / (2 * PI);
+	if (uv.x < 0) uv.x += 1;
+	uv.y = acos(ray.direction.y) / PI;
+
+	return GetColor(uv, texture);
 }
 
 float3 GetRandomPointOnAreaLight(CoreLightTri* areaLight) {
@@ -252,6 +285,8 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 
 	coreStats->primaryRayCount++; coreStats->traceTime0 += t.elapsed();
 
+	//return HSVtoRGB(numberIntersections, 1, 1);
+
 	float3 albedo = make_float3(1.0f);
 	float3 albedoLight = make_float3(0.0f);
 
@@ -275,13 +310,20 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 			float3 lightDirection = normalize(intersectionLight);
 			float lightDistance = length(intersectionLight);
 
-			float contribution = areaLight->area * dot(intersection.normal, lightDirection) * dot(areaLight->N, -lightDirection) / (lightDistance * lightDistance);
-			if (contribution > 0) { // don't calculate illumination for intersections facing away from the light
+			float nDotL = dot(intersection.normal, lightDirection);
+			float nLDotMinL = dot(areaLight->N, -lightDirection);
+
+			if (nLDotMinL > 0 && nDotL > 0) { // don't calculate illumination for intersections facing away from the light
 				ray.origin = intersection.position + bias * lightDirection;
 				ray.direction = lightDirection;
+				t.reset();
+				bool lightObstructed = HasIntersection(ray, true, lightDistance - 2 * bias);
+				coreStats->totalShadowRays++; coreStats->shadowTraceTime += t.elapsed();
 
-				if (!HasIntersection(ray, true, lightDistance - 2 * bias)) {
-					albedoLight += albedo * BRDF * areaLight->radiance * contribution;
+				if (!lightObstructed) {
+					float solidAngle = (nLDotMinL * areaLight->area) / (lightDistance * lightDistance);
+					float lightPDF = 1 / solidAngle;
+					albedoLight += albedo * (nDotL / lightPDF) * BRDF * areaLight->radiance;
 				}
 			}
 		}
@@ -310,66 +352,7 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 	return albedoLight;
 }
 
-//void WhittedStyleRayTracer::Trace(Ray ray, float3&albedo, bool lastSpecular) {
-//	IntersectionTraverse intersectionTraverse;
-//	int numberIntersections = 0;
-//
-//	intersectionTraverse.Reset();
-//	NearestIntersection(ray, intersectionTraverse, numberIntersections);
-//	IntersectionShading intersection = intersectionTraverseToIntersectionShading(intersectionTraverse, ray);
-//
-//	// heatmap
-//	//return HSVtoRGB(numberIntersections, 1, 1);
-//
-//	// normal view
-//	// return foundIntersection ? (intersection.normal + 1.0f) * 0.5f : make_float3(0);
-//
-//	// depth view
-//	//return HSVtoRGB((int)(intersection.t * 400) % 360, 1, 1);
-//
-//	if (!intersection.hasIntersection) {
-//		//return SkyDomeColor(ray, *skyDome);
-//		albedo *= make_float3(0.0f);
-//	}
-//	else {
-//		if (intersection.diffuse.x > 1.0f || intersection.diffuse.y > 1.0f || intersection.diffuse.x > 1.0f) {
-//			//albedo = intersection.diffuse;
-//			albedo *= lastSpecular ? intersection.diffuse : make_float3(0.0f);
-//		} else {
-//			float3 BRDF = intersection.diffuse * INVPI;
-//
-//			RandomDirectionHemisphere(intersection.normal, ray.direction);
-//			ray.origin = intersection.position + bias * ray.direction;
-//
-//			albedo *= PI * 2.0f * BRDF * dot(ray.direction, intersection.normal);
-//			Trace(ray, albedo, false);
-//
-//			// NEE
-//			CoreLightTri* areaLight = GetRandomLight();
-//			if (areaLight != nullptr) {
-//				float3 position = GetRandomPointOnAreaLight(areaLight);
-//
-//				float3 intersectionLight = position - intersection.position;
-//				float3 lightDirection = normalize(intersectionLight);
-//				float lightDistance = length(intersectionLight);
-//
-//				float contribution = areaLight->area * dot(intersection.normal, lightDirection) * dot(areaLight->N, -lightDirection) / (lightDistance * lightDistance);
-//				if (contribution > 0) { // don't calculate illumination for intersections facing away from the light
-//					ray.origin = intersection.position + bias * lightDirection;
-//					ray.direction = lightDirection;
-//
-//					if (!HasIntersection(ray, true, lightDistance - 2 * bias)) {
-//						albedo += BRDF * areaLight->radiance * contribution;
-//					}
-//				}
-//			}
-//
-//			//float3 albedo = PI * 2.0f * BRDF * Trace(ray, false) * dot(ray.direction, intersection.normal);
-//		}
-//	}
-//}
-
-bool WhittedStyleRayTracer::HasIntersection(const Ray &ray, const bool bounded, const float distance) {
+bool WhittedStyleRayTracer::HasIntersection(const Ray&ray, const bool bounded, const float distance) {
 	BVHTopNode node;
 	Ray transfomedRay;
 	mat4 transform;
@@ -570,133 +553,3 @@ void WhittedStyleRayTracer::NearestIntersection(const BVH&bvh, const Ray &ray, I
 		}
 	}
 }
-
-//  +-----------------------------------------------------------------------------+
-//  |  RenderCore::SetTarget                                                      |
-//  |  Set the OpenGL texture that serves as the render target.             LH2'19|
-//  +-----------------------------------------------------------------------------+
-Ray WhittedStyleRayTracer::Reflect(const Ray &ray, const IntersectionShading&intersection) {
-	Ray reflectRay;
-
-	float3 N = intersection.normal;
-	float3 P = intersection.position;
-
-	// taken from lecture slides "whitted-style" slide 13
-	reflectRay.direction = ray.direction - 2 * dot(N, ray.direction) * N;
-	reflectRay.origin = P + bias * reflectRay.direction;
-
-	return reflectRay;
-}
-
-//  +-----------------------------------------------------------------------------+
-//  |  RenderCore::SetTarget                                                      |
-//  |  Set the OpenGL texture that serves as the render target.             LH2'19|
-//  +-----------------------------------------------------------------------------+
-float3 WhittedStyleRayTracer::GetColor(const float2 &uv, const Texture &texture) {
-	int width = texture.width;
-	int height = texture.height;
-	float3* pixels = texture.pixels;
-
-	float u = uv.x * (width - 1);
-	float v = uv.y * (height - 1);
-
-	uint u1 = floor(u);
-	uint u2 = ceil(u);
-	uint v1 = floor(v);
-	uint v2 = ceil(v);
-
-	float3 a = pixels[u1 + v1 * width];
-	float3 b = pixels[u2 + v1 * width];
-	float3 c = pixels[u2 + v2 * width];
-	float3 d = pixels[u2 + v1 * width];
-
-	float x = u - u1;
-	float y = v - v1;
-
-	// bi-linear interpolation
-	return lerp(lerp(a, b, x), lerp(c, d, x), y);
-}
-
-//  +-----------------------------------------------------------------------------+
-//  |  RenderCore::SetTarget                                                      |
-//  |  Set the OpenGL texture that serves as the render target.             LH2'19|
-//  +-----------------------------------------------------------------------------+
-float3 WhittedStyleRayTracer::SkyDomeColor(const Ray &ray, const Texture &texture) {
-	float2 uv;
-	uv.x = atan2(ray.direction.x, ray.direction.z) / (2 * PI);
-	if (uv.x < 0) uv.x += 1;
-	uv.y = acos(ray.direction.y) / PI;
-
-	return GetColor(uv, texture);
-}
-
-//float3 WhittedStyleRayTracer::Dielectrics(const Ray &ray, const IntersectionShading &intersection) {
-//	float3 N = intersection.normal;
-//	float3 P = intersection.position;
-//
-//	float n1, n2;
-//	switch (intersection.side) {
-//	case Front:
-//		n1 = refractiveIndexAir;
-//		n2 = refractiveIndexGlass;
-//		break;
-//	case Back:
-//		n1 = refractiveIndexGlass;
-//		n2 = refractiveIndexAir;
-//		break;
-//	}
-//
-//	float n1n2 = n1 / n2;
-//	float cosO1 = dot(N, -1 * ray.direction);
-//
-//	float k = 1 - n1n2 * n1n2 * (1 - cosO1 * cosO1);
-//
-//	// total internal reflection
-//	if (k < kEpsilon) return Trace(Reflect(ray, make_float3(0.0f), intersection), true);
-//
-//	Ray refractRay;
-//	refractRay.direction = n1n2 * ray.direction + N * (n1n2 * cosO1 - sqrt(k));
-//	refractRay.origin = P + bias * -1 * refractRay.direction;
-//
-//	float fr = Fresnel(ray, intersection, n1, n2, cosO1);
-//	float ft = 1 - fr;
-//
-//	float3 diffuse = make_float3(0);
-//	if (fr > kEpsilon) {
-//		diffuse += fr * Trace(Reflect(ray, intersection), true);
-//	}
-//	if (ft > kEpsilon) {
-//		diffuse += ft * Beer(intersection, Trace(refractRay, true));
-//	}
-//
-//	return diffuse;
-//}
-
-//float3 WhittedStyleRayTracer::Beer(const IntersectionShading&intersection, float3 diffuse) {
-//	switch (intersection.side) {
-//	case Front:
-//		return diffuse;
-//	case Back:
-//		Material*material = materials[intersection.tri->material];
-//
-//		float3 absorption;
-//		absorption.x = exp(-material->transmittance.x * intersection.t);
-//		absorption.y = exp(-material->transmittance.y * intersection.t);
-//		absorption.z = exp(-material->transmittance.z * intersection.t);
-//
-//		return diffuse * absorption;
-//	}
-//}
-//
-//float WhittedStyleRayTracer::Fresnel(const Ray &ray, const IntersectionShading&intersection, const float n1, const float n2, const float cosOi) {
-//	float n1n2 = n1 / n2;
-//
-//	float n1n2SinCos01 = n1n2 * sin(acos(cosOi));
-//	float cosOt = sqrt(1 - n1n2SinCos01 * n1n2SinCos01);
-//
-//	float sPolarizedLight = (n1 * cosOi - n2 * cosOt) / (n1 * cosOi + n2 * cosOt);
-//	float pPolarizedLight = (n1 * cosOt - n2 * cosOi) / (n1 * cosOt + n2 * cosOi);
-//	float fr = (sPolarizedLight * sPolarizedLight + pPolarizedLight * pPolarizedLight) / 2;
-//
-//	return fr;
-//}
