@@ -15,7 +15,7 @@ namespace lh2core
 	public: 
 		CoreStats*coreStats;
 		BVHTop* bvhTop;
-		vector<BVHTopNode*> instances;
+		vector<tuple<BVHTopNode*, mat4*>> instances;
 		vector<BVH*> bvhs;								// storing all bvh's
 		vector<CoreLightTri*> areaLights;				// point lights of the scene
 		vector<CorePointLight*> pointLights;			// point lights of the scene
@@ -29,18 +29,16 @@ namespace lh2core
 		int accumulatorIndex;
 
 		void Render(const ViewPyramid& view, Bitmap* screen, const Convergence converge);
-		tuple<CoreLightTri*, float3> GetRandomPointOnLight();
+		IntersectionShading intersectionTraverseToIntersectionShading(const IntersectionTraverse&intersectionTraverse, const Ray&ray);
 		CoreLightTri * GetRandomLight();
 		void ResizeScreen(const int width, const int height);
 		void ShootLightRays(const uint numberOfRays);
 	private:
-		float3 Directllumination(const IntersectionShading&intersection);
-		float3 Trace(Ray ray, bool lastSpecular);
+		//void Trace(Ray ray, float3 & albedo, bool lastSpecular);
+		float3 Trace(Ray ray);
 		void NearestIntersection(const Ray&ray, IntersectionTraverse&intersection, int&numberIntersections); // Returns the nearest intersection point, the normal and the material type.
-		void NearestIntersection(const BVHTopNode&bvh, const Ray&ray, IntersectionTraverse&intersection, int&numberIntersections);
 		void NearestIntersection(const BVH&bvh, const Ray&ray, IntersectionTraverse&intersection, const int meshIdx, int&numberIntersections);
 		bool HasIntersection(const Ray &ray, const bool isBounded, const float distance);
-		bool HasIntersection(const BVHTopNode & node, const Ray & ray, const bool bounded, const float distance);
 		bool HasIntersection(const BVH & bvh, const Ray & ray, const bool bounded, const float distance);
 		// bool HasIntersection(const Ray &ray, const aabb &aabb, const bool isBounded, const float distance);
 		Ray Reflect(const Ray &ray, const IntersectionShading&intersection);

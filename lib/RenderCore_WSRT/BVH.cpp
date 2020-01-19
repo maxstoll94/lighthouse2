@@ -286,17 +286,19 @@ int BVH::SurfaceAreaHeuristic(BVHNode &node, int first, int last) {
 	return bestSplitIndex;
 }
 
-BVHTopNode* FindBestMatch(BVHTopNode* a, const vector<BVHTopNode*>&topNodes) {
-	float3 centerA = (a->bounds.bmin3 + a->bounds.bmax3) * 0.5f;
+int BVHTop::FindBestMatch(const int a, const vector<int>&topNodes) {
+	float distance;
+	float3 centerB;
 
-	BVHTopNode* bestNode = a;
+	float3 centerA = (pool[a].bounds.bmin3 + pool[a].bounds.bmax3) * 0.5f;
+
+	int bestNode = a;
 	float bestDistance = 1e34f;
-
-	for (BVHTopNode*b : topNodes) {
+	for (int b : topNodes) {
 		if (b == a) continue;
 
-		float3 centerB = (b->bounds.bmin3 + b->bounds.bmax3) * 0.5f;
-		float distance = length(centerB - centerA);
+		centerB = (pool[b].bounds.bmin3 + pool[b].bounds.bmax3) * 0.5f;
+		distance = length(centerB - centerA);
 		if (distance < bestDistance) {
 			bestDistance = distance;
 			bestNode = b;
@@ -306,24 +308,24 @@ BVHTopNode* FindBestMatch(BVHTopNode* a, const vector<BVHTopNode*>&topNodes) {
 	return bestNode;
 }
 
-void BVHTop::UpdateTopLevel(vector<BVHTopNode*> instances) {
-	if (instances.size() == 0) return;
+void BVHTop::UpdateTopLevel() {
+	vector<int> topNodes;
+	topNodes.reserve(bvhCount);
+	for (int i = 0; i < bvhCount; i++) topNodes.push_back(i);
 
-	vector<BVHTopNode*> topNodes(instances);
-	int topLevelBVHsPtr = 0;
+	int topLevelBVHsPtr = bvhCount;
 
-	BVHTopNode*a = topNodes.front();
-	BVHTopNode*b = FindBestMatch(a, topNodes);
+	int a = topNodes.front();
+	int b = FindBestMatch(a, topNodes);
 
 	while (topNodes.size() > 1) {
-		BVHTopNode* c = FindBestMatch(b, topNodes);
+		int c = FindBestMatch(b, topNodes);
 
 		if (a == c) {
-			BVHTopNode*topNode = &pool[topLevelBVHsPtr++];
-			topNode->bvh = nullptr;
-			topNode->left = a;
-			topNode->right = b;
-			topNode->bounds = a->bounds.Union(b->bounds);
+			int topNode = topLevelBVHsPtr++;
+			pool[topNode].SetLeftIndex(a);
+			pool[topNode].SetRightIndex(b);
+			pool[topNode].bounds = pool[a].bounds.Union(pool[b].bounds);
 
 			topNodes.erase(find(topNodes.begin(), topNodes.end(), a));
 			topNodes.erase(find(topNodes.begin(), topNodes.end(), b));
@@ -337,6 +339,4 @@ void BVHTop::UpdateTopLevel(vector<BVHTopNode*> instances) {
 			b = c;
 		}
 	}
-
-	root = topNodes.front();
 }
