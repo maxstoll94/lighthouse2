@@ -103,8 +103,9 @@ public:
 
 struct Photon {
 	float3 position; // 12 - world space position of the photon hit
-	float3 power;    // 12 - current power level for the photon
+	float energy;    // 4 - current power level for the photon
 	float3 L;        // 12 - incident direction
-	                 // 36 total
+	uint lightIndex;
+	                 // 32 total
 };
 }

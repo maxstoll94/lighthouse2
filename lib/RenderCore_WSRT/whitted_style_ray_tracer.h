@@ -26,13 +26,17 @@ namespace lh2core
 		Texture*skyDome;								// sky dome of the scene
 		float3*accumulator;
 		Photon*photons;
+
+		int totalNumberOfPhotons;
+		int* lightsProbabilities;
 		int accumulatorIndex;
 
 		void Render(const ViewPyramid& view, Bitmap* screen, const Convergence converge);
 		IntersectionShading intersectionTraverseToIntersectionShading(const IntersectionTraverse&intersectionTraverse, const Ray&ray);
-		CoreLightTri * GetRandomLight();
+		void GetRandomLight(CoreLightTri*&areaLight, float&probability);
 		void ResizeScreen(const int width, const int height);
-		void ShootLightRays(const uint numberOfRays);
+		void ShootLightRays();
+		void GenerateLightsProbability(const float3 &normal, const vector<Photon*> &photons, CoreLightTri* &areaLight, float &p);
 	private:
 		float3 Trace(Ray ray);
 		void NearestIntersection(const Ray&ray, IntersectionTraverse&intersection, int&numberIntersections); // Returns the nearest intersection point, the normal and the material type.

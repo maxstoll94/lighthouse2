@@ -40,9 +40,17 @@ static CoreStats coreStats;
 //  +-----------------------------------------------------------------------------+
 void PrepareScene() {
 	// area light
-	int lightMat = renderer->AddMaterial( make_float3( 100.0f, 100.0f, 100.0f ) );
-	int lightQuad = renderer->AddQuad( make_float3( 0.01f, -1.0f, 0.0f ), make_float3( 0.0f, 3.0f, 0.0f ), 1.0f, 1.0f, lightMat );
-	renderer->AddInstance( lightQuad );
+	//int lightMat = renderer->AddMaterial( make_float3( 100.0f, 0.0f, 0.0f ) );
+	//int lightQuad = renderer->AddQuad( make_float3( 1.0f, 0.01f, 0.0f ), make_float3(-3.0f, 1.0f, 0.0f ), 1.0f, 1.0f, lightMat );
+	//renderer->AddInstance( lightQuad );
+
+	int lightGreenMat = renderer->AddMaterial(make_float3(0.0f, 100.0f, 0.0f));
+	int lightGreenQuad = renderer->AddQuad(make_float3(-1.0f, 0.01f, 0.0f), make_float3(3.0f, 1.0f, 0.0f), 3.0f, 3.0f, lightGreenMat);
+	renderer->AddInstance(lightGreenQuad);
+
+	int lightBlueMat = renderer->AddMaterial(make_float3(0.0f, 0.0f, 50.0f));
+	int lightBlueQuad = renderer->AddQuad(make_float3(0.01f, -1.0f, 0.0f), make_float3(0.0f, 4.0f, 0.0f), 1.0f, 1.0f, lightBlueMat);
+	renderer->AddInstance(lightBlueQuad);
 
 	// spot light
 	// renderer->AddSpotLight(make_float3(0, 3, 0), make_float3(-0.1, -1, 0.2), 0.9, 0.0, make_float3(10, 10, 10), true);
@@ -57,9 +65,9 @@ void PrepareScene() {
 	int bunnyId = renderer->AddMesh("bunny.obj", "data/bunny/", 1.0f);
 	bunny = renderer->AddInstance(bunnyId);
 
-	int planeMat = renderer->AddMaterial(make_float3(1.0f, 0.0f, 0.0f));
-	int planeQuad = renderer->AddQuad(make_float3(0.01f, 1.0f, 0.0f), make_float3(0.0f, 0.0f, 0.0f), 10.0f, 10.0f, planeMat);
-	renderer->AddInstance(planeQuad);
+	//int planeMat = renderer->AddMaterial(make_float3(1.0f, 0.0f, 0.0f));
+	//int planeQuad = renderer->AddQuad(make_float3(0.01f, 1.0f, 0.0f), make_float3(0.0f, 0.0f, 0.0f), 10.0f, 10.0f, planeMat);
+	//renderer->AddInstance(planeQuad);
 
 	//renderer->AddScene("CesiumMan.glb", "data/", DynamicAnimation, mat4::Translate(0.0, 0.0, 5.0f));
 	

@@ -109,7 +109,7 @@ void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const ma
 			}
 		}
 
-		rayTracer.ShootLightRays(100);
+		rayTracer.ShootLightRays();
 		return;
 	}
 
@@ -152,6 +152,8 @@ void RenderCore::SetLights(const CoreLightTri* areaLights, const int areaLightCo
 		memcpy(light, &(areaLights[i]), sizeof(CoreLightTri));
 		rayTracer.areaLights.push_back(light);
 	}
+
+	rayTracer.GenerateLightsProbability();
 
 	rayTracer.pointLights.clear();
 	for (int i = 0; i < pointLightCount; i++) {
