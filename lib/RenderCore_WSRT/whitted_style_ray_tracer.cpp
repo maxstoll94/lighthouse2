@@ -68,15 +68,9 @@ void WhittedStyleRayTracer::GetRandomLight(const IntersectionShading&intersectio
 		return;
 	}
 
-	vector<int> photonsIndexes;
-
-	float minDist = 0.5f;
-	float minDist2 = minDist * minDist;
-	for (int i = 0; i < totalNumberOfPhotons; i++) {
-		if (dot(photons[i].position, intersection.position) < minDist2) {
-			photonsIndexes.push_back(i);
-		}
-	}
+	vector<int> photonsIndexes = photonMap->NearestNeighbours(intersection.position, 0.1f);
+	//cout << "Intersection position (" << intersection.position.x << "," << intersection.position.y << "," << intersection.position.z << ")" << endl;
+	//cout << "Nearest Neighbours " << photonsIndexes.size() << endl;
 
 	for (int i = 0; i < areaLights.size(); i ++) {
 		lightsProbabilities[i] = 0.0f;
@@ -85,7 +79,7 @@ void WhittedStyleRayTracer::GetRandomLight(const IntersectionShading&intersectio
 	float totalProbability = 0.0f;
 
 	for (int photonIndex:photonsIndexes) {
-		Photon photon = photons[photonIndex];
+		Photon photon = photonMap->photons[photonIndex];
 		float probability = max(dot(intersection.normal, photon.L) * photon.energy, 0.0f);
 		lightsProbabilities[photon.lightIndex] += probability;
 		totalProbability += probability;
@@ -215,12 +209,12 @@ void lh2core::WhittedStyleRayTracer::ShootLightRays() {
 	int* photonsPerLight = new int[areaLights.size()];
 
 	for (int i = 0; i < areaLights.size(); i++) {
-		int numberOfPhotons = length(areaLights[i]->radiance) * areaLights[i]->area * 1;
+		int numberOfPhotons = length(areaLights[i]->radiance) * areaLights[i]->area * 100000;
 		photonsPerLight[i] = numberOfPhotons;
 		emittedNumberOfPhotons += numberOfPhotons;
 	}
 
-	photons = (Photon*)_aligned_malloc(emittedNumberOfPhotons * sizeof(Photon), 64);
+	Photon* photons = (Photon*)_aligned_malloc(emittedNumberOfPhotons * sizeof(Photon), 64);
 	int photonPtr = 0;
 	Photon photon;
 
@@ -254,7 +248,10 @@ void lh2core::WhittedStyleRayTracer::ShootLightRays() {
 		}
 	}
 
-	totalNumberOfPhotons = photonPtr;
+	cout << "Photons:" << photonPtr << endl;
+
+	photonMap = new PhotonMap(photons, photonPtr);
+	_aligned_free(photons);
 	delete[] photonsPerLight;
 }
 
@@ -330,6 +327,7 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 //}
 
 float3 WhittedStyleRayTracer::Trace(Ray ray) {
+	//return HSVtoRGB(photonMap->NumberOfIntersections(ray), 1, 1);
 	Timer t{};
 	IntersectionShading intersection;
 	IntersectionTraverse intersectionTraverse;
@@ -389,7 +387,7 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 		}
 
 		// russian roulette
-		float pSurvive = clamp(max(max(albedo.x, albedo.y), albedo.z), 0.1, 0.9);
+		float pSurvive = clamp(max(max(albedo.x, albedo.y), albedo.z), 0.0f, 1.0f);
 		if ((float)rand() / RAND_MAX > pSurvive) {
 			return albedoLight;
 		}

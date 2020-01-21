@@ -22,6 +22,8 @@
 
 using namespace lh2core;
 
+bool shotLightRays = false;
+
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::Init                                                           |
 //  |  Initialization.                                                      LH2'19|
@@ -109,7 +111,6 @@ void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const ma
 			}
 		}
 
-		rayTracer.ShootLightRays();
 		return;
 	}
 
@@ -151,6 +152,11 @@ void RenderCore::SetLights(const CoreLightTri* areaLights, const int areaLightCo
 		CoreLightTri*light = new CoreLightTri;
 		memcpy(light, &(areaLights[i]), sizeof(CoreLightTri));
 		rayTracer.areaLights.push_back(light);
+	}
+
+	if (!shotLightRays) {
+		rayTracer.ShootLightRays();
+		shotLightRays = true;
 	}
 
 	_aligned_free(rayTracer.lightsProbabilities);

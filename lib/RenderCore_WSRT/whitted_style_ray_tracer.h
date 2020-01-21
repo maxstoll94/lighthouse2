@@ -2,6 +2,7 @@
 #include "rendersystem.h"
 #include "classes.h"
 #include "BVH.h"
+#include "PhotonMap.h"
 
 namespace lh2core
 {
@@ -28,8 +29,7 @@ namespace lh2core
 		float3*accumulator;
 		int accumulatorIndex;
 
-		Photon*photons;
-		int totalNumberOfPhotons;
+		PhotonMap* photonMap;
 		float*lightsProbabilities;
 
 		void Render(const ViewPyramid& view, Bitmap* screen, const Convergence converge);
