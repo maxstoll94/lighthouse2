@@ -68,27 +68,28 @@ void WhittedStyleRayTracer::GetRandomLight(const IntersectionShading&intersectio
 		return;
 	}
 
-	//vector<int> photonsIndexes;
+	vector<int> photonsIndexes;
 
-	//float minDist = 1000.0f;
-	//float minDist2 = minDist * minDist;
-	//for (int i = 0; i < totalNumberOfPhotons; i++) {
-	//	if (dot(photons[i].position, intersection.position) < minDist2) {
-	//		photonsIndexes.push_back(i);
-	//	}
-	//}
+	float minDist = 0.5f;
+	float minDist2 = minDist * minDist;
+	for (int i = 0; i < totalNumberOfPhotons; i++) {
+		if (dot(photons[i].position, intersection.position) < minDist2) {
+			photonsIndexes.push_back(i);
+		}
+	}
 
 	for (int i = 0; i < areaLights.size(); i ++) {
 		lightsProbabilities[i] = 0.0f;
 	}
 
 	float totalProbability = 0.0f;
-	//for (int photonIndex:photonsIndexes) {
-	//	Photon photon = photons[photonIndex];
-	//	float probability = dot(intersection.normal, photon.L) * photon.energy;
-	//	probabilities[photon.lightIndex] = probability;
-	//	totalProbability += probability;
-	//}
+
+	for (int photonIndex:photonsIndexes) {
+		Photon photon = photons[photonIndex];
+		float probability = max(dot(intersection.normal, photon.L) * photon.energy, 0.0f);
+		lightsProbabilities[photon.lightIndex] += probability;
+		totalProbability += probability;
+	}
 
 	float baseProbability = max(0.1f, (totalProbability / areaLights.size()) / 10.0f);
 	for (int i = 0; i < areaLights.size(); i++) {
@@ -98,6 +99,7 @@ void WhittedStyleRayTracer::GetRandomLight(const IntersectionShading&intersectio
 
 	float value = ((float)rand() / RAND_MAX) * totalProbability;
 	float probabilityIterator = 0;
+
 	for (int i = 0; i < areaLights.size(); i++) {
 		float probability = lightsProbabilities[i];
 		probabilityIterator += probability;
@@ -213,7 +215,7 @@ void lh2core::WhittedStyleRayTracer::ShootLightRays() {
 	int* photonsPerLight = new int[areaLights.size()];
 
 	for (int i = 0; i < areaLights.size(); i++) {
-		int numberOfPhotons = length(areaLights[i]->radiance) * areaLights[i]->area * 0.1;
+		int numberOfPhotons = length(areaLights[i]->radiance) * areaLights[i]->area * 1;
 		photonsPerLight[i] = numberOfPhotons;
 		emittedNumberOfPhotons += numberOfPhotons;
 	}
