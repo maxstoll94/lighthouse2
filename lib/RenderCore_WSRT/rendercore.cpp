@@ -153,7 +153,8 @@ void RenderCore::SetLights(const CoreLightTri* areaLights, const int areaLightCo
 		rayTracer.areaLights.push_back(light);
 	}
 
-	rayTracer.GenerateLightsProbability();
+	_aligned_free(rayTracer.lightsProbabilities);
+	rayTracer.lightsProbabilities = (float*)_aligned_malloc(areaLightCount * sizeof(float), 64);
 
 	rayTracer.pointLights.clear();
 	for (int i = 0; i < pointLightCount; i++) {

@@ -24,19 +24,19 @@ namespace lh2core
 		vector<Material*> materials;					// materials of the scene
 		vector<Texture*> texList;						// 2D representation of the texture
 		Texture*skyDome;								// sky dome of the scene
-		float3*accumulator;
-		Photon*photons;
 
-		int totalNumberOfPhotons;
-		int* lightsProbabilities;
+		float3*accumulator;
 		int accumulatorIndex;
+
+		Photon*photons;
+		int totalNumberOfPhotons;
+		float*lightsProbabilities;
 
 		void Render(const ViewPyramid& view, Bitmap* screen, const Convergence converge);
 		IntersectionShading intersectionTraverseToIntersectionShading(const IntersectionTraverse&intersectionTraverse, const Ray&ray);
-		void GetRandomLight(CoreLightTri*&areaLight, float&probability);
+		void GetRandomLight(const IntersectionShading&intersection, CoreLightTri*&areaLight, float3&lightPosition, float&p);
 		void ResizeScreen(const int width, const int height);
 		void ShootLightRays();
-		void GenerateLightsProbability(const float3 &normal, const vector<Photon*> &photons, CoreLightTri* &areaLight, float &p);
 	private:
 		float3 Trace(Ray ray);
 		void NearestIntersection(const Ray&ray, IntersectionTraverse&intersection, int&numberIntersections); // Returns the nearest intersection point, the normal and the material type.
