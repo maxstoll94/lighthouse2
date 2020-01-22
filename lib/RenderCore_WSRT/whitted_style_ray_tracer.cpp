@@ -462,32 +462,24 @@ bool WhittedStyleRayTracer::HasIntersection(const BVH &bvh, const Ray &ray, cons
 	float3 a, b, c;
 	int index, i;
 	uint first, last;
-	bool intersectLeft, intersectRight;
 
 	//stack.reserve(30);
 	stack.reserve(log2(bvh.vcount / 3) * 1.5);
 
-	if (BoundingBoxIntersection(ray, bvh.pool[0].bounds, tmin, tmax) && tmax > kEpsilon && (!bounded || tmin < distance)) stack.push_back(0);
+	stack.push_back(0);
 
 	while (!stack.empty()) {
 		node = bvh.pool[stack.back()];
 		stack.pop_back();
 
+		if (!(BoundingBoxIntersection(ray, bvh.pool[0].bounds, tmin, tmax) && tmax > kEpsilon && (!bounded || tmin < distance))) continue;
+
 		if (node.count == 0) {
 			left = node.leftFirst;
 			right = left + 1;
 
-			intersectLeft = BoundingBoxIntersection(ray, bvh.pool[left].bounds, tminLeft, tmaxLeft);
-			intersectRight = BoundingBoxIntersection(ray, bvh.pool[right].bounds, tminRight, tmaxRight);
-
-			if (tminLeft < tminRight) {
-				if (intersectRight && tmaxRight > kEpsilon) stack.push_back(right);
-				if (intersectLeft && tmaxLeft > kEpsilon) stack.push_back(left);
-			}
-			else {
-				if (intersectLeft && tmaxLeft > kEpsilon) stack.push_back(left);
-				if (intersectRight && tmaxRight > kEpsilon) stack.push_back(right);
-			}
+			stack.push_back(right);
+			stack.push_back(left);
 		}
 		else {
 			first = node.leftFirst;
