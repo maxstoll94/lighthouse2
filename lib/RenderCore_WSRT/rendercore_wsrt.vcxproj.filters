@@ -11,6 +11,9 @@
     <ClCompile Include="BVH.cpp">
       <Filter>Bounded_Volume_Hierarchy</Filter>
     </ClCompile>
+    <ClCompile Include="PhotonMap.cpp">
+      <Filter>Bounded_Volume_Hierarchy</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="rendercore.h" />
@@ -25,6 +28,9 @@
       <Filter>Bounded_Volume_Hierarchy</Filter>
     </ClInclude>
     <ClInclude Include="classes.h" />
+    <ClInclude Include="PhotonMap.h">
+      <Filter>Bounded_Volume_Hierarchy</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="API">

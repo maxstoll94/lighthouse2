@@ -62,19 +62,53 @@ float3 SkyDomeColor(const Ray &ray, const Texture &texture) {
 	return GetColor(uv, texture);
 }
 
-float3 GetRandomPointOnAreaLight(CoreLightTri* areaLight) {
+void WhittedStyleRayTracer::GetRandomLight(const IntersectionShading&intersection, CoreLightTri*&areaLight, float3&lightPosition, float&p) {
+	if (areaLights.size() == 0) {
+		areaLight = nullptr;
+		return;
+	}
+
+	vector<int> photonsIndexes = photonMap->NearestNeighbours(intersection.position, 0.1f);
+	//cout << "Intersection position (" << intersection.position.x << "," << intersection.position.y << "," << intersection.position.z << ")" << endl;
+	//cout << "Nearest Neighbours " << photonsIndexes.size() << endl;
+
+	for (int i = 0; i < areaLights.size(); i ++) {
+		lightsProbabilities[i] = 0.0f;
+	}
+
+	float totalProbability = 0.0f;
+
+	for (int photonIndex:photonsIndexes) {
+		Photon photon = photonMap->photons[photonIndex];
+		float probability = max(dot(intersection.normal, photon.L) * photon.energy, 0.0f);
+		lightsProbabilities[photon.lightIndex] += probability;
+		totalProbability += probability;
+	}
+
+	float baseProbability = max(0.1f, (totalProbability / areaLights.size()) / 10.0f);
+	for (int i = 0; i < areaLights.size(); i++) {
+		lightsProbabilities[i] += baseProbability;
+		totalProbability += baseProbability;
+	}
+
+	float value = ((float)rand() / RAND_MAX) * totalProbability;
+	float probabilityIterator = 0;
+
+	for (int i = 0; i < areaLights.size(); i++) {
+		float probability = lightsProbabilities[i];
+		probabilityIterator += probability;
+
+		if (probabilityIterator > value) {
+			areaLight = areaLights[i];
+			p = probability / totalProbability;
+			break;
+		}
+	}
+
 	float r1 = ((float)rand() / RAND_MAX);
 	float r2 = ((float)rand() / RAND_MAX);
 	float sqrtR1 = sqrt(r1);
-	return (1 - sqrtR1) * areaLight->vertex0 + (sqrtR1 * (1 - r2)) * areaLight->vertex1 + (sqrtR1 * r2) * areaLight->vertex2;
-}
-
-CoreLightTri* WhittedStyleRayTracer::GetRandomLight() {
-	if (areaLights.size() == 0) return nullptr;
-
-	int lightIndex = rand() % areaLights.size();
-	CoreLightTri* areaLight = areaLights[lightIndex];
-	return areaLight;
+	lightPosition = (1 - sqrtR1) * areaLight->vertex0 + (sqrtR1 * (1 - r2)) * areaLight->vertex1 + (sqrtR1 * r2) * areaLight->vertex2;
 }
 
 // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection
@@ -167,16 +201,29 @@ IntersectionShading WhittedStyleRayTracer::intersectionTraverseToIntersectionSha
 	return intersection;
 }
 
-void lh2core::WhittedStyleRayTracer::ShootLightRays(const uint numberOfRays)
-{
+void lh2core::WhittedStyleRayTracer::ShootLightRays() {
 	Ray ray;
-	IntersectionTraverse* intersectionTraverse = (IntersectionTraverse*)_aligned_malloc(sizeof(IntersectionTraverse), 64);
+	IntersectionTraverse intersectionTraverse;
 	int numberOfIntersections;
-	photons = (Photon*)_aligned_malloc(numberOfRays * areaLights.size() * sizeof(Photon), 64);
+	int emittedNumberOfPhotons = 0;
+	int* photonsPerLight = new int[areaLights.size()];
+
+	for (int i = 0; i < areaLights.size(); i++) {
+		int numberOfPhotons = length(areaLights[i]->radiance) * areaLights[i]->area * 100000;
+		photonsPerLight[i] = numberOfPhotons;
+		emittedNumberOfPhotons += numberOfPhotons;
+	}
+
+	Photon* photons = (Photon*)_aligned_malloc(emittedNumberOfPhotons * sizeof(Photon), 64);
 	int photonPtr = 0;
 	Photon photon;
-	for (CoreLightTri* areaLight : areaLights) {
-		for (int i = 0; i < numberOfRays; i++) {
+
+	for (int i = 0; i < areaLights.size(); i++) {
+
+		CoreLightTri* areaLight = areaLights[i];
+		uint numberOfRays = photonsPerLight[i];
+
+		for (int j = 0; j < numberOfRays; j++) {
 			float r1 = ((float)rand() / RAND_MAX);
 			float r2 = ((float)rand() / RAND_MAX);
 			float sqrtR1 = sqrt(r1);
@@ -187,18 +234,25 @@ void lh2core::WhittedStyleRayTracer::ShootLightRays(const uint numberOfRays)
 
 			ray.origin = position + bias * direction;
 			ray.direction = direction;
-			intersectionTraverse->t = 1e34f;
-			NearestIntersection(ray, *intersectionTraverse, numberOfIntersections);
+			intersectionTraverse.Reset();
+			NearestIntersection(ray, intersectionTraverse, numberOfIntersections);
 
-			if (intersectionTraverse->t != 1e34f) {
-				photon.power = areaLight->radiance;
-				photon.position = ray.origin + ray.direction * intersectionTraverse->t;
+			if (intersectionTraverse.t != 1e34f) {
+				photon.energy = length(areaLight->radiance);
+				photon.position = ray.origin + ray.direction * intersectionTraverse.t;
 				photon.L = -ray.direction;
+				photon.lightIndex = i;
 
 				photons[photonPtr++] = photon;
 			}
 		}
 	}
+
+	cout << "Photons:" << photonPtr << endl;
+
+	photonMap = new PhotonMap(photons, photonPtr);
+	_aligned_free(photons);
+	delete[] photonsPerLight;
 }
 
 void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const Convergence converge) {
@@ -273,6 +327,7 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 //}
 
 float3 WhittedStyleRayTracer::Trace(Ray ray) {
+	//return HSVtoRGB(photonMap->NumberOfIntersections(ray), 1, 1);
 	Timer t{};
 	IntersectionShading intersection;
 	IntersectionTraverse intersectionTraverse;
@@ -302,11 +357,14 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 		float3 BRDF = intersection.diffuse * INVPI;
 
 		// NEE
-		CoreLightTri* areaLight = GetRandomLight();
-		if (areaLight != nullptr) {
-			float3 position = GetRandomPointOnAreaLight(areaLight);
+		CoreLightTri* areaLight; 
+		float probability;
+		float3 lightPosition;
 
-			float3 intersectionLight = position - intersection.position;
+		GetRandomLight(intersection, areaLight, lightPosition, probability);
+
+		if (areaLight != nullptr) {
+			float3 intersectionLight = lightPosition - intersection.position;
 			float3 lightDirection = normalize(intersectionLight);
 			float lightDistance = length(intersectionLight);
 
@@ -323,13 +381,13 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 				if (!lightObstructed) {
 					float solidAngle = (nLDotMinL * areaLight->area) / (lightDistance * lightDistance);
 					float lightPDF = 1 / solidAngle;
-					albedoLight += albedo * (nDotL / lightPDF) * BRDF * areaLight->radiance;
+					albedoLight += (albedo * (nDotL / lightPDF) * BRDF * areaLight->radiance) / probability;
 				}
 			}
 		}
 
 		// russian roulette
-		float pSurvive = clamp(max(max(albedo.x, albedo.y), albedo.z), 0.1, 0.9);
+		float pSurvive = clamp(max(max(albedo.x, albedo.y), albedo.z), 0.0f, 1.0f);
 		if ((float)rand() / RAND_MAX > pSurvive) {
 			return albedoLight;
 		}
@@ -404,32 +462,24 @@ bool WhittedStyleRayTracer::HasIntersection(const BVH &bvh, const Ray &ray, cons
 	float3 a, b, c;
 	int index, i;
 	uint first, last;
-	bool intersectLeft, intersectRight;
 
 	//stack.reserve(30);
 	stack.reserve(log2(bvh.vcount / 3) * 1.5);
 
-	if (BoundingBoxIntersection(ray, bvh.pool[0].bounds, tmin, tmax) && tmax > kEpsilon && (!bounded || tmin < distance)) stack.push_back(0);
+	stack.push_back(0);
 
 	while (!stack.empty()) {
 		node = bvh.pool[stack.back()];
 		stack.pop_back();
 
+		if (!(BoundingBoxIntersection(ray, bvh.pool[0].bounds, tmin, tmax) && tmax > kEpsilon && (!bounded || tmin < distance))) continue;
+
 		if (node.count == 0) {
 			left = node.leftFirst;
 			right = left + 1;
 
-			intersectLeft = BoundingBoxIntersection(ray, bvh.pool[left].bounds, tminLeft, tmaxLeft);
-			intersectRight = BoundingBoxIntersection(ray, bvh.pool[right].bounds, tminRight, tmaxRight);
-
-			if (tminLeft < tminRight) {
-				if (intersectRight && tmaxRight > kEpsilon) stack.push_back(right);
-				if (intersectLeft && tmaxLeft > kEpsilon) stack.push_back(left);
-			}
-			else {
-				if (intersectLeft && tmaxLeft > kEpsilon) stack.push_back(left);
-				if (intersectRight && tmaxRight > kEpsilon) stack.push_back(right);
-			}
+			stack.push_back(right);
+			stack.push_back(left);
 		}
 		else {
 			first = node.leftFirst;

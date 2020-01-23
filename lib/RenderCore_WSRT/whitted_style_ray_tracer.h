@@ -2,6 +2,7 @@
 #include "rendersystem.h"
 #include "classes.h"
 #include "BVH.h"
+#include "PhotonMap.h"
 
 namespace lh2core
 {
@@ -24,15 +25,18 @@ namespace lh2core
 		vector<Material*> materials;					// materials of the scene
 		vector<Texture*> texList;						// 2D representation of the texture
 		Texture*skyDome;								// sky dome of the scene
+
 		float3*accumulator;
-		Photon*photons;
 		int accumulatorIndex;
+
+		PhotonMap* photonMap;
+		float*lightsProbabilities;
 
 		void Render(const ViewPyramid& view, Bitmap* screen, const Convergence converge);
 		IntersectionShading intersectionTraverseToIntersectionShading(const IntersectionTraverse&intersectionTraverse, const Ray&ray);
-		CoreLightTri * GetRandomLight();
+		void GetRandomLight(const IntersectionShading&intersection, CoreLightTri*&areaLight, float3&lightPosition, float&p);
 		void ResizeScreen(const int width, const int height);
-		void ShootLightRays(const uint numberOfRays);
+		void ShootLightRays();
 	private:
 		float3 Trace(Ray ray);
 		void NearestIntersection(const Ray&ray, IntersectionTraverse&intersection, int&numberIntersections); // Returns the nearest intersection point, the normal and the material type.
