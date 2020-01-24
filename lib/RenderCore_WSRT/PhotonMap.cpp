@@ -1,4 +1,5 @@
 #include "PhotonMap.h"
+#include <iostream>
 
 using namespace lh2core;
 
@@ -12,7 +13,9 @@ void Swap2(int* a, int* b) {
 
 // https://developer.mozilla.org/en-US/docs/Games/Techniques/3D_collision_detection
 bool BoundingBoxIntersection(const aabb &a, const aabb &b) {
-	return (a.bmin3.x <= b.bmax3.x && a.bmax3.x >= b.bmin3.x) &&		(a.bmin3.y <= b.bmax3.y && a.bmax3.y >= b.bmin3.y) &&		(a.bmin3.z <= b.bmax3.z && a.bmax3.y >= b.bmin3.z);
+	return (a.bmin3.x <= b.bmax3.x && a.bmax3.x >= b.bmin3.x) &&
+		(a.bmin3.y <= b.bmax3.y && a.bmax3.y >= b.bmin3.y) &&
+		(a.bmin3.z <= b.bmax3.z && a.bmax3.y >= b.bmin3.z);
 }
 
 // https://medium.com/@bromanz/another-view-on-the-classic-ray-aabb-intersection-algorithm-for-bvh-traversal-41125138b525
@@ -30,26 +33,123 @@ bool BoundingBoxIntersection2(const Ray &ray, const aabb &bounds, float&tmin, fl
 	return tmin < tmax;
 }
 
-lh2core::PhotonMap::PhotonMap(const Photon* photons, const int photonCount)
+//lh2core::PhotonMap::PhotonMap(const Photon* photons, const int photonCount)
+//{
+//	this->photonCount = photonCount;
+//	this->photons = (Photon*)_aligned_malloc(photonCount * sizeof(Photon), 64);
+//	memcpy(this->photons, photons, photonCount * sizeof(Photon));
+//
+//	indices = (int*)_aligned_malloc(photonCount * sizeof(int), 64); // new int[triangleCount];
+//
+//	for (int i = 0; i < photonCount; i++) {
+//		indices[i] = i;
+//	}
+//
+//	pool = (BVHNode*)_aligned_malloc(photonCount * 2 * sizeof(BVHNode), 64);
+//
+//	int nodeIndex = 0;
+//	int first = 0;
+//	int last = photonCount - 1;
+//	int poolPtr = 2;
+//
+//	Subdivide(nodeIndex, first, last, poolPtr);
+//}
+
+lh2core::PhotonMap::PhotonMap(const Photon* photons, const int photonCount, const aabb dim, const int nrOfLights)
 {
-	this->photonCount = photonCount;
-	this->photons = (Photon*)_aligned_malloc(photonCount * sizeof(Photon), 64);
-	memcpy(this->photons, photons, photonCount * sizeof(Photon));
+	int gridPhotonCount[GridCellSize];
 
-	indices = (int*)_aligned_malloc(photonCount * sizeof(int), 64); // new int[triangleCount];
-
-	for (int i = 0; i < photonCount; i++) {
-		indices[i] = i;
+	for (int i = 0; i < GridCellSize; i++) {
+		gridPhotonCount[i] = 0;
 	}
 
-	pool = (BVHNode*)_aligned_malloc(photonCount * 2 * sizeof(BVHNode), 64);
+	for (int i = 0; i < photonCount; i++) {
+		Photon photon = photons[i];
+		int index = CoordToIndex(photon.position, dim);
+		cout << index << endl;
+		gridPhotonCount[index] = gridPhotonCount[index] + 1;
+	}
 
-	int nodeIndex = 0;
-	int first = 0;
-	int last = photonCount - 1;
-	int poolPtr = 2;
+	int photonCellCount = 0;
+	int gridCommunativePhotonCount[GridCellSize];
+	for (int i = 0; i < GridCellSize; i++) {
+		gridCommunativePhotonCount[i] = photonCellCount;
+		photonCellCount += gridPhotonCount[i];
+	}
+	 
+	Photon*sortedPhotons = new Photon[photonCount];
+	int gridCommunativePhotonCount2[GridCellSize];
+	for (int i = 0; i < GridCellSize; i++) gridCommunativePhotonCount2[i] = gridCommunativePhotonCount[i];
+	for (int i = 0; i < photonCount; i++) {
+		Photon photon = photons[i];
+		int cellIndex = CoordToIndex(photon.position, dim);
+		int sortedIndex = gridCommunativePhotonCount2[cellIndex];
+		gridCommunativePhotonCount2[cellIndex] ++;
 
-	Subdivide(nodeIndex, first, last, poolPtr);
+		sortedPhotons[sortedIndex] = photon;
+	}
+
+	float*totalEnergyPerLight = new float[nrOfLights];
+	for (int i = 0; i < GridCellSize; i++) {
+
+		for (int j = 0; j < nrOfLights; j++) {
+			totalEnergyPerLight[j] = 0.0f;
+		}
+
+		int startGrid = gridCommunativePhotonCount[i];
+		int endGrid = gridCommunativePhotonCount[i] + gridPhotonCount[i];
+		for (int j = startGrid; j < endGrid; j ++) {
+			Photon photon = sortedPhotons[j];
+			totalEnergyPerLight[photon.lightIndex] += photon.energy;
+		}
+
+		float totalCdfEnergy = 0.0f;
+		for (int j = 0; j < CDFLightSize; j++) {
+			int lightIndex = -1;
+			float energy = 0.0f;
+			for (int k = 0; k < nrOfLights; k++) {
+				if (totalEnergyPerLight[k] > energy) {
+					lightIndex = k;
+					energy = totalEnergyPerLight[k];
+				}
+			}
+
+			if (lightIndex != -1) totalEnergyPerLight[lightIndex] = 0;
+
+			cdfGrid[i].lightIndices[j] = lightIndex;
+			cdfGrid[i].probabilities[j] = energy;
+
+			totalCdfEnergy += energy;
+		}
+
+		float communativeEnergy = 0.0f;
+		for (int j = 0; j < CDFLightSize; j++) {
+			if (cdfGrid[i].lightIndices[j] == -1) {
+				cdfGrid[i].probabilities[j] = 1;
+			}
+			else {
+				communativeEnergy += cdfGrid[i].probabilities[j] / totalCdfEnergy;
+				cdfGrid[i].probabilities[j] = communativeEnergy;
+			}
+		}
+	}
+	delete totalEnergyPerLight;
+
+	for (int i = 0; i < GridCellSize; i++) {
+		cout << "Probability for gridcell: " << i << "  ---  ";
+		for (int j = 0; j < CDFLightSize; j++) {
+			cout << cdfGrid[i].lightIndices[j] << ":=" << cdfGrid[i].probabilities[j] << ", ";
+		}
+		cout << endl;
+	}
+
+	delete sortedPhotons;
+}
+
+int lh2core::PhotonMap::CoordToIndex(const float3&coord, const aabb&dim) {
+	float3 t = (coord - dim.bmin3) / (dim.bmax3 - dim.bmin3);
+	int3 cell = make_int3(floorf(t * NrGridCellSplits));
+	return (cell.z * NrGridCellSplits + cell.y) * NrGridCellSplits + cell.x;
 }
 
 void lh2core::PhotonMap::Subdivide(const int nodeIndex, const int first, const int last, int & poolPtr)

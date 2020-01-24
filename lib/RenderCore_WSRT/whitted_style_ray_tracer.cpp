@@ -68,41 +68,27 @@ void WhittedStyleRayTracer::GetRandomLight(const IntersectionShading&intersectio
 		return;
 	}
 
-	vector<int> photonsIndexes = photonMap->NearestNeighbours(intersection.position, 0.1f);
-	//cout << "Intersection position (" << intersection.position.x << "," << intersection.position.y << "," << intersection.position.z << ")" << endl;
-	//cout << "Nearest Neighbours " << photonsIndexes.size() << endl;
+	double random = ((double)rand() / RAND_MAX);
 
-	for (int i = 0; i < areaLights.size(); i ++) {
-		lightsProbabilities[i] = 0.0f;
-	}
+	aabb dim = bvhTop->pool[bvhTop->bvhCount * 2 - 2].bounds;
+	int gridIndex = photonMap->CoordToIndex(intersection.position, dim);
 
-	float totalProbability = 0.0f;
-
-	for (int photonIndex:photonsIndexes) {
-		Photon photon = photonMap->photons[photonIndex];
-		float probability = max(dot(intersection.normal, photon.L) * photon.energy, 0.0f);
-		lightsProbabilities[photon.lightIndex] += probability;
-		totalProbability += probability;
-	}
-
-	float baseProbability = max(0.1f, (totalProbability / areaLights.size()) / 10.0f);
-	for (int i = 0; i < areaLights.size(); i++) {
-		lightsProbabilities[i] += baseProbability;
-		totalProbability += baseProbability;
-	}
-
-	float value = ((float)rand() / RAND_MAX) * totalProbability;
-	float probabilityIterator = 0;
-
-	for (int i = 0; i < areaLights.size(); i++) {
-		float probability = lightsProbabilities[i];
-		probabilityIterator += probability;
-
-		if (probabilityIterator > value) {
-			areaLight = areaLights[i];
-			p = probability / totalProbability;
+	float lastProbability = 0.0f;
+	for (int i = 0; i < CDFLightSize; i++) {
+		float probability = photonMap->cdfGrid[gridIndex].probabilities[i];
+		if (probability >= random) {
+			int lightIndex = photonMap->cdfGrid[gridIndex].lightIndices[i];
+			if (lightIndex == -1) {
+				areaLight = areaLights[rand() % areaLights.size()];
+				p = 1 / areaLights.size();
+			}
+			else {
+				areaLight = areaLights[lightIndex];
+				p = probability - lastProbability;
+			}
 			break;
 		}
+		lastProbability = probability;
 	}
 
 	float r1 = ((float)rand() / RAND_MAX);
@@ -209,7 +195,7 @@ void lh2core::WhittedStyleRayTracer::ShootLightRays() {
 	int* photonsPerLight = new int[areaLights.size()];
 
 	for (int i = 0; i < areaLights.size(); i++) {
-		int numberOfPhotons = length(areaLights[i]->radiance) * areaLights[i]->area * 100000;
+		int numberOfPhotons = length(areaLights[i]->radiance) * areaLights[i]->area * 10;
 		photonsPerLight[i] = numberOfPhotons;
 		emittedNumberOfPhotons += numberOfPhotons;
 	}
@@ -240,7 +226,6 @@ void lh2core::WhittedStyleRayTracer::ShootLightRays() {
 			if (intersectionTraverse.t != 1e34f) {
 				photon.energy = length(areaLight->radiance);
 				photon.position = ray.origin + ray.direction * intersectionTraverse.t;
-				photon.L = -ray.direction;
 				photon.lightIndex = i;
 
 				photons[photonPtr++] = photon;
@@ -250,7 +235,9 @@ void lh2core::WhittedStyleRayTracer::ShootLightRays() {
 
 	cout << "Photons:" << photonPtr << endl;
 
-	photonMap = new PhotonMap(photons, photonPtr);
+	aabb dim = bvhTop->pool[bvhTop->bvhCount * 2 - 2].bounds;
+
+	photonMap = new PhotonMap(photons, photonPtr, dim, areaLights.size());
 	_aligned_free(photons);
 	delete[] photonsPerLight;
 }
@@ -280,7 +267,7 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 	for (uint u = 0; u < screen->width; u++) {
 		for (uint v = 0; v < screen->height; v++) {
 			rayTarget = view.p1 + (u + ((float)rand() / RAND_MAX)) * xStep + (v + ((float)rand() / RAND_MAX)) * yStep;
-
+			 
 			apertureOffset = make_float2(((float)rand() / RAND_MAX) * 2 - 1, ((float)rand() / RAND_MAX) * 2 - 1);
 			while (dot(apertureOffset, apertureOffset) > 1) {
 				apertureOffset.x = ((float)rand() / RAND_MAX) * 2 - 1;
