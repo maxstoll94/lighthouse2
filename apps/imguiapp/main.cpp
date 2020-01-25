@@ -75,11 +75,13 @@ void PrepareScene() {
 	//int dragon = renderer->AddMesh("dragon.obj", "data/dragon/", 1.0f);
 	//renderer->AddInstance(dragon, mat4::Translate(0.0, 0.0, 5.0f));
 
-	renderer->AddScene("colloseum.glb", "data/colloseum/", StaticAnimation, mat4::RotateX(PI));
+	// colloseum
+	int colloseum = renderer->AddMesh("colloseum.obj", "data/colloseum/", 1.0f);
+	renderer->AddInstance(colloseum);
 
 	for (float i = 0; i < PI * 2.0f; i += PI * 2.0f / 100.0f) {
-		float x = sinf(i) * 10.0f;
-		float y = cosf(i) * 8.0f;
+		float x = sinf(i) * 12.0f;
+		float y = cosf(i) * 10.0f;
 
 		float3 lightPos = make_float3(x, 0.1f, y);
 		float3 lightNormal = normalize(make_float3(0.0, 30.0, 0.0)  -lightPos);
