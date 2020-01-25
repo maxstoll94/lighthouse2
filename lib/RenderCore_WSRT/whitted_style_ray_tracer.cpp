@@ -74,13 +74,13 @@ void WhittedStyleRayTracer::GetRandomLight(const IntersectionShading&intersectio
 	int gridIndex = photonMap->CoordToIndex(intersection.position, dim);
 
 	float lastProbability = 0.0f;
-	for (int i = 0; i < CDFLightSize; i++) {
+	for (int i = 0; i < NrCDFLights; i++) {
 		float probability = photonMap->cdfGrid[gridIndex].probabilities[i];
 		if (probability >= random) {
 			int lightIndex = photonMap->cdfGrid[gridIndex].lightIndices[i];
 			if (lightIndex == -1) {
 				areaLight = areaLights[rand() % areaLights.size()];
-				p = 1 / areaLights.size();
+				p = max(kEpsilon, 1.0f / (float)areaLights.size());
 			}
 			else {
 				areaLight = areaLights[lightIndex];
@@ -195,7 +195,7 @@ void lh2core::WhittedStyleRayTracer::ShootLightRays() {
 	int* photonsPerLight = new int[areaLights.size()];
 
 	for (int i = 0; i < areaLights.size(); i++) {
-		int numberOfPhotons = length(areaLights[i]->radiance) * areaLights[i]->area * 10;
+		int numberOfPhotons = length(areaLights[i]->radiance) * areaLights[i]->area * 100000;
 		photonsPerLight[i] = numberOfPhotons;
 		emittedNumberOfPhotons += numberOfPhotons;
 	}
@@ -215,7 +215,7 @@ void lh2core::WhittedStyleRayTracer::ShootLightRays() {
 			float sqrtR1 = sqrt(r1);
 
 			float3 position = (1 - sqrtR1) * areaLight->vertex0 + (sqrtR1 * (1 - r2)) * areaLight->vertex1 + (sqrtR1 * r2) * areaLight->vertex2;
-			float3 direction;	
+			float3 direction;
 			RandomDirectionHemisphere(areaLight->N, direction);
 
 			ray.origin = position + bias * direction;
@@ -267,7 +267,7 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 	for (uint u = 0; u < screen->width; u++) {
 		for (uint v = 0; v < screen->height; v++) {
 			rayTarget = view.p1 + (u + ((float)rand() / RAND_MAX)) * xStep + (v + ((float)rand() / RAND_MAX)) * yStep;
-			 
+
 			apertureOffset = make_float2(((float)rand() / RAND_MAX) * 2 - 1, ((float)rand() / RAND_MAX) * 2 - 1);
 			while (dot(apertureOffset, apertureOffset) > 1) {
 				apertureOffset.x = ((float)rand() / RAND_MAX) * 2 - 1;
@@ -287,11 +287,11 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 		}
 	}
 
-	//cout << totalEnergy << endl;
+	cout << totalEnergy << endl;
 
 	accumulatorIndex = accumulatorIndex + 1;
 }
-
+//
 //float3 WhittedStyleRayTracer::Trace(Ray ray) {
 //	IntersectionShading intersection;
 //	IntersectionTraverse intersectionTraverse;
@@ -344,10 +344,9 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 		float3 BRDF = intersection.diffuse * INVPI;
 
 		// NEE
-		CoreLightTri* areaLight; 
-		float probability;
+		CoreLightTri* areaLight;
 		float3 lightPosition;
-
+		float probability;
 		GetRandomLight(intersection, areaLight, lightPosition, probability);
 
 		if (areaLight != nullptr) {
@@ -368,6 +367,9 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 				if (!lightObstructed) {
 					float solidAngle = (nLDotMinL * areaLight->area) / (lightDistance * lightDistance);
 					float lightPDF = 1 / solidAngle;
+					if (probability == 0) {
+						cout << "hell owold" << endl;
+					}
 					albedoLight += (albedo * (nDotL / lightPDF) * BRDF * areaLight->radiance) / probability;
 				}
 			}
@@ -437,54 +439,35 @@ bool WhittedStyleRayTracer::HasIntersection(const Ray&ray, const bool bounded, c
 }
 
 bool WhittedStyleRayTracer::HasIntersection(const BVH &bvh, const Ray &ray, const bool bounded, const float distance) {
-	BVHNode node;
 	vector<int> stack;
-	int nodeId;
-	float tmin, tmax;
-	float tminLeft, tmaxLeft;
-	float tminRight, tmaxRight;
-	int left, right;
-	float t, u, v;
-	Side side;
-	float3 a, b, c;
-	int index, i;
-	uint first, last;
-	bool intersectLeft, intersectRight;
 
 	//stack.reserve(30);
 	stack.reserve(log2(bvh.vcount / 3) * 1.5);
 
+	float tmin, tmax;
 	if (BoundingBoxIntersection(ray, bvh.pool[0].bounds, tmin, tmax) && tmax > kEpsilon && (!bounded || tmin < distance)) stack.push_back(0);
 
 	while (!stack.empty()) {
-		node = bvh.pool[stack.back()];
+		BVHNode node = bvh.pool[stack.back()];
 		stack.pop_back();
 
 		if (node.count == 0) {
-			left = node.leftFirst;
-			right = left + 1;
+			int left = node.leftFirst;
+			int right = left + 1;
 
-			intersectLeft = BoundingBoxIntersection(ray, bvh.pool[left].bounds, tminLeft, tmaxLeft);
-			intersectRight = BoundingBoxIntersection(ray, bvh.pool[right].bounds, tminRight, tmaxRight);
+			float tmin, tmax;
 
-			if (tminLeft < tminRight) {
-				if (intersectRight && tmaxRight > kEpsilon) stack.push_back(right);
-				if (intersectLeft && tmaxLeft > kEpsilon) stack.push_back(left);
-			}
-			else {
-				if (intersectLeft && tmaxLeft > kEpsilon) stack.push_back(left);
-				if (intersectRight && tmaxRight > kEpsilon) stack.push_back(right);
-			}
+			if (BoundingBoxIntersection(ray, bvh.pool[left].bounds, tmin, tmax) && tmax > kEpsilon) stack.push_back(left);
+			if (BoundingBoxIntersection(ray, bvh.pool[right].bounds, tmin, tmax) && tmax > kEpsilon) stack.push_back(right);
 		}
 		else {
-			first = node.leftFirst;
-			last = first + node.count;
-
-			for (i = first; i < last; i++) {
-				index = bvh.indices[i] * 3;
-				a = make_float3(bvh.vertices[index]);
-				b = make_float3(bvh.vertices[index + 1]);
-				c = make_float3(bvh.vertices[index + 2]);
+			for (int i = node.leftFirst, l = node.leftFirst + node.count; i < l; i++) {
+				int index = bvh.indices[i] * 3;
+				float3 a = make_float3(bvh.vertices[index]);
+				float3 b = make_float3(bvh.vertices[index + 1]);
+				float3 c = make_float3(bvh.vertices[index + 2]);
+				Side side;
+				float t, u, v;
 
 				if (IntersectsWithTriangle(ray, a, b, c, t, side, u, v) && t > kEpsilon && (!bounded || t < distance)) return true;
 			}
