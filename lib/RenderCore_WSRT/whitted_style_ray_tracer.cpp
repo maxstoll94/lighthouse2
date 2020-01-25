@@ -68,10 +68,9 @@ void WhittedStyleRayTracer::GetRandomLight(const IntersectionShading&intersectio
 		return;
 	}
 
-	double random = ((double)rand() / RAND_MAX);
-
 	aabb dim = bvhTop->pool[bvhTop->bvhCount * 2 - 2].bounds;
 	int gridIndex = photonMap->CoordToIndex(intersection.position, dim);
+	double random = ((double)rand() / RAND_MAX);
 
 	float lastProbability = 0.0f;
 	for (int i = 0; i < NrCDFLights; i++) {
@@ -90,6 +89,7 @@ void WhittedStyleRayTracer::GetRandomLight(const IntersectionShading&intersectio
 		}
 		lastProbability = probability;
 	}
+
 
 	float r1 = ((float)rand() / RAND_MAX);
 	float r2 = ((float)rand() / RAND_MAX);
@@ -192,10 +192,10 @@ void lh2core::WhittedStyleRayTracer::ShootLightRays() {
 	IntersectionTraverse intersectionTraverse;
 	int numberOfIntersections;
 	int emittedNumberOfPhotons = 0;
-	int* photonsPerLight = new int[areaLights.size()];
+	int* photonsPerLight = (int*)_aligned_malloc(areaLights.size() * sizeof(int), 64);
 
 	for (int i = 0; i < areaLights.size(); i++) {
-		int numberOfPhotons = length(areaLights[i]->radiance) * areaLights[i]->area * 100000;
+		int numberOfPhotons = length(areaLights[i]->radiance) * areaLights[i]->area * 10000;
 		photonsPerLight[i] = numberOfPhotons;
 		emittedNumberOfPhotons += numberOfPhotons;
 	}
@@ -233,13 +233,14 @@ void lh2core::WhittedStyleRayTracer::ShootLightRays() {
 		}
 	}
 
-	cout << "Photons:" << photonPtr << endl;
+	cout << "Photons emmitted:" << emittedNumberOfPhotons << endl;
+	cout << "Photons landed:" << photonPtr << endl;
 
 	aabb dim = bvhTop->pool[bvhTop->bvhCount * 2 - 2].bounds;
 
 	photonMap = new PhotonMap(photons, photonPtr, dim, areaLights.size());
 	_aligned_free(photons);
-	delete[] photonsPerLight;
+	_aligned_free(photonsPerLight);
 }
 
 void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const Convergence converge) {
@@ -395,8 +396,8 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 		coreStats->bounce1RayCount++; coreStats->traceTime1 += t.elapsed();
 	}
 
-	//return albedoLight + SkyDomeColor(ray, *skyDome) * albedo;
-	return albedoLight;
+	return albedoLight + SkyDomeColor(ray, *skyDome) * albedo;
+	//return albedoLight;
 }
 
 bool WhittedStyleRayTracer::HasIntersection(const Ray&ray, const bool bounded, const float distance) {
