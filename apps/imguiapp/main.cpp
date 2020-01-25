@@ -39,19 +39,6 @@ static CoreStats coreStats;
 //  |  Initialize a scene.                                                  LH2'19|
 //  +-----------------------------------------------------------------------------+
 void PrepareScene() {
-	// area light
-	int lightMat = renderer->AddMaterial( make_float3( 100.0f, 100.0f, 100.0f) );
-	int lightQuad = renderer->AddQuad( make_float3(0.01f, -1.0f, 0.0f), make_float3(10.0f, 5.0f, 0.0f ), 0.5f, 0.5f, lightMat );
-	renderer->AddInstance( lightQuad );
-
-	int lightGreenMat = renderer->AddMaterial(make_float3(100.0f, 100.0f, 100.0f));
-	int lightGreenQuad = renderer->AddQuad(make_float3(0.01f, -1.0f, 0.0f), make_float3(0.0f, 5.0f, 0.0f), 0.5f, 0.5f, lightGreenMat);
-	renderer->AddInstance(lightGreenQuad);
-
-	int lightBlueMat = renderer->AddMaterial(make_float3(100.0f, 100.0f, 100.0f));
-	int lightBlueQuad = renderer->AddQuad(make_float3(0.01f, -1.0f, 0.0f), make_float3(-10.0f, 5.0f, 0.0f), 0.5f, 0.5f, lightBlueMat);
-	renderer->AddInstance(lightBlueQuad);
-
 	// spot light
 	// renderer->AddSpotLight(make_float3(0, 3, 0), make_float3(-0.1, -1, 0.2), 0.9, 0.0, make_float3(10, 10, 10), true);
 
@@ -61,17 +48,22 @@ void PrepareScene() {
 	// directional light
 	// renderer->AddDirectionalLight(make_float3(-0.2, -1, -0.1), make_float3(1, 1, 1), true);
 
-	// bunny
-	int bunnyId = renderer->AddMesh("museum.obj", "data/museum/", 1.0f);
-	bunny = renderer->AddInstance(bunnyId);
+	//// area light
+	//renderer->AddInstance(renderer->AddQuad(
+	//	make_float3(0.01f, -1.0f, 0.0f),                        // direction
+	//	make_float3(0.0f, 3.0f, 0.0f),                          // location
+	//	1.0f, 1.0f,                                             // size
+	//	renderer->AddMaterial(make_float3(10.0f, 10.0f, 10.0f)) // material
+	//));
 
-	//int planeMat = renderer->AddMaterial(make_float3(1.0f, 0.0f, 0.0f));
-	//int planeQuad = renderer->AddQuad(make_float3(0.01f, 1.0f, 0.0f), make_float3(0.0f, 0.0f, 0.0f), 10.0f, 10.0f, planeMat);
-	//renderer->AddInstance(planeQuad);
+	//// bunny
+	//int bunnyId = renderer->AddMesh("bunny.obj", "data/bunny/", 1.0f);
+	//bunny = renderer->AddInstance(bunnyId);
 
-	//renderer->AddScene("CesiumMan.glb", "data/", DynamicAnimation, mat4::Translate(0.0, 0.0, 5.0f));
-	
-	//renderer->AddScene("plant.gltf", "data/plant/", DynamicAnimation, mat4::Translate(0.0, 0.0, -5.0f));
+	// ground plane
+	int planeMat = renderer->AddMaterial(make_float3(1.0f, 1.0f, 1.0f));
+	int planeQuad = renderer->AddQuad(make_float3(0.01f, 1.0f, 0.0f), make_float3(0.0f, 0.0f, 0.0f), 25.0f, 25.0f, planeMat);
+	renderer->AddInstance(planeQuad);
 
 	// teapot
 	//int teapotId = renderer->AddMesh("teapot.obj", "data/teapot/", 1.0f);
@@ -82,6 +74,20 @@ void PrepareScene() {
 	// dragon
 	//int dragon = renderer->AddMesh("dragon.obj", "data/dragon/", 1.0f);
 	//renderer->AddInstance(dragon, mat4::Translate(0.0, 0.0, 5.0f));
+
+	renderer->AddScene("colloseum.glb", "data/colloseum/", StaticAnimation, mat4::RotateX(PI));
+
+	for (float i = 0; i < PI * 2.0f; i += PI * 2.0f / 100.0f) {
+		float x = sinf(i) * 10.0f;
+		float y = cosf(i) * 8.0f;
+
+		float3 lightPos = make_float3(x, 0.1f, y);
+		float3 lightNormal = normalize(make_float3(0.0, 30.0, 0.0)  -lightPos);
+
+		int lightMat = renderer->AddMaterial(make_float3(488.22675479778434f, 406.8556289981535f, 275.86796307679685f));
+		int lightQuad = renderer->AddQuad(lightNormal, lightPos, 0.1f, 0.1f, lightMat );
+		int lightInst = renderer->AddInstance( lightQuad );
+	}
 }
 
 //  +-----------------------------------------------------------------------------+

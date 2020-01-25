@@ -1,8 +1,6 @@
 #pragma once
 #include "rendersystem.h"
 
-const int CDFLightSize = 16;
-
 namespace lh2core {
 
 inline float3 HSVtoRGB(int H, float S, float V) {
@@ -109,8 +107,4 @@ struct Photon {
 	uint lightIndex; // 4 20 total
 };
 
-struct CDF {
-	float probabilities[CDFLightSize];
-	int lightIndices[CDFLightSize];
-};
 }
