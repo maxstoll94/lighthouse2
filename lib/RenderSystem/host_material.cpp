@@ -43,7 +43,7 @@ void HostMaterial::ConvertFrom( const tinyobjMaterial& original )
 	if (original.diffuse_texname != "")
 	{
 		int diffuseTextureID = color.textureID = HostScene::FindOrCreateTexture( original.diffuse_texname, HostTexture::LINEARIZED | HostTexture::FLIPPED );
-		color = make_float3( 1 ); // we have a texture now; default modulation to white
+		color.value = make_float3( 1 ); // we have a texture now; default modulation to white
 		if (HostScene::textures[diffuseTextureID]->flags & HASALPHA) flags |= HASALPHA;
 	}
 	if (original.normal_texname != "")
