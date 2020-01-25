@@ -72,7 +72,8 @@ namespace lh2core
 		BVHTopNode*pool;
 		mat4*transforms;
 		int bvhCount = 0;
-		int FindBestMatch(const int a, const vector<int>&topNodes);
 		void UpdateTopLevel();
+	private:
+		int FindBestMatch(const int a, const vector<int>&topNodes);
 	};
 }

@@ -39,8 +39,8 @@ namespace lh2core
 		void ShootLightRays();
 	private:
 		float3 Trace(Ray ray);
-		void NearestIntersection(const Ray&ray, IntersectionTraverse&intersection, int&numberIntersections); // Returns the nearest intersection point, the normal and the material type.
-		void NearestIntersection(const BVH&bvh, const Ray&ray, IntersectionTraverse&intersection, const int meshIdx, int&numberIntersections);
+		void NearestIntersection(const Ray&ray, IntersectionTraverse&intersection); // Returns the nearest intersection point, the normal and the material type.
+		void NearestIntersection(const BVH&bvh, const Ray&ray, IntersectionTraverse&intersection, const int meshIdx);
 		bool HasIntersection(const Ray &ray, const bool isBounded, const float distance);
 		bool HasIntersection(const BVH & bvh, const Ray & ray, const bool bounded, const float distance);
 	};
