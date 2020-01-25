@@ -28,6 +28,81 @@ void RandomDirectionHemisphere(const float3&N, float3&dir) {
 	dir = dot(N, dir) > 0 ? dir : -dir;
 }
 
+void TangentSpace(const float3&n, float3&N, float3&T, float3&B) {
+	float3 W = abs(n.x) > 0.99 ? make_float3(0.0f, 1.0f, 0.0f) : make_float3(1.0f, 0.0f, 0.0f);
+
+	N = n;
+	T = normalize(cross(N, W));
+	B = cross(T, N);
+}
+
+void ToLocalSpace(const float3&N, const float3&T, const float3&B, const float3&PWorld, float3&PLocal) {
+	PLocal.x = dot(PWorld, T);
+	PLocal.y = dot(PWorld, B);
+	PLocal.z = dot(PWorld, N);
+}
+
+void ToWorldSpace(const float3&N, const float3&T, const float3&B, const float3&PLocal, float3&Pworld) {
+	Pworld = PLocal.x * T + PLocal.y * B + PLocal.z * N;
+}
+
+void SampleDiffuseReflection(const float3&n, float3&dir, float&PDF) {
+	RandomDirectionHemisphere(n, dir);
+	PDF = 1 / (2 * PI);
+}
+
+void SampleCosineWeightedDiffuseReflection(const float3&n, float3&dir, float&PDF) {
+	float r0 = ((float)rand() / RAND_MAX), r1 = ((float)rand() / RAND_MAX);
+	float r = sqrt(r0);
+	float theta = 2 * PI * r1;
+	dir.x = r * cosf(theta);
+	dir.y = r * sinf(theta);
+	dir.z = sqrt(1 - r0);
+
+	float3 N, T, B;
+	TangentSpace(n, N, T, B);
+	ToWorldSpace(N, T, B, dir, dir);
+
+	PDF = max(kEpsilon, dot(n, dir) / PI);
+}
+
+void SampleGlossyReflection(const float3&n, float const&a, float3&dir, float&PDF) {
+	float3 reflectDir = reflect(dir, n);
+
+	float r1 = ((float)rand() / RAND_MAX), r2 = ((float)rand() / RAND_MAX);
+
+	float t = pow(r2, 2 / (a + 1));
+	dir.x = cos(2 * PI * r1) * sqrt(1 - t);
+	dir.y = sin(2 * PI * r1) * sqrt(1 - t);
+	dir.z = sqrt(t);
+
+	float3 N, T, B;
+	TangentSpace(n, N, T, B);
+	ToWorldSpace(N, T, B, dir, dir);
+
+	PDF = max(kEpsilon, (a + 2) * pow(dot(reflectDir, dir), a));
+}
+
+float3 MicroFacetBRDF(const float3&N, const float&a, const float3&L, const float3&V) {
+	float3 H = normalize(V + L);
+	float D = (a + 2.0f) / (2.0 * PI) * max(0.0f, pow(dot(N, H), a));
+
+	float NDotH = dot(N, H);
+	float NDotV = dot(N, V);
+	float VDotH = dot(V, H);
+	float NDotL = dot(N, L);
+	float LDotH = dot(L, H);
+	float G = min(1.0f, min(
+		max(0.0f, 2.0f * NDotH * NDotV) / max(kEpsilon, VDotH),
+		max(0.0f, 2.0f * NDotH * NDotL) / max(kEpsilon, VDotH)
+	));
+
+	float3 kSpecular = make_float3(0.56, 0.57, 0.58);
+	float3 F = kSpecular + (1 - kSpecular) * pow(1 - LDotH, 5);
+
+	return (F * G * D) / (4 * NDotL * NDotV);
+}
+
 float3 GetColor(const float2 &uv, const Texture &texture) {
 	int width = texture.width;
 	int height = texture.height;
@@ -381,10 +456,11 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 		}
 		albedo /= pSurvive;
 
-		RandomDirectionHemisphere(intersection.normal, ray.direction);
+		float PDF;
+		SampleCosineWeightedDiffuseReflection(intersection.normal, ray.direction, PDF);
 		ray.origin = intersection.position + bias * ray.direction;
 
-		albedo *= PI * 2.0f * BRDF * dot(ray.direction, intersection.normal);
+		albedo *= BRDF * dot(ray.direction, intersection.normal) / PDF;
 
 		intersectionTraverse.Reset(); t.reset();
 
