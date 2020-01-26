@@ -372,22 +372,28 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 //float3 WhittedStyleRayTracer::Trace(Ray ray) {
 //	IntersectionShading intersection;
 //	IntersectionTraverse intersectionTraverse;
-//	int numberIntersections = 0;
 //
 //	intersectionTraverse.Reset();
-//	NearestIntersection(ray, intersectionTraverse, numberIntersections);
+//	NearestIntersection(ray, intersectionTraverse);
 //	intersection = intersectionTraverseToIntersectionShading(intersectionTraverse, ray);
 //
-//	//if (!intersection.hasIntersection) return SkyDomeColor(ray, *skyDome);
-//	if (!intersection.hasIntersection) return make_float3(0.0f);
+//	if (!intersection.hasIntersection) return SkyDomeColor(ray, *skyDome);
+//	//if (!intersection.hasIntersection) return make_float3(0.0f);
 //	if (intersection.diffuse.x > 1.0f || intersection.diffuse.y > 1.0f || intersection.diffuse.z > 1.0f) return intersection.diffuse;
 //
+//	float3 oldRay = ray.direction;
+//	float a = 10.0f;
+//
+//	float PDF;
+//	//SampleCosineWeightedDiffuseReflection(intersection.normal, ray.direction, PDF);
+//	SampleDiffuseReflection(intersection.normal, ray.direction, PDF);
+//
+//	//float3 BRDF = MicroFacetBRDF(intersection.normal, a, -oldRay, ray.direction);
 //	float3 BRDF = intersection.diffuse * INVPI;
 //
-//	RandomDirectionHemisphere(intersection.normal, ray.direction);
 //	ray.origin = intersection.position + bias * ray.direction;
 //
-//	return PI * 2.0f * BRDF * dot(ray.direction, intersection.normal) * Trace(ray);
+//	return BRDF * dot(ray.direction, intersection.normal) * Trace(ray) / PDF;
 //}
 
 float3 WhittedStyleRayTracer::Trace(Ray ray) {
