@@ -389,6 +389,7 @@ void WhittedStyleRayTracer::Render(const ViewPyramid&view, Bitmap*screen, const 
 //	float PDF;
 //	//SampleCosineWeightedDiffuseReflection(intersection.normal, ray.direction, PDF);
 //	SampleDiffuseReflection(intersection.normal, ray.direction, PDF);
+//	//SampleGlossyReflection(intersection.normal, a, ray.direction, PDF);
 //
 //	//float3 BRDF = MicroFacetBRDF(intersection.normal, a, -oldRay, ray.direction);
 //	float3 BRDF = intersection.diffuse * INVPI;
@@ -466,6 +467,7 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 
 		float PDF;
 		SampleCosineWeightedDiffuseReflection(intersection.normal, ray.direction, PDF);
+		//SampleDiffuseReflection(intersection.normal, ray.direction, PDF);
 		ray.origin = intersection.position + bias * ray.direction;
 
 		albedo *= BRDF * dot(ray.direction, intersection.normal) / PDF;
