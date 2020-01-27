@@ -55,24 +55,25 @@ namespace lh2core
 
 	class BVHTopNode {
 	public:
-		aabb bounds; // 24
-		
-		// leaf
-		BVH* bvh; // 64
-		mat4 transform; //64
+		aabb bounds;          // 24
+		int leftIndex_meshId; // 4
+		int rightIndex;       // 4
 
-		// tree
-		BVHTopNode*left; //64
-		BVHTopNode*right; //64
-
-		__inline bool IsLeaf() const { return bvh != nullptr; }
+		__inline int LeftIndex() { return leftIndex_meshId; }
+		__inline int RightIndex() { return rightIndex; }
+		__inline int MeshIndex() { return leftIndex_meshId; }
+		__inline int SetLeftIndex(int const index) {  leftIndex_meshId = index; return leftIndex_meshId; }
+		__inline int SetRightIndex(int const index) { rightIndex = index;       return rightIndex; }
+		__inline int SetMeshIndex(int const index) {  leftIndex_meshId = index; return leftIndex_meshId; }
 	};
 	
 	class BVHTop {
 	public:
-		BVHTopNode*root;
 		BVHTopNode*pool;
+		mat4*transforms;
 		int bvhCount = 0;
-		void UpdateTopLevel(vector<BVHTopNode*> instances);
+		void UpdateTopLevel();
+	private:
+		int FindBestMatch(const int a, const vector<int>&topNodes);
 	};
 }

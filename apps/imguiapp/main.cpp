@@ -38,13 +38,7 @@ static CoreStats coreStats;
 //  |  PrepareScene                                                               |
 //  |  Initialize a scene.                                                  LH2'19|
 //  +-----------------------------------------------------------------------------+
-void PrepareScene()
-{
-	// area light
-	//int lightMat = renderer->AddMaterial( make_float3( 10.0f, 10.0f, 10.0f ) );
-	//int lightQuad = renderer->AddQuad( make_float3( 0.0f, -1.0f, 0.0f ), make_float3( 0.0f, 3.0f, 0.0f ), 1.9f, 1.9f, lightMat );
-	//int lightInst = renderer->AddInstance( lightQuad );
-
+void PrepareScene() {
 	// spot light
 	// renderer->AddSpotLight(make_float3(0, 3, 0), make_float3(-0.1, -1, 0.2), 0.9, 0.0, make_float3(10, 10, 10), true);
 
@@ -52,15 +46,24 @@ void PrepareScene()
 	// renderer->AddPointLight(make_float3(20, 30, 10), make_float3(1000, 1000, 1000), 1.0, true);
 
 	// directional light
-	renderer->AddDirectionalLight(make_float3(-0.2, -1, -0.1), make_float3(1, 1, 1), true);
+	// renderer->AddDirectionalLight(make_float3(-0.2, -1, -0.1), make_float3(1, 1, 1), true);
 
-	// bunny
-	int bunnyId = renderer->AddMesh("bunny.obj", "data/bunny/", 1.0f);
-	bunny = renderer->AddInstance(bunnyId);
+	//// area light
+	//renderer->AddInstance(renderer->AddQuad(
+	//	make_float3(0.01f, -1.0f, 0.0f),                        // direction
+	//	make_float3(0.0f, 3.0f, 0.0f),                          // location
+	//	1.0f, 1.0f,                                             // size
+	//	renderer->AddMaterial(make_float3(10.0f, 10.0f, 10.0f)) // material
+	//));
 
-	renderer->AddScene("CesiumMan.glb", "data/", DynamicAnimation, mat4::Translate(0.0, 0.0, 5.0f));
-	
-	//renderer->AddScene("plant.gltf", "data/plant/", DynamicAnimation, mat4::Translate(0.0, 0.0, -5.0f));
+	//// bunny
+	//int bunnyId = renderer->AddMesh("bunny.obj", "data/bunny/", 1.0f);
+	//bunny = renderer->AddInstance(bunnyId);
+
+	// ground plane
+	int planeMat = renderer->AddMaterial(make_float3(1.0f, 1.0f, 1.0f));
+	int planeQuad = renderer->AddQuad(make_float3(0.01f, 1.0f, 0.0f), make_float3(0.0f, 0.0f, 0.0f), 25.0f, 25.0f, planeMat);
+	renderer->AddInstance(planeQuad);
 
 	// teapot
 	//int teapotId = renderer->AddMesh("teapot.obj", "data/teapot/", 1.0f);
@@ -71,6 +74,22 @@ void PrepareScene()
 	// dragon
 	//int dragon = renderer->AddMesh("dragon.obj", "data/dragon/", 1.0f);
 	//renderer->AddInstance(dragon, mat4::Translate(0.0, 0.0, 5.0f));
+
+	// colloseum
+	int colloseum = renderer->AddMesh("colloseum.obj", "data/colloseum/", 1.0f);
+	renderer->AddInstance(colloseum);
+
+	for (float i = 0; i < PI * 2.0f; i += PI * 2.0f / 100.0f) {
+		float x = sinf(i) * 12.0f;
+		float y = cosf(i) * 10.0f;
+
+		float3 lightPos = make_float3(x, 0.1f, y);
+		float3 lightNormal = normalize(make_float3(0.0, 30.0, 0.0)  -lightPos);
+
+		int lightMat = renderer->AddMaterial(make_float3(488.22675479778434f, 406.8556289981535f, 275.86796307679685f));
+		int lightQuad = renderer->AddQuad(lightNormal, lightPos, 0.1f, 0.1f, lightMat );
+		int lightInst = renderer->AddInstance( lightQuad );
+	}
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -165,21 +184,21 @@ int main()
 		deltaTime = timer.elapsed();
 		if (HandleInput( deltaTime )) camMoved = true;
 
-		static float r = 0;
-		renderer->SetNodeTransform(bunny, mat4::RotateY(r * 2.0f) * mat4::RotateZ(0.2f * sinf(r * 8.0f)));
-		r += deltaTime * 0.3f; if (r > 2 * PI) r -= 2 * PI;
-		camMoved = true;
+		//static float r = 0;
+		//renderer->SetNodeTransform(bunny, mat4::RotateY(r * 2.0f) * mat4::RotateZ(0.2f * sinf(r * 8.0f)));
+		//r += deltaTime * 0.3f; if (r > 2 * PI) r -= 2 * PI;
+		//camMoved = true;
 
 		// handle material changes
 		if (HandleMaterialChange()) camMoved = true;
 		// poll events, may affect probepos so needs to happen between HandleInput and Render
 		glfwPollEvents();
 		// update animations
-		if (!animPaused) for (int i = 0; i < renderer->AnimationCount(); i++)
-		{
-			renderer->UpdateAnimation(i, deltaTime);
-			camMoved = true; // will remain false if scene has no animations
-		}
+		//if (!animPaused) for (int i = 0; i < renderer->AnimationCount(); i++)
+		//{
+		//	renderer->UpdateAnimation(i, deltaTime);
+		//	camMoved = true; // will remain false if scene has no animations
+		//}
 		renderer->SynchronizeSceneData();
 		// render
 		timer.reset();
@@ -220,7 +239,8 @@ int main()
 		ImGui::Text("position: %5.2f, %5.2f, %5.2f", camPos.x, camPos.y, camPos.z);
 		ImGui::Text("viewdir:  %5.2f, %5.2f, %5.2f", camDir.x, camDir.y, camDir.z);
 		ImGui::SliderFloat("FOV", &renderer->GetCamera()->FOV, 10, 90);
-		ImGui::SliderFloat("aperture", &renderer->GetCamera()->aperture, 0, 0.025f);
+		ImGui::SliderFloat("aperture", &renderer->GetCamera()->aperture, 0, 0.25f);
+		ImGui::SliderFloat("focal distance", &renderer->GetCamera()->focalDistance, 0, 20.0f);
 		ImGui::SliderFloat("distortion", &renderer->GetCamera()->distortion, 0, 0.5f);
 		ImGui::Combo("tonemap", &renderer->GetCamera()->tonemapper, "clamp\0reinhard\0reinhard ext\0reinhard lum\0reinhard jodie\0uncharted2\0\0");
 		ImGui::SliderFloat("brightness", &renderer->GetCamera()->brightness, 0, 0.5f);

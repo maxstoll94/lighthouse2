@@ -49,9 +49,8 @@ inline float3 HSVtoRGB(int H, float S, float V) {
 //  +-----------------------------------------------------------------------------+
 class Ray {
 public:
-	float3 origin;		// origin point of the ray
-	float3 direction;	// direction the ray is travelling in
-	int bounces;		// maximum number of bounces of a ray before it is discarded.
+	float3 origin;		// 12 - origin point of the ray
+	float3 direction;	// 12 - direction the ray is travelling in
 };
 
 //  +-----------------------------------------------------------------------------+
@@ -80,15 +79,32 @@ public:
 
 enum Side { Front, Back };
 
-class Intersection {
+// make power of 2 so we can use cach line opt
+class IntersectionTraverse {
 public:
-	Side side;
-	float t;
-	float u, v;
-	CoreTri *tri;
-	mat4 transform;
+	float t;           // 4
+	float u, v;        // 8
+	int tri;           // 4 - first byte for bvhId last 3 bytes for triId 
+					   // total: 16
 
-	float3 position;
-	float3 normal;
+	__inline void Reset() { t = 1e34f; }
 };
+
+class IntersectionShading {
+public:
+	bool hasIntersection; // 4
+	float3 position;      // 12
+	float3 normal;        // 12
+	float3 diffuse;       // 12
+	Side side;            // 4?
+	float t;              // 4
+						  // total = 48
+};
+
+struct Photon {
+	float3 position; // 12 - world space position of the photon hit
+	float energy;    // 4 - current power level for the photon
+	uint lightIndex; // 4 20 total
+};
+
 }

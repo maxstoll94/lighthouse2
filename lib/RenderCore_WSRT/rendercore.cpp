@@ -22,6 +22,8 @@
 
 using namespace lh2core;
 
+bool shotLightRays = false;
+
 //  +-----------------------------------------------------------------------------+
 //  |  RenderCore::Init                                                           |
 //  |  Initialization.                                                      LH2'19|
@@ -42,6 +44,8 @@ void RenderCore::SetTarget(GLTexture* target)
 	if (screen != 0 && target->width == screen->width && target->height == screen->height) return; // nothing changed
 	delete screen;
 	screen = new Bitmap(target->width, target->height);
+
+	rayTracer.ResizeScreen(target->width, target->height);
 }
 
 //  +-----------------------------------------------------------------------------+
@@ -56,15 +60,15 @@ void RenderCore::SetGeometry(const int meshIdx, const float4* vertexData, const 
 		// the original data after we leave this function.
 
 		bvh = new BVH;
-		bvh->vertices = new float4[vertexCount];
+		bvh->vertices = (float4*)_aligned_malloc(vertexCount * sizeof(float4), 64); // new float4[vertexCount];
 		rayTracer.bvhs.push_back(bvh);
 
-		bvh->indices = new int[triangleCount];
+		bvh->indices = (int*)_aligned_malloc(triangleCount * sizeof(int), 64); // new int[triangleCount];
 		for (int i = 0; i < triangleCount; i++) {
 			bvh->indices[i] = i;
 		}
 
-		bvh->centroids = new float4[triangleCount];
+		bvh->centroids = (float4*)_aligned_malloc(triangleCount * sizeof(float4), 64); // new float4[triangleCount];
 		for (int i = 0; i < triangleCount; i++) {
 			bvh->centroids[i] = (vertexData[i * 3] + vertexData[i * 3 + 1] + vertexData[i * 3 + 2]) / 3;
 		}
@@ -80,36 +84,51 @@ void RenderCore::SetGeometry(const int meshIdx, const float4* vertexData, const 
 	bvh->vcount = vertexCount;
 	memcpy(bvh->vertices, vertexData, vertexCount * sizeof(float4));
 	// copy the supplied 'fat triangles'
-	bvh->triangles = new CoreTri[vertexCount / 3];
+	bvh->triangles = (CoreTri*)_aligned_malloc((vertexCount / 3) * sizeof(CoreTri), 64); // new CoreTri[vertexCount / 3];
 	memcpy(bvh->triangles, triangleData, (vertexCount / 3) * sizeof(CoreTri));
 
 	bvh->Update(animationType);
 }
 
 void RenderCore::SetInstance(const int instanceIdx, const int modelIdx, const mat4& transform) {
+	BVHTopNode*bvhTopNode;
+	mat4*instanceTransform;
+
 	if (modelIdx == -1) {
 		if (rayTracer.instances.size() > instanceIdx) rayTracer.instances.resize(instanceIdx);
 		if (rayTracer.bvhTop->bvhCount != instanceIdx) {
-			rayTracer.bvhTop->pool = new BVHTopNode[instanceIdx - 1]; // (BVHTopNode*)MALLOC64(instanceIdx * sizeof(BVHTopNode));
 			rayTracer.bvhTop->bvhCount = instanceIdx;
+
+			_aligned_free(rayTracer.bvhTop->pool);
+			_aligned_free(rayTracer.bvhTop->transforms);
+			rayTracer.bvhTop->pool = (BVHTopNode*)_aligned_malloc(((2 * instanceIdx) - 1) * sizeof(BVHTopNode), 64);
+			rayTracer.bvhTop->transforms = (mat4*)_aligned_malloc(instanceIdx * sizeof(mat4), 64);
+			for (int i = 0; i < instanceIdx; i++) {
+				tie(bvhTopNode, instanceTransform) = rayTracer.instances[i];
+
+				rayTracer.bvhTop->pool[i] = *bvhTopNode;
+				rayTracer.bvhTop->transforms[i] = *instanceTransform;
+			}
 		}
+
 		return;
 	}
 
-	BVHTopNode *bvhTopNode = nullptr;
-
 	if (instanceIdx >= rayTracer.instances.size()) {
-		bvhTopNode = new BVHTopNode;
-		rayTracer.instances.push_back(bvhTopNode);
+		bvhTopNode = (BVHTopNode*)_aligned_malloc(sizeof(BVHTopNode), 64);
+		instanceTransform = (mat4*)_aligned_malloc(sizeof(mat4), 64);
+
+		rayTracer.instances.push_back(make_tuple(bvhTopNode, instanceTransform));
 	}
 	else {
-		bvhTopNode = rayTracer.instances[instanceIdx];
+		tie(bvhTopNode, instanceTransform) = rayTracer.instances[instanceIdx];
 	}
 
-	bvhTopNode->bvh = rayTracer.bvhs[modelIdx];
-	bvhTopNode->transform = transform;
-	float3 bmin = bvhTopNode->bvh->pool[0].bounds.bmin3;
-	float3 bmax = bvhTopNode->bvh->pool[0].bounds.bmax3;
+	bvhTopNode->SetMeshIndex(modelIdx);
+	memcpy(instanceTransform, &transform, sizeof(mat4));
+
+	float3 bmin = rayTracer.bvhs[modelIdx]->pool[0].bounds.bmin3;
+	float3 bmax = rayTracer.bvhs[modelIdx]->pool[0].bounds.bmax3;
 	bvhTopNode->bounds.Reset();
 	bvhTopNode->bounds.Grow(make_float3(make_float4(bmin.x, bmin.y, bmin.z, 1.0f) * transform));
 	bvhTopNode->bounds.Grow(make_float3(make_float4(bmin.x, bmax.y, bmin.z, 1.0f) * transform));
@@ -134,6 +153,14 @@ void RenderCore::SetLights(const CoreLightTri* areaLights, const int areaLightCo
 		memcpy(light, &(areaLights[i]), sizeof(CoreLightTri));
 		rayTracer.areaLights.push_back(light);
 	}
+
+	if (!shotLightRays) {
+		rayTracer.ShootLightRays();
+		shotLightRays = true;
+	}
+
+	_aligned_free(rayTracer.lightsProbabilities);
+	rayTracer.lightsProbabilities = (float*)_aligned_malloc(areaLightCount * sizeof(float), 64);
 
 	rayTracer.pointLights.clear();
 	for (int i = 0; i < pointLightCount; i++) {
@@ -251,9 +278,8 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge)
 	coreStats.totalShadowRays = 0;
 	rayTracer.coreStats = &coreStats;
 
-	rayTracer.Render(view, screen);
+	rayTracer.Render(view, screen, converge);
 
-	
 	// copy pixel buffer to OpenGL render target texture
 	glBindTexture(GL_TEXTURE_2D, targetTextureID);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screen->width, screen->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, screen->pixels);
@@ -262,7 +288,7 @@ void RenderCore::Render(const ViewPyramid& view, const Convergence converge)
 }
 
 void lh2core::RenderCore::UpdateTopLevel() {
-	rayTracer.bvhTop->UpdateTopLevel(rayTracer.instances);
+	rayTracer.bvhTop->UpdateTopLevel();
 }
 
 //  +-----------------------------------------------------------------------------+
