@@ -462,7 +462,7 @@ float3 WhittedStyleRayTracer::Trace(Ray ray) {
 		if ((float)rand() / RAND_MAX > pSurvive) {
 			return albedoLight;
 		}
-		albedo /= pSurvive;
+		albedo /= max(kEpsilon, pSurvive);
 
 		float PDF;
 		SampleCosineWeightedDiffuseReflection(intersection.normal, ray.direction, PDF);
