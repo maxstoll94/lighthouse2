@@ -100,7 +100,7 @@ float3 MicroFacetBRDF(const float3&N, const float&a, const float3&L, const float
 	float3 kSpecular = make_float3(0.56, 0.57, 0.58);
 	float3 F = kSpecular + (1 - kSpecular) * pow(1 - LDotH, 5);
 
-	return (F * G * D) / (4 * NDotL * NDotV);
+	return (F * G * D) / max(kEpsilon, (4 * NDotL * NDotV));
 }
 
 float3 GetColor(const float2 &uv, const Texture &texture) {
