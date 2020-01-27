@@ -265,6 +265,7 @@ IntersectionShading WhittedStyleRayTracer::intersectionTraverseToIntersectionSha
 void lh2core::WhittedStyleRayTracer::ShootLightRays() {
 	Ray ray;
 	IntersectionTraverse intersectionTraverse;
+	IntersectionShading intersection;
 	int numberOfIntersections;
 	int emittedNumberOfPhotons = 0;
 	int* photonsPerLight = (int*)_aligned_malloc(areaLights.size() * sizeof(int), 64);
@@ -299,9 +300,10 @@ void lh2core::WhittedStyleRayTracer::ShootLightRays() {
 			ray.direction = direction;
 			intersectionTraverse.Reset();
 			NearestIntersection(ray, intersectionTraverse);
+			intersection = intersectionTraverseToIntersectionShading(intersectionTraverse, ray);
 
-			if (intersectionTraverse.t != 1e34f) {
-				photon.energy = length(areaLight->radiance);
+			if (intersection.hasIntersection) {
+				photon.energy = length(areaLight->radiance) * dot(intersection.normal, -ray.direction);
 				photon.position = ray.origin + ray.direction * intersectionTraverse.t;
 				photon.lightIndex = i;
 
